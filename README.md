@@ -95,7 +95,7 @@ edu-nivel/
 
 ## 👥 Autores
 
-- **YeustunLR** — [GitHub](https://github.com/YeustunLR)
+- **YeustunLR** — [GitHub](https://github.com/YeustinLR)
 - **Eric.V**
 
 > **Nota:** Si vas a clonar este repositorio, recuerda cambiar el `git clone` por la URL real del repo una vez creado y definir la licencia según corresponda.
