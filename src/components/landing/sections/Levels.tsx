@@ -41,7 +41,7 @@ export default function Levels() {
             <span className="badge-green inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4">7° a 11° año</span>
             <h3 className="text-[22px] font-extrabold mb-2">Secundaria</h3>
             <p className="text-muted mb-6 text-small" style={{ lineHeight: 1.7 }}>
-              Contenido de profundidad para estudiantes de 12 a 17 años. Preparación completa para las pruebas nacionales FARO y bachillerato.
+              Contenido de profundidad para estudiantes de 12 a 17 años. Material preparatorio para las pruebas nacionales FARO y bachillerato.
             </p>
             <div className="grid grid-cols-2 gap-2 mb-7">
               {["Álgebra y Cálculo", "Biología", "Química", "Historia", "Física", "Inglés"].map((m) => (

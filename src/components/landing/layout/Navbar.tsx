@@ -26,7 +26,7 @@ export default function Navbar() {
 
         <nav className="hidden md:flex items-center gap-7">
           {navigationLinks.map((item) => (
-            <a key={item.label} href={item.href} className="nav-link">{item.label}</a>
+            <a key={item .label} href={item.href} className="nav-link">{item.label}</a>
           ))}
         </nav>
 

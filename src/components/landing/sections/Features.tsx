@@ -33,21 +33,21 @@ const featureData = [
     ],
     border: "color-mix(in srgb, var(--secondary) 15%, transparent)",
   },
-  {
-    badge: "badge-green",
-    badgeText: "Administradores",
-    icon: <Shield size={22} className="text-success" />,
-    iconBg: "color-mix(in srgb, var(--success) 15%, transparent)",
-    title: "Gestión centralizada",
-    desc: "Gestioná usuarios, roles, contenidos y suscripciones desde un panel administrativo completo con datos en tiempo real sobre el sistema.",
-    items: [
-      "Gestión de usuarios y roles",
-      "Administración de contenidos por nivel",
-      "Control de suscripciones y pagos Tilopay",
-      "Reportes globales de la plataforma",
-    ],
-    border: "color-mix(in srgb, var(--success) 15%, transparent)",
-  },
+  // {
+  //   badge: "badge-green",
+  //   badgeText: "Administradores",
+  //   icon: <Shield size={22} className="text-success" />,
+  //   iconBg: "color-mix(in srgb, var(--success) 15%, transparent)",
+  //   title: "Gestión centralizada",
+  //   desc: "Gestioná usuarios, roles, contenidos y suscripciones desde un panel administrativo completo con datos en tiempo real sobre el sistema.",
+  //   items: [
+  //     "Gestión de usuarios y roles",
+  //     "Administración de contenidos por nivel",
+  //     "Control de suscripciones y pagos Tilopay",
+  //     "Reportes globales de la plataforma",
+  //   ],
+  //   border: "color-mix(in srgb, var(--success) 15%, transparent)",
+  // },
 ];
 
 export default function Features() {
@@ -60,7 +60,7 @@ export default function Features() {
           description="Estudiantes, docentes y administradores cuentan con accesos y herramientas propias, gestionadas mediante Auth.js con control de sesiones por rol."
         />
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 max-w-[900px] mx-auto">
           {featureData.map(({ badge, badgeText, icon, iconBg, title, desc, items, border }) => (
             <div key={title} className="glass-card card-hover rounded-3xl p-7" style={{ borderColor: border }}>
               <span className={`${badge} inline-block px-3 py-1 rounded-full text-xs font-semibold mb-5`}>{badgeText}</span>

@@ -16,11 +16,11 @@ export default function HomePage() {
 
       <Hero />
 
-      {/* Logo <Features />
+      <Features /> 
 
       <Levels />
 
-      <Pricing />
+      <Pricing />{/*
 
       <Testimonials />
 
