@@ -1,3 +1,5 @@
+import SectionTitle from "../shared/SectionTitle";
+
 export default function TechStack() {
   const techs = [
     { n: "Next.js", e: "Framework fullstack" },
@@ -11,11 +13,9 @@ export default function TechStack() {
   ];
 
   return (
-    <section className="py-16 px-5 lg:px-8">
+    <section className="py-24 px-5 lg:px-8">
       <div className="max-w-4xl mx-auto text-center">
-        <p className="text-muted text-xs font-semibold uppercase tracking-widest mb-8">
-          Construido con tecnologías modernas y robustas
-        </p>
+        <SectionTitle badge="Stack tecnológico" title="Construido con tecnologías modernas y robustas" />
         <div className="flex flex-wrap items-center justify-center gap-3">
           {techs.map(({ n, e }) => (
             <div key={n} className="tech-pill rounded-2xl px-4 py-2.5 flex flex-col items-center gap-0.5">

@@ -20,11 +20,11 @@ export default function HomePage() {
 
       <Levels />
 
-      <Pricing />{/*
+      <Pricing />
 
       <Testimonials />
 
-      <FAQ />
+      {/*<FAQ />
 
       */}<FinalCTA />            
 
