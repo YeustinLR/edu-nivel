@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { GraduationCap, Shield, Cookie, Receipt, FileText } from 'lucide-react';
+import Link from "next/link";
+import { GraduationCap, Shield, Cookie, Receipt, FileText } from "lucide-react";
 
-export default function Footer(): React.ReactElement {
+export default function Footer() {
   const legalLinks = [
     { name: "Términos Legales", href: "/terminos-legales", icon: FileText },
     { name: "Privacidad", href: "/privacidad", icon: Shield },

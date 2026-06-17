@@ -5,7 +5,7 @@ export const testimonials: Testimonial[] = [
     id: "1",
     nombre: "Prof. Luis Monge",
     rol: "Docente de Matemáticas · Liceo de Heredia",
-    texto: "Como docente de secundaria en Heredia, nunca había tenido una herramienta que me permitiera ver el progreso de cada estudiante así de claro. Los reportes me ahorran muchísimo tiempo cada semana.",
+    texto: "Esta herramienta me ha cambiado la rutina: tengo acceso a material listo, cuestionarios variados y formatos de planificación que siguen los ejes curriculares.",
     iniciales: "LM",
     color: "linear-gradient(135deg,#7c3aed,#4f46e5)",
   },

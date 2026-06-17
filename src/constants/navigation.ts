@@ -1,18 +1,18 @@
 export const navigationLinks = [
   {
     label: "Inicio",
-    href: "#inicio",
+    href: "/#inicio",
   },
   {
     label: "Características",
-    href: "#caracteristicas",
+    href: "/#caracteristicas",
   },
   {
     label: "Precios",
-    href: "#precios",
+    href: "/#precios",
   },
   {
     label: "Contacto",
-    href: "#contacto",
+    href: "/#contacto",
   },
 ];

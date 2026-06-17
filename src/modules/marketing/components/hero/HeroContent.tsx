@@ -93,7 +93,7 @@ export default function HeroContent() {
         >
           {socialProof.users.map((user, index) => (
             <div
-              key={index}
+              key={user.bg}
               className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold"
               style={{
                 background: user.bg,

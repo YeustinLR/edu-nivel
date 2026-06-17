@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { GraduationCap, Menu, X } from "lucide-react";
 
 import { navigationLinks } from "@/constants/navigation";
@@ -15,18 +16,18 @@ export default function Navbar() {
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "glass-nav" : ""}`}>
       <div className="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
             <GraduationCap size={17} className="text-accent-foreground" strokeWidth={2.5} />
           </div>
           <span className="logo-text">
             Edu<span className="text-accent">Nivel</span>
           </span>
-        </div>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-7">
           {navigationLinks.map((item) => (
-            <a key={item .label} href={item.href} className="nav-link">{item.label}</a>
+            <Link key={item.label} href={item.href} className="nav-link">{item.label}</Link>
           ))}
         </nav>
 
@@ -50,7 +51,7 @@ export default function Navbar() {
             <ThemeToggle />
           </div>
           {navigationLinks.map((item) => (
-            <a key={item.label} href={item.href} className="nav-link text-body" onClick={() => setMenuOpen(false)}>{item.label}</a>
+            <Link key={item.label} href={item.href} className="nav-link text-body" onClick={() => setMenuOpen(false)}>{item.label}</Link>
           ))}
           <div className="flex flex-col gap-2 pt-2 border-t border-border">
             <button className="btn-ghost py-2.5 rounded-xl text-small">Iniciar Sesión</button>

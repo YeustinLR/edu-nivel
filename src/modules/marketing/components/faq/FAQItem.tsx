@@ -1,9 +1,9 @@
 import { ChevronDown } from "lucide-react";
 
-import { FAQItemType } from "@/modules/marketing/types/faq";
+import type { FAQItem } from "@/modules/marketing/types/faq";
 
 interface Props {
-  item: FAQItemType;
+  item: FAQItem;
   isOpen: boolean;
   onClick: () => void;
 }

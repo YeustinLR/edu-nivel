@@ -1,6 +1,6 @@
-import { FAQItemType } from "@/modules/marketing/types/faq";
+import { FAQItem } from "@/modules/marketing/types/faq";
 
-export const faqs: FAQItemType[] = [
+export const faqs: FAQItem[] = [
   {
     q: "¿Puedo cancelar mi suscripción en cualquier momento?",
     a: "Sí. Podés cancelar cuando lo desees desde tu panel de usuario. No hay contratos de permanencia. Si cancelás un plan anual, se mantendrá activo hasta la fecha de vencimiento.",
