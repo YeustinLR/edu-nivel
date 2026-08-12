@@ -1,14 +1,25 @@
 import { BookOpen, Users } from "lucide-react";
 
 import { Plan } from "@/modules/marketing/types/plan";
+import {
+  amountMinorToCRC,
+  SUBSCRIPTION_PLAN_CATALOG,
+} from "@/modules/subscriptions/config/plan-catalog";
 
 export const plans: Plan[] = [
   {
     id: "estudiante",
+    registrationRole: "STUDENT",
+    monthlyPlanCode: "STUDENT_MONTHLY",
+    annualPlanCode: "STUDENT_YEARLY",
     nombre: "Estudiante",
     icon: BookOpen,
-    mensual: 3500,
-    anual: 33600,
+    mensual: amountMinorToCRC(
+      SUBSCRIPTION_PLAN_CATALOG.STUDENT_MONTHLY.amountMinor,
+    ),
+    anual: amountMinorToCRC(
+      SUBSCRIPTION_PLAN_CATALOG.STUDENT_YEARLY.amountMinor,
+    ),
     color: "yellow",
     desc: "Acceso completo a contenidos de tu nivel educativo.",
     features: [
@@ -23,10 +34,17 @@ export const plans: Plan[] = [
   },
   {
     id: "docente",
+    registrationRole: "TEACHER",
+    monthlyPlanCode: "TEACHER_MONTHLY",
+    annualPlanCode: "TEACHER_YEARLY",
     nombre: "Docente",
     icon: Users,
-    mensual: 6500,
-    anual: 62400,
+    mensual: amountMinorToCRC(
+      SUBSCRIPTION_PLAN_CATALOG.TEACHER_MONTHLY.amountMinor,
+    ),
+    anual: amountMinorToCRC(
+      SUBSCRIPTION_PLAN_CATALOG.TEACHER_YEARLY.amountMinor,
+    ),
     color: "purple",
     desc: "Acceso a materiales educativos, pruebas y planeamientos alineados al MEP.",
     features: [

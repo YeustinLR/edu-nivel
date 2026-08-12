@@ -12,7 +12,7 @@ export const heroContentData: HeroContentData = {
     { label: "Soy estudiante", color: "yellow" },
     { label: "Soy docente", color: "purple" },
   ],
-  ctaPrimary: "Empezar 14 días gratis",
+  ctaPrimary: "Empezar ahora",
   ctaSecondary: "Ver cómo funciona",
   socialProof: {
     users: [

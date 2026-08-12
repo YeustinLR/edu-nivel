@@ -46,14 +46,13 @@ export default function Testimonials() {
         </div>
 
         <div className="glass-card rounded-3xl p-6 mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
-          {[
-            { n: "2 roles", d: "Estudiante, Docente" },
-            { n: "MEP", d: "Currículo oficial CR" },
-            { n: "14 días", d: "Prueba gratuita" },
-            { n: "Tilopay", d: "Pago local seguro" },
-          ].map(({ n, d }) => (
+            {[
+              { n: "2 roles", d: "Estudiante, Docente" },
+              { n: "MEP", d: "Currículo oficial CR" },
+              { n: "ONVO", d: "Pago local seguro" },
+            ].map(({ n, d }) => (
             <div key={n}>
-              <div className="grad-text text-[20px] font-extrabold">{n}</div>
+              <div className="grad-text text-[22px] font-extrabold">{n}</div>
               <div className="text-xs text-muted mt-0.5">{d}</div>
             </div>
           ))}

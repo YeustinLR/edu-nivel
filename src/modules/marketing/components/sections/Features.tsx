@@ -19,7 +19,7 @@ export default function Features() {
               <div style={{ width: 44, height: 44, borderRadius: 14, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                 <Icon size={22} className={iconColor} />
               </div>
-              <h3 className="text-[17px] font-bold mb-2">{title}</h3>
+              <h3 className="text-[19px] font-bold mb-2">{title}</h3>
               <p className="text-muted mb-5 text-small" style={{ lineHeight: 1.7 }}>{desc}</p>
               <ul className="flex flex-col gap-[10px]">
                 {items.map((it) => (

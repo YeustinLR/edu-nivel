@@ -30,7 +30,7 @@ export default function HeroMockup() {
           <div className="grid grid-cols-3 gap-2">
             {[["Álgebra", "82%", "var(--success)"], ["Geometría", "55%", "#f59e0b"], ["Funciones", "48%", "#ef4444"]].map(([m, p, c]) => (
               <div key={m} className="glass-card rounded-xl p-2 text-center">
-                <div className="text-[8px]" style={{ color: "var(--muted)", marginBottom: 2 }}>{m}</div>
+                <div className="text-[9px]" style={{ color: "var(--muted)", marginBottom: 2 }}>{m}</div>
                 <div className="text-xs font-bold" style={{ color: c }}>{p}</div>
               </div>
             ))}
@@ -45,7 +45,7 @@ export default function HeroMockup() {
             <div key={l} className="glass-card rounded-xl p-3 flex items-center gap-2">
               <div style={{ width: 28, height: 28, borderRadius: 8, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div>
               <div>
-                <div className="text-[8px]" style={{ color: "var(--muted)" }}>{l}</div>
+                <div className="text-[9px]" style={{ color: "var(--muted)" }}>{l}</div>
                 <div className="text-xs font-bold">{v}</div>
               </div>
             </div>
@@ -54,9 +54,9 @@ export default function HeroMockup() {
 
         <div className="glass-card rounded-xl p-3 flex items-center justify-between">
           <div>
-            <div className="text-[8px]" style={{ color: "var(--muted)", marginBottom: 2 }}>Próxima lección</div>
+            <div className="text-[9px]" style={{ color: "var(--muted)", marginBottom: 2 }}>Próxima lección</div>
             <div className="text-xs font-semibold">Ecuaciones de segundo grado</div>
-            <div className="text-[8px]" style={{ color: "var(--muted)", marginTop: 1 }}>Unidad 4 · 20 min estimados</div>
+            <div className="text-[9px]" style={{ color: "var(--muted)", marginTop: 1 }}>Unidad 4 · 20 min estimados</div>
           </div>
           <button className="btn-primary px-3 py-1.5 rounded-xl text-xxs">Ir →</button>
         </div>

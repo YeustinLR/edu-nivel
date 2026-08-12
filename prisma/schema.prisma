@@ -1,0 +1,656 @@
+// ============================================================
+// Generator & Datasource
+// ============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum Role {
+  STUDENT
+  TEACHER
+  COLLABORATOR
+  ADMIN
+}
+
+enum PlanCode {
+  STUDENT_MONTHLY
+  STUDENT_YEARLY
+  TEACHER_MONTHLY
+  TEACHER_YEARLY
+}
+
+enum SubscriptionProduct {
+  STUDENT_PREMIUM
+  TEACHER_PREMIUM
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  INITIALIZING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REQUIRES_REVIEW
+}
+
+enum PaymentProvider {
+  ONVO
+}
+
+enum PaymentMethod {
+  SINPE_MOBILE
+}
+
+enum ProviderMode {
+  TEST
+  LIVE
+}
+
+enum WebhookOutcome {
+  PROCESSED
+  IGNORED
+  REQUIRES_REVIEW
+  FAILED
+}
+
+enum ResourceType {
+  NOTE
+  LESSON
+  QUIZ
+  YOUTUBE
+  PDF
+  FILE
+  LINK
+  GAME
+  DIDACTIC
+  IMAGE
+  AUDIO
+}
+
+enum ContentAudience {
+  STUDENT
+  TEACHER
+  BOTH
+}
+
+enum PublicationStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  PUBLISHED
+  UNPUBLISHED
+}
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  CONFIRMED
+  CLEANUP_PENDING
+  FAILED
+  EXPIRED
+}
+
+// ============================================================
+// Better Auth — User / Session / Account / Verification
+// (No modificar campos existentes: Better Auth los gestiona)
+// ============================================================
+
+model User {
+  id                     String    @id
+  name                   String
+  email                  String    @unique
+  emailVerified          Boolean   @default(false)
+  image                  String?
+  birthDate              DateTime?
+  ageDeclared            Int?
+  termsAcceptedAt        DateTime?
+  privacyAcceptedAt      DateTime?
+  ageVerifiedAt          DateTime?
+  role                   Role      @default(STUDENT)
+  suspendedAt            DateTime?
+  suspensionReason       String?
+  suspensionExpiresAt    DateTime?
+  adminCreatedAt         DateTime?
+  passwordChangeRequired Boolean   @default(false)
+  deletedAt              DateTime?
+  selectedLevelId        String?
+  selectedLevel          Level?    @relation("SelectedLevel", fields: [selectedLevelId], references: [id], onDelete: SetNull)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  subscriptions        Subscription[]
+  payments             Payment[]
+  progress             ResourceProgress[]
+  createdModules       Module[]           @relation("ModuleCreator")
+  reviewedModules      Module[]           @relation("ModuleReviewer")
+  publishedModules     Module[]           @relation("ModulePublisher")
+  createdResources     Resource[]         @relation("ResourceCreator")
+  reviewedResources    Resource[]         @relation("ResourceReviewer")
+  publishedResources   Resource[]         @relation("ResourcePublisher")
+  uploadIntents        UploadIntent[]
+  invitationsSent      UserInvitation[]   @relation("InvitationSender")
+  acceptedInvitation   UserInvitation?    @relation("InvitationAcceptedUser")
+  adminActionsTaken    AdminAuditLog[]    @relation("AuditActor")
+  adminActionsTargeted AdminAuditLog[]    @relation("AuditTarget")
+
+  @@index([deletedAt])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  targetUserId String
+  action       String
+  reason       String?
+  changes      Json?
+  createdAt    DateTime @default(now())
+
+  actor      User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser User @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("admin_audit_log")
+}
+
+model UserInvitation {
+  id              String    @id @default(cuid())
+  email           String
+  activeEmail     String?   @unique
+  name            String
+  role            Role
+  tokenHash       String    @unique
+  selectedLevelId String?
+  selectedLevel   Level?    @relation(fields: [selectedLevelId], references: [id], onDelete: SetNull)
+  invitedById     String
+  invitedBy       User      @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedUserId  String?   @unique
+  acceptedUser    User?     @relation("InvitationAcceptedUser", fields: [acceptedUserId], references: [id], onDelete: SetNull)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  canceledAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([invitedById])
+  @@index([selectedLevelId])
+  @@map("user_invitation")
+}
+
+model Subscription {
+  id                 String              @id @default(cuid())
+  userId             String
+  levelId            String
+  product            SubscriptionProduct
+  status             SubscriptionStatus  @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  lastPlanCode       PlanCode?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level    Level     @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([userId, levelId])
+  @@index([userId])
+  @@index([levelId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@map("subscription")
+}
+
+model Payment {
+  id                       String              @id @default(cuid())
+  userId                   String
+  levelId                  String
+  subscriptionId           String?
+  planCode                 PlanCode
+  product                  SubscriptionProduct
+  billingInterval          BillingInterval
+  durationMonths           Int
+  roleAtCheckout           Role
+  expectedAmountMinor      Int
+  receivedAmountMinor      Int?
+  currency                 String              @default("CRC") @db.VarChar(3)
+  provider                 PaymentProvider     @default(ONVO)
+  method                   PaymentMethod       @default(SINPE_MOBILE)
+  providerMode             ProviderMode
+  providerStatus           String?
+  providerPaymentIntentId  String?             @unique
+  providerPaymentMethodId  String?
+  providerChargeId         String?
+  internalReference        String              @unique
+  checkoutRequestId        String              @unique
+  status                   PaymentStatus       @default(INITIALIZING)
+  confirmedAt              DateTime?
+  appliedAt                DateTime?
+  staleAt                  DateTime?
+  payerPhoneLast4          String?
+  payerIdentificationLast4 String?
+  payerIdentificationType  Int?
+  errorCode                String?
+  errorMessage             String?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  level        Level         @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([levelId])
+  @@index([subscriptionId])
+  @@index([providerStatus])
+  @@index([createdAt])
+  @@map("payment")
+}
+
+model WebhookReceipt {
+  id               String          @id @default(cuid())
+  provider         PaymentProvider @default(ONVO)
+  eventType        String
+  providerObjectId String?
+  payloadHash      String?
+  outcome          WebhookOutcome
+  receivedAt       DateTime        @default(now())
+  processedAt      DateTime?
+  errorCode        String?
+
+  @@index([provider, providerObjectId])
+  @@index([payloadHash])
+  @@index([receivedAt])
+  @@map("webhook_receipt")
+}
+
+// ============================================================
+// Dominio Educativo — Jerarquía: Nivel → Materia → Módulo → Recurso
+// ============================================================
+
+model Level {
+  id                   String   @id @default(cuid())
+  levelNumber          Int      @unique
+  description          String?
+  requiresSubscription Boolean  @default(true)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  subjects        Subject[]
+  selectedUsers   User[]           @relation("SelectedLevel")
+  subscriptions   Subscription[]
+  payments        Payment[]
+  userInvitations UserInvitation[]
+
+  @@map("level")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  levelId     String
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules Module[]
+
+  @@unique([levelId, name])
+  @@index([levelId])
+  @@map("subject")
+}
+
+model Module {
+  id                   String            @id @default(cuid())
+  title                String
+  description          String?
+  subjectId            String
+  subject              Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  audience             ContentAudience   @default(BOTH)
+  publicationStatus    PublicationStatus @default(DRAFT)
+  createdById          String
+  createdBy            User              @relation("ModuleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  submittedForReviewAt DateTime?
+  reviewedById         String?
+  reviewedBy           User?             @relation("ModuleReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt           DateTime?
+  reviewNote           String?
+  publishedById        String?
+  publishedBy          User?             @relation("ModulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt          DateTime?
+  order                Int               @default(0)
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  resources     Resource[]
+  uploadIntents UploadIntent[]
+
+  @@unique([subjectId, title])
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([publicationStatus])
+  @@index([audience])
+  @@map("module")
+}
+
+model Resource {
+  id                   String            @id @default(cuid())
+  moduleId             String
+  module               Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  type                 ResourceType
+  title                String
+  description          String?
+  publicationStatus    PublicationStatus @default(DRAFT)
+  createdById          String
+  createdBy            User              @relation("ResourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  submittedForReviewAt DateTime?
+  reviewedById         String?
+  reviewedBy           User?             @relation("ResourceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt           DateTime?
+  reviewNote           String?
+  publishedById        String?
+  publishedBy          User?             @relation("ResourcePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt          DateTime?
+  uploadIntentId       String?           @unique
+  uploadIntent         UploadIntent?     @relation(fields: [uploadIntentId], references: [id], onDelete: SetNull)
+  order                Int               @default(0)
+  isActive             Boolean           @default(true)
+  isRequired           Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  lesson           Lesson?
+  quiz             Quiz?
+  youtubeVideo     YoutubeVideo?
+  pdfResource      PdfResource?
+  fileResource     FileResource?
+  linkResource     LinkResource?
+  gameResource     GameResource?
+  didacticResource DidacticResource?
+  imageResource    ImageResource?
+  audioResource    AudioResource?
+
+  progress ResourceProgress[]
+
+  @@index([moduleId])
+  @@index([type])
+  @@index([createdById])
+  @@index([publicationStatus])
+  @@map("resource")
+}
+
+model UploadIntent {
+  id                      String            @id @default(cuid())
+  createdById             String
+  createdBy               User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  moduleId                String
+  module                  Module            @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  reservedResourceId      String            @unique
+  resourceType            ResourceType
+  targetPublicationStatus PublicationStatus @default(DRAFT)
+  title                   String
+  description             String?
+  originalName            String
+  altText                 String?
+  temporaryStorageKey     String            @unique
+  permanentStorageKey     String            @unique
+  expectedMimeType        String
+  expectedSizeBytes       BigInt
+  temporaryObjectEtag     String?
+  status                  UploadStatus      @default(PENDING)
+  expiresAt               DateTime
+  confirmedAt             DateTime?
+  processingStartedAt     DateTime?
+  cleanupLeaseUntil       DateTime?
+  attemptCount            Int               @default(0)
+  lastAttemptAt           DateTime?
+  failureCode             String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  resource Resource?
+
+  @@index([createdById])
+  @@index([moduleId])
+  @@index([status, expiresAt])
+  @@index([cleanupLeaseUntil])
+  @@map("upload_intent")
+}
+
+// ============================================================
+// Tipos de Recursos Especializados
+// Cada tabla apunta a Resource con FK única + onDelete: Cascade
+// ============================================================
+
+model Lesson {
+  id               String   @id @default(cuid())
+  resourceId       String   @unique
+  resource         Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  content          String   @db.Text
+  estimatedMinutes Int?
+
+  @@map("lesson")
+}
+
+model Quiz {
+  id               String   @id @default(cuid())
+  resourceId       String   @unique
+  resource         Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  passingScore     Int      @default(70)
+  maxAttempts      Int?
+  shuffleQuestions Boolean  @default(false)
+  questions        Json
+
+  @@map("quiz")
+}
+
+model YoutubeVideo {
+  id         String   @id @default(cuid())
+  resourceId String   @unique
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  videoId    String
+  duration   Int?
+  startAt    Int?     @default(0)
+  endAt      Int?
+
+  @@map("youtube_video")
+}
+
+model PdfResource {
+  id           String   @id @default(cuid())
+  resourceId   String   @unique
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt?
+  pageCount    Int?
+
+  @@index([storageKey])
+  @@map("pdf_resource")
+}
+
+model FileResource {
+  id           String   @id @default(cuid())
+  resourceId   String   @unique
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt?
+
+  @@index([storageKey])
+  @@map("file_resource")
+}
+
+model LinkResource {
+  id           String   @id @default(cuid())
+  resourceId   String   @unique
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  url          String
+  openInNewTab Boolean  @default(true)
+
+  @@map("link_resource")
+}
+
+model GameResource {
+  id         String   @id @default(cuid())
+  resourceId String   @unique
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  gameType   String
+  config     Json
+
+  @@map("game_resource")
+}
+
+model DidacticResource {
+  id         String   @id @default(cuid())
+  resourceId String   @unique
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  content    String   @db.Text
+  objective  String?
+
+  @@map("didactic_resource")
+}
+
+model ImageResource {
+  id           String   @id @default(cuid())
+  resourceId   String   @unique
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt?
+  width        Int?
+  height       Int?
+  altText      String?
+  caption      String?
+
+  @@index([storageKey])
+  @@map("image_resource")
+}
+
+model AudioResource {
+  id           String   @id @default(cuid())
+  resourceId   String   @unique
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt?
+  duration     Int?
+  transcript   String?  @db.Text
+
+  @@index([storageKey])
+  @@map("audio_resource")
+}
+
+// ============================================================
+// Progreso del Usuario
+// ============================================================
+
+model ResourceProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  resourceId  String
+  completed   Boolean   @default(false)
+  score       Float?
+  attempts    Int       @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceId])
+  @@index([userId])
+  @@index([resourceId])
+  @@map("resource_progress")
+}

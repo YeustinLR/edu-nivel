@@ -1,4 +1,4 @@
-import { ArrowRight, Play, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import type { Tag } from "@/modules/marketing/types/hero";
 import { heroContentData } from "@/modules/marketing/data/hero";
@@ -9,7 +9,6 @@ const {
   description,
   tags,
   ctaPrimary,
-  ctaSecondary,
   socialProof,
 } = heroContentData;
 
@@ -70,18 +69,6 @@ export default function HeroContent() {
           {ctaPrimary}
           <ArrowRight size={15} aria-hidden="true" />
         </Link>
-
-        <Link
-          href="/como-funciona"
-          className="btn-outline px-8 py-3.5 rounded-2xl text-small flex items-center justify-center gap-2"
-        >
-          <Play
-            size={13}
-            className="fill-white"
-            aria-hidden="true"
-          />
-          {ctaSecondary}
-        </Link>
       </nav>
       <aside
         aria-label="Indicadores de confianza"
@@ -91,7 +78,7 @@ export default function HeroContent() {
           className="flex -space-x-2"
           aria-label="Usuarios en lista de espera"
         >
-          {socialProof.users.map((user, index) => (
+          {socialProof.users.map((user) => (
             <div
               key={user.bg}
               className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold"

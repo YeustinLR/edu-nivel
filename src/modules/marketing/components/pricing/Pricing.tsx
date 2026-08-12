@@ -15,9 +15,9 @@ export default function Pricing() {
     <section id="precios" className="section-alt py-16 md:py-20 px-5 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <SectionTitle
-          badge="Modelo de suscripción · Tilopay"
+          badge="Modelo de suscripción · ONVO"
           title="Planes pensados para Costa Rica"
-          description="Pagos procesados de forma segura con Tilopay. Aceptamos Visa, Mastercard y American Express. Sin contratos de permanencia."
+          description="Pagos procesados mediante SINPE Móvil con confirmación automática. Sin contratos de permanencia."
         />
 
         <PricingToggle planAnual={planAnual} setPlanAnual={setPlanAnual} />
@@ -29,7 +29,7 @@ export default function Pricing() {
         </div>
 
         <p className="text-center text-muted mt-8" style={{ fontSize: 12 }}>
-          🔒 Pago seguro procesado por Tilopay · Precios en colones costarricenses (₡) · IVA incluido
+          🔒 Pago mediante SINPE Móvil procesado por ONVO · Precios en colones costarricenses (₡) · IVA incluido
         </p>
       </div>
     </section>

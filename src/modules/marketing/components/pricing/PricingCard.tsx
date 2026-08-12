@@ -1,4 +1,5 @@
 import { CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 import { formatCRC } from "@/lib/currency";
 import { Plan } from "@/modules/marketing/types/plan";
@@ -36,7 +37,7 @@ export default function PricingCard({ plan, annual }: Props) {
         {plan.mensual ? (
           <>
             <div className="flex items-end gap-1 mb-1">
-              <span className="text-[28px] font-extrabold">
+              <span className="text-[31px] font-extrabold">
                 {formatCRC(annual ? Math.round(plan.anual! / 12) : plan.mensual)}
               </span>
               <span className="text-muted mb-1 text-xs">/mes</span>
@@ -48,7 +49,7 @@ export default function PricingCard({ plan, annual }: Props) {
             )}
           </>
         ) : (
-          <div className="text-[22px] font-extrabold text-secondary">Precio a consultar</div>
+          <div className="text-[24px] font-extrabold text-secondary">Precio a consultar</div>
         )}
         <p className="text-muted mt-2 text-xs" style={{ lineHeight: 1.6 }}>{plan.desc}</p>
       </div>
@@ -61,13 +62,17 @@ export default function PricingCard({ plan, annual }: Props) {
         ))}
       </ul>
 
-      <button
+      <Link
+        href={{
+          pathname: "/registro",
+          query: { role: plan.registrationRole },
+        }}
         className={`w-full py-3 rounded-2xl text-small font-semibold transition-all duration-200 ${
           plan.destacado ? "btn-primary" : plan.id === "institucion" ? "btn-ghost" : "btn-outline"
-        }`}
+        } text-center`}
       >
         {plan.cta}
-      </button>
+      </Link>
     </div>
   );
 }

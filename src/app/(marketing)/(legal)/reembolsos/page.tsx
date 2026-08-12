@@ -24,7 +24,6 @@ export default function ReembolsosPage() {
         <p>No se procesarán reembolsos para:</p>
         <ul className="list-disc pl-6 space-y-1">
           <li>Renovaciones automáticas de suscripciones activas.</li>
-          <li>Pagos efectuados después de un período de prueba gratuito.</li>
           <li>Compras que incumplan las condiciones establecidas en esta política.</li>
         </ul>
 
@@ -38,18 +37,6 @@ export default function ReembolsosPage() {
         <p>
           EduNivel se reserva el derecho de revisar cada solicitud individualmente.
         </p>
-
-        <h2 className="text-xl font-bold text-foreground pt-4">Período de prueba gratuito</h2>
-        <p className="font-semibold text-foreground">Importante</p>
-        <p>
-          Si has utilizado un período de prueba gratuito, el primer pago posterior a dicho período no será reembolsable.
-        </p>
-        <p>Al activar una prueba gratuita aceptas expresamente que:</p>
-        <ul className="list-disc pl-6 space-y-1">
-          <li>Has dispuesto de tiempo suficiente para evaluar la plataforma.</li>
-          <li>Puedes cancelar la suscripción antes de finalizar el período de prueba.</li>
-          <li>Una vez realizado el primer cobro, se considera que has aceptado continuar con el servicio.</li>
-        </ul>
 
         <h2 className="text-xl font-bold text-foreground pt-4">Procedimiento de solicitud</h2>
         <p>

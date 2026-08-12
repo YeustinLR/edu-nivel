@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/onvo-reconcile",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-uploads",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
