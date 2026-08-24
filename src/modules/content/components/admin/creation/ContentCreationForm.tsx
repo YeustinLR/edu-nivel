@@ -34,6 +34,7 @@ export function CreationActionFeedback({ state }: { state: ContentCreationAction
 
 export function CreationFormActions({
   closeHref,
+  onCancel,
   isPending,
   submitDisabled,
   submitLabel = "Guardar",
@@ -42,7 +43,8 @@ export function CreationFormActions({
   submitValue,
   secondarySubmit,
 }: {
-  closeHref: string;
+  closeHref?: string;
+  onCancel?: () => void;
   isPending: boolean;
   submitDisabled?: boolean;
   submitLabel?: string;
@@ -54,6 +56,7 @@ export function CreationFormActions({
   return (
     <ContentFormActions
       closeHref={closeHref}
+      onCancel={onCancel}
       isPending={isPending}
       submitDisabled={submitDisabled}
       submitLabel={submitLabel}

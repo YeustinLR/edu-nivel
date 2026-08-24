@@ -5,16 +5,16 @@ export type LearnerAccessStatus = "ACTIVE" | "INCLUDED" | "LOCKED" | "NO_LEVEL";
 
 export type LearnerSearchItem = {
   id: string;
-  kind: "subject" | "module" | "resource";
+  kind: "level" | "subject" | "module" | "resource";
   label: string;
   context: string;
+  keywords?: string[];
   href: string;
 };
 
 export type LearnerResourceSummary = {
   id: string;
   title: string;
-  description: string | null;
   type: ResourceType;
   subjectId: string;
   subjectName: string;
@@ -23,8 +23,13 @@ export type LearnerResourceSummary = {
   estimatedMinutes: number | null;
   durationSeconds: number | null;
   startedAt: string | null;
+  lastViewedAt: string | null;
   completed: boolean;
   href: string;
+};
+
+export type LearnerSavedResourceSummary = LearnerResourceSummary & {
+  savedAt: string;
 };
 
 export type LearnerSubjectSummary = {
@@ -67,8 +72,7 @@ export type LearnerDashboardData = {
   subjects: LearnerSubjectSummary[];
   continueTarget: LearnerContinueTarget | null;
   recentResources: LearnerResourceSummary[];
+  savedResources: LearnerSavedResourceSummary[];
   availableResources: LearnerResourceSummary[];
   searchItems: LearnerSearchItem[];
 };
-
-export type LearnerShellData = Pick<LearnerDashboardData, "access" | "searchItems">;

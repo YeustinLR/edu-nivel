@@ -25,6 +25,7 @@ export function ContentFieldError({
 
 export function ContentFormActions({
   closeHref,
+  onCancel,
   isPending,
   submitDisabled = false,
   submitLabel = "Guardar",
@@ -34,6 +35,7 @@ export function ContentFormActions({
   secondarySubmit,
 }: {
   closeHref?: string;
+  onCancel?: () => void;
   isPending: boolean;
   submitDisabled?: boolean;
   submitLabel?: string;
@@ -44,7 +46,16 @@ export function ContentFormActions({
 }) {
   return (
     <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
-      {closeHref ? (
+      {onCancel ? (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onCancel}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-5 py-2 text-sm font-medium text-foreground hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50 sm:w-auto"
+        >
+          Cancelar
+        </button>
+      ) : closeHref ? (
         <Link
           href={closeHref}
           aria-disabled={isPending || undefined}

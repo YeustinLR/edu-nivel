@@ -1,4 +1,6 @@
 import type {
+  PaymentMethod,
+  PaymentStatus,
   PlanCode,
   Role,
   SubscriptionStatus,
@@ -10,6 +12,7 @@ export type LearnerSubscriptionEffectiveStatus =
   | "ACTIVE"
   | "EXPIRED"
   | "CANCELED"
+  | "REFUNDED"
   | "INACTIVE";
 
 export type LearnerSubscriptionItem = {
@@ -30,10 +33,22 @@ export type LearnerSubscriptionItem = {
   isSelectedLevel: boolean;
   canStudy: boolean;
   canRenew: boolean;
+  latestPayment: LearnerSubscriptionPaymentSummary | null;
+  openPayment: LearnerPendingPaymentItem | null;
+};
+
+export type LearnerSubscriptionPaymentSummary = {
+  planCode: PlanCode;
+  expectedAmountMinor: number;
+  receivedAmountMinor: number | null;
+  currency: string;
+  method: PaymentMethod;
+  confirmedAt: string | null;
 };
 
 export type LearnerPendingPaymentItem = {
   id: string;
+  levelId: string;
   levelNumber: number;
   planCode: PlanCode;
   status: "INITIALIZING" | "PROCESSING" | "REQUIRES_REVIEW";
@@ -43,11 +58,34 @@ export type LearnerPendingPaymentItem = {
   href: string;
 };
 
+export type LearnerPaymentHistoryItem = {
+  id: string;
+  levelNumber: number;
+  planCode: PlanCode;
+  status: PaymentStatus;
+  expectedAmountMinor: number;
+  receivedAmountMinor: number | null;
+  currency: string;
+  method: PaymentMethod;
+  createdAt: string;
+  confirmedAt: string | null;
+  href: string;
+};
+
+export type LearnerPaymentHistory = {
+  items: LearnerPaymentHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
 export type LearnerSubscriptionOverview = {
   subscriptions: LearnerSubscriptionItem[];
   pendingPayments: LearnerPendingPaymentItem[];
   availableLevelCount: number;
   activeCount: number;
+  paymentHistory: LearnerPaymentHistory;
 };
 
 export type LearnerSubscriptionCheckoutLevel = {

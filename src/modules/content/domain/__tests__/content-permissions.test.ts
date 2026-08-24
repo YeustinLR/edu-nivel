@@ -10,6 +10,7 @@ import {
   canViewContentBody,
   getResourceCreationUnavailableReason,
   isEditablePublicationStatus,
+  isModulePermanentlyDeletable,
   type ContentPermissionActor,
 } from "@/modules/content/domain/content-permissions";
 
@@ -23,6 +24,16 @@ describe("content permissions", () => {
   it.each(["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED"] as const)(
     "marks %s as editable",
     (status) => expect(isEditablePublicationStatus(status)).toBe(true),
+  );
+
+  it.each(["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED"] as const)(
+    "allows permanently deleting a module in %s",
+    (status) => expect(isModulePermanentlyDeletable(status)).toBe(true),
+  );
+
+  it.each(["IN_REVIEW", "PUBLISHED"] as const)(
+    "prevents permanently deleting a module in %s",
+    (status) => expect(isModulePermanentlyDeletable(status)).toBe(false),
   );
 
   it("allows adding resources to a published active module", () => {

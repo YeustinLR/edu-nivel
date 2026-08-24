@@ -16,7 +16,9 @@ function base(resourceType: ResourceType) {
     moduleId: "module-1",
     resourceType,
     title: "Recurso educativo",
-    description: "Descripción",
+    instructions: "Sigue los pasos indicados",
+    content: "Contenido educativo",
+    estimatedMinutes: "15",
     disposition: "DRAFT",
   };
 }
@@ -51,25 +53,6 @@ describe("admin resource creation schema", () => {
 
     expect(
       createAdminStructuredResourceSchema.parse({
-        ...base(ResourceType.LESSON),
-        content: "Contenido de la lección",
-        estimatedMinutes: "15",
-      }),
-    ).toMatchObject({
-      resourceType: ResourceType.LESSON,
-      estimatedMinutes: 15,
-    });
-
-    expect(
-      createAdminStructuredResourceSchema.parse({
-        ...base(ResourceType.DIDACTIC),
-        content: "Actividad guiada",
-        objective: "Comprender el tema",
-      }),
-    ).toMatchObject({ resourceType: ResourceType.DIDACTIC });
-
-    expect(
-      createAdminStructuredResourceSchema.parse({
         ...base(ResourceType.YOUTUBE),
         videoId: "dQw4w9WgXcQ",
         startAt: "20",
@@ -88,6 +71,22 @@ describe("admin resource creation schema", () => {
     ).toMatchObject({
       resourceType: ResourceType.LINK,
       url: "https://example.com/recurso",
+    });
+  });
+
+  it("accepts a resource with only a title", () => {
+    expect(
+      createAdminStructuredResourceSchema.parse({
+        ...base(ResourceType.NOTE),
+        description: "",
+        content: "",
+        estimatedMinutes: "",
+      }),
+    ).toMatchObject({
+      resourceType: ResourceType.NOTE,
+      title: "Recurso educativo",
+      content: undefined,
+      estimatedMinutes: undefined,
     });
   });
 
@@ -113,6 +112,7 @@ describe("admin resource creation schema", () => {
     formData.set("moduleId", "module-1");
     formData.set("resourceType", ResourceType.YOUTUBE);
     formData.set("title", "Video");
+    formData.set("content", "Explicación del video");
     formData.set("disposition", "PUBLISH");
     formData.set(
       "videoId",
@@ -122,6 +122,7 @@ describe("admin resource creation schema", () => {
 
     expect(getAdminStructuredResourceFormValues(formData)).toMatchObject({
       videoId: "dQw4w9WgXcQ",
+      content: "Explicación del video",
       startAt: "30",
       openInNewTab: false,
     });

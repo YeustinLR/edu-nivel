@@ -9,6 +9,7 @@ import {
   type ContentPermissionActor,
 } from "@/modules/content/domain/content-permissions";
 import { getResourceCreationStatus } from "@/modules/content/domain/content-creation";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import type { CreateAdminStructuredResourceInput } from "@/modules/content/schemas/admin-resource-creation.schema";
 import { prisma } from "@/server/db/prisma";
 
@@ -69,10 +70,10 @@ function findExistingResource(resourceId: string) {
       moduleId: true,
       type: true,
       title: true,
-      description: true,
+      instructions: true,
+      content: true,
+      estimatedMinutes: true,
       createdById: true,
-      lesson: { select: { content: true, estimatedMinutes: true } },
-      didacticResource: { select: { content: true, objective: true } },
       youtubeVideo: { select: { videoId: true, startAt: true } },
       linkResource: { select: { url: true, openInNewTab: true } },
     },
@@ -89,7 +90,9 @@ function isMatchingRequest(
     existing.createdById !== actorId ||
     existing.type !== input.resourceType ||
     existing.title !== input.title ||
-    existing.description !== (input.description ?? null)
+    existing.instructions !== (input.instructions ?? null) ||
+    existing.content !== (input.content ?? null) ||
+    existing.estimatedMinutes !== (input.estimatedMinutes ?? null)
   ) {
     return false;
   }
@@ -97,16 +100,6 @@ function isMatchingRequest(
   switch (input.resourceType) {
     case ResourceType.NOTE:
       return true;
-    case ResourceType.LESSON:
-      return (
-        existing.lesson?.content === input.content &&
-        existing.lesson.estimatedMinutes === (input.estimatedMinutes ?? null)
-      );
-    case ResourceType.DIDACTIC:
-      return (
-        existing.didacticResource?.content === input.content &&
-        existing.didacticResource.objective === (input.objective ?? null)
-      );
     case ResourceType.YOUTUBE:
       return (
         existing.youtubeVideo?.videoId === input.videoId &&
@@ -145,7 +138,9 @@ function buildResourceData(
     id: input.requestId,
     type: input.resourceType,
     title: input.title,
-    description: input.description ?? null,
+    instructions: input.instructions ?? null,
+    content: input.content ?? null,
+    estimatedMinutes: input.estimatedMinutes ?? null,
     publicationStatus,
     submittedForReviewAt:
       publicationStatus === PublicationStatus.IN_REVIEW ? now : null,
@@ -157,24 +152,6 @@ function buildResourceData(
         : undefined,
     module: { connect: { id: input.moduleId } },
     createdBy: { connect: { id: actorId } },
-    lesson:
-      input.resourceType === ResourceType.LESSON
-        ? {
-            create: {
-              content: input.content,
-              estimatedMinutes: input.estimatedMinutes ?? null,
-            },
-          }
-        : undefined,
-    didacticResource:
-      input.resourceType === ResourceType.DIDACTIC
-        ? {
-            create: {
-              content: input.content,
-              objective: input.objective ?? null,
-            },
-          }
-        : undefined,
     youtubeVideo:
       input.resourceType === ResourceType.YOUTUBE
         ? {
@@ -200,6 +177,10 @@ export async function createCatalogStructuredResource(
   input: CreateAdminStructuredResourceInput,
   actor: ContentPermissionActor,
 ) {
+  input = {
+    ...input,
+    content: normalizeResourceContentForStorage(input.content) ?? undefined,
+  } as CreateAdminStructuredResourceInput;
   const publicationStatus = getResourceCreationStatus(
     actor.role,
     input.disposition,
@@ -215,6 +196,7 @@ export async function createCatalogStructuredResource(
     where: { id: input.moduleId },
     select: {
       id: true,
+      subjectId: true,
       createdById: true,
       publicationStatus: true,
       isActive: true,
@@ -228,6 +210,16 @@ export async function createCatalogStructuredResource(
     throw new ResourceCreationError(
       "MODULE_NOT_FOUND",
       "El módulo seleccionado ya no existe.",
+    );
+  }
+
+  if (
+    input.expectedSubjectId &&
+    moduleRecord.subjectId !== input.expectedSubjectId
+  ) {
+    throw new ResourceCreationError(
+      "MODULE_NOT_FOUND",
+      "El módulo no pertenece a la materia seleccionada.",
     );
   }
 

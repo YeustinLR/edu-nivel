@@ -55,6 +55,7 @@ export async function deleteAdminUser(
         await tx.session.deleteMany({ where: { userId: target.id } });
         await tx.account.deleteMany({ where: { userId: target.id } });
         await tx.resourceProgress.deleteMany({ where: { userId: target.id } });
+        await tx.savedResource.deleteMany({ where: { userId: target.id } });
         await tx.verification.deleteMany({ where: { identifier: { contains: target.email } } });
         await tx.payment.updateMany({
           where: { userId: target.id },

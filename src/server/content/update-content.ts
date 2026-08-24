@@ -14,6 +14,7 @@ import type {
   UpdateResourceInput,
   UpdateSubjectInput,
 } from "@/modules/content/schemas/content-edit.schema";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import { prisma } from "@/server/db/prisma";
 
 export type ContentUpdateErrorCode =
@@ -148,6 +149,8 @@ export async function updateCatalogLevel(
     }
     throw error;
   }
+
+  return { affectsPublishedContent: true };
 }
 
 export async function updateCatalogSubject(
@@ -182,6 +185,8 @@ export async function updateCatalogSubject(
     }
     throw error;
   }
+
+  return { affectsPublishedContent: true };
 }
 
 export async function updateCatalogModule(
@@ -229,20 +234,28 @@ export async function updateCatalogModule(
     }
     throw error;
   }
+
+  return {
+    affectsPublishedContent:
+      moduleRecord.publicationStatus === "PUBLISHED",
+  };
 }
 
 export async function updateCatalogResource(
   input: UpdateResourceInput,
   actor: ContentUpdateActor,
 ) {
+  input = {
+    ...input,
+    content: normalizeResourceContentForStorage(input.content) ?? undefined,
+  };
   const resource = await prisma.resource.findUnique({
     where: { id: input.id },
     select: {
       createdById: true,
       publicationStatus: true,
       type: true,
-      lesson: { select: { id: true } },
-      didacticResource: { select: { id: true } },
+      content: true,
       youtubeVideo: { select: { id: true } },
       linkResource: { select: { id: true } },
     },
@@ -260,11 +273,7 @@ export async function updateCatalogResource(
     );
   }
 
-  if (
-    (resource.type === ResourceType.LESSON ||
-      resource.type === ResourceType.DIDACTIC) &&
-    !input.content?.trim()
-  ) {
+  if (resource.content !== null && !input.content?.trim()) {
     throw new ContentUpdateError(
       "INVALID_RESOURCE_DATA",
       "El contenido del recurso es obligatorio.",
@@ -297,7 +306,9 @@ export async function updateCatalogResource(
         },
         data: {
           title: input.title,
-          description: input.description ?? null,
+          instructions: input.instructions ?? null,
+          content: input.content?.trim() || null,
+          estimatedMinutes: input.estimatedMinutes ?? null,
         },
       });
     } catch (error) {
@@ -315,38 +326,6 @@ export async function updateCatalogResource(
         "EDIT_CONFLICT",
         "El recurso cambió mientras lo editabas. Actualiza la página e inténtalo nuevamente.",
       );
-    }
-
-    if (resource.type === ResourceType.LESSON) {
-      if (!resource.lesson) {
-        throw new ContentUpdateError(
-          "INVALID_RESOURCE_DATA",
-          "La lección no tiene datos asociados.",
-        );
-      }
-      await transaction.lesson.update({
-        where: { resourceId: input.id },
-        data: {
-          content: input.content?.trim() ?? "",
-          estimatedMinutes: input.estimatedMinutes ?? null,
-        },
-      });
-    }
-
-    if (resource.type === ResourceType.DIDACTIC) {
-      if (!resource.didacticResource) {
-        throw new ContentUpdateError(
-          "INVALID_RESOURCE_DATA",
-          "El material didáctico no tiene datos asociados.",
-        );
-      }
-      await transaction.didacticResource.update({
-        where: { resourceId: input.id },
-        data: {
-          content: input.content?.trim() ?? "",
-          objective: input.objective?.trim() || null,
-        },
-      });
     }
 
     if (resource.type === ResourceType.YOUTUBE) {
@@ -388,4 +367,6 @@ export async function updateCatalogResource(
       });
     }
   });
+
+  return { affectsPublishedContent: false };
 }

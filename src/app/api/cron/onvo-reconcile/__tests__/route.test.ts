@@ -11,6 +11,9 @@ vi.mock("@/config/env", () => ({ env: envMock }));
 vi.mock("@/server/payments/onvo/reconcile-pending", () => ({
   reconcilePendingOnvoPayments: reconcilePendingMock,
 }));
+vi.mock("@/server/content/revalidate-content", () => ({
+  revalidatePaymentAccessPages: vi.fn(),
+}));
 
 import { GET } from "@/app/api/cron/onvo-reconcile/route";
 

@@ -7,6 +7,7 @@ import {
   Role,
 } from "@/generated/prisma/client";
 import { getPremiumAccessDecision, requireUser } from "@/server/auth/guards";
+import { audienceAllowsLearnerRole } from "@/server/content/learner-content-access";
 import { prisma } from "@/server/db/prisma";
 import {
   createPresignedDownloadUrl,
@@ -15,12 +16,7 @@ import {
 
 function audienceAllowsRole(audience: ContentAudience, role: Role) {
   if (role === Role.COLLABORATOR || role === Role.ADMIN) return true;
-
-  return (
-    audience === ContentAudience.BOTH ||
-    (audience === ContentAudience.STUDENT && role === Role.STUDENT) ||
-    (audience === ContentAudience.TEACHER && role === Role.TEACHER)
-  );
+  return audienceAllowsLearnerRole(audience, role);
 }
 
 export async function GET(
@@ -38,14 +34,57 @@ export async function GET(
   const { resourceId } = await params;
   const resource = await prisma.resource.findUnique({
     where: { id: resourceId },
-    include: {
-      pdfResource: true,
-      imageResource: true,
-      fileResource: true,
-      audioResource: true,
+    select: {
+      id: true,
+      type: true,
+      createdById: true,
+      publicationStatus: true,
+      isActive: true,
+      pdfResource: {
+        select: {
+          storageKey: true,
+          originalName: true,
+          mimeType: true,
+        },
+      },
+      imageResource: {
+        select: {
+          storageKey: true,
+          originalName: true,
+          mimeType: true,
+        },
+      },
+      fileResource: {
+        select: {
+          storageKey: true,
+          originalName: true,
+          mimeType: true,
+        },
+      },
+      audioResource: {
+        select: {
+          storageKey: true,
+          originalName: true,
+          mimeType: true,
+        },
+      },
       module: {
-        include: {
-          subject: { include: { level: true } },
+        select: {
+          createdById: true,
+          publicationStatus: true,
+          isActive: true,
+          audience: true,
+          subject: {
+            select: {
+              isActive: true,
+              level: {
+                select: {
+                  id: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
         },
       },
     },

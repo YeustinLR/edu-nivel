@@ -21,6 +21,8 @@ const {
   levelFindUniqueMock,
   reconcileMock,
   requireUserMock,
+  rateLimitMock,
+  MockOnvoApiError,
 } = vi.hoisted(() => ({
   confirmIntentMock: vi.fn(),
   createIntentMock: vi.fn(),
@@ -32,6 +34,15 @@ const {
   levelFindUniqueMock: vi.fn(),
   reconcileMock: vi.fn(),
   requireUserMock: vi.fn(),
+  rateLimitMock: vi.fn(),
+  MockOnvoApiError: class OnvoApiError extends Error {
+    constructor(
+      public readonly status: number,
+      public readonly code: string | null,
+    ) {
+      super("ONVO error");
+    }
+  },
 }));
 
 vi.mock("server-only", () => ({}));
@@ -55,10 +66,19 @@ vi.mock("@/server/db/prisma", () => ({
 }));
 
 vi.mock("@/server/payments/onvo/client", () => ({
-  OnvoApiError: class OnvoApiError extends Error {},
+  OnvoApiError: MockOnvoApiError,
+  isDefinitiveOnvoApiRejection: (error: { status: number }) =>
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![408, 409, 425, 429].includes(error.status),
   confirmOnvoPaymentIntent: confirmIntentMock,
   createOnvoPaymentIntent: createIntentMock,
   createOnvoSinpeMobilePaymentMethod: createMethodMock,
+}));
+
+vi.mock("@/server/payments/onvo/checkout-rate-limit", () => ({
+  CheckoutRateLimitError: class CheckoutRateLimitError extends Error {},
+  enforceCheckoutRateLimit: rateLimitMock,
 }));
 
 vi.mock("@/server/payments/onvo/reconcile", () => ({
@@ -111,6 +131,7 @@ describe("createSinpePayment authorization and checkout ownership", () => {
     vi.clearAllMocks();
     process.env.ONVO_ENV = "test";
     requireUserMock.mockResolvedValue(student);
+    rateLimitMock.mockResolvedValue(undefined);
     paymentFindUniqueMock.mockResolvedValue(null);
     paymentFindFirstMock.mockResolvedValue(null);
     levelFindUniqueMock.mockResolvedValue({
@@ -229,5 +250,47 @@ describe("createSinpePayment authorization and checkout ownership", () => {
         }),
       }),
     );
+  });
+
+  it("keeps an ambiguous ONVO 500 blocked for reconciliation", async () => {
+    const persisted = localPayment();
+    paymentCreateMock.mockResolvedValue(persisted);
+    paymentUpdateMock.mockImplementation(({ data }) =>
+      Promise.resolve({ ...persisted, ...data }),
+    );
+    createIntentMock.mockRejectedValue(new MockOnvoApiError(500, null));
+
+    await expect(createSinpePayment(input)).rejects.toMatchObject({
+      code: "PAYMENT_INITIALIZATION_FAILED",
+    });
+    expect(paymentUpdateMock).toHaveBeenCalledWith({
+      where: { id: persisted.id },
+      data: expect.objectContaining({
+        status: PaymentStatus.REQUIRES_REVIEW,
+        errorCode: "ONVO_INITIALIZATION_UNCERTAIN",
+      }),
+    });
+  });
+
+  it("marks a definitive ONVO validation rejection as failed", async () => {
+    const persisted = localPayment();
+    paymentCreateMock.mockResolvedValue(persisted);
+    paymentUpdateMock.mockImplementation(({ data }) =>
+      Promise.resolve({ ...persisted, ...data }),
+    );
+    createIntentMock.mockRejectedValue(
+      new MockOnvoApiError(400, "invalid_request"),
+    );
+
+    await expect(createSinpePayment(input)).rejects.toMatchObject({
+      code: "PAYMENT_INITIALIZATION_FAILED",
+    });
+    expect(paymentUpdateMock).toHaveBeenCalledWith({
+      where: { id: persisted.id },
+      data: expect.objectContaining({
+        status: PaymentStatus.FAILED,
+        errorCode: "invalid_request",
+      }),
+    });
   });
 });

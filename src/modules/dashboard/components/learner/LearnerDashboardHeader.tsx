@@ -1,82 +1,175 @@
 "use client";
 
-import { Bell, BookOpen, Menu } from "lucide-react";
-import Link from "next/link";
+import { Bell, Search, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import { Role } from "@/generated/prisma/enums";
-import { SidebarUserMenu } from "@/modules/dashboard/components/layout/SidebarUserMenu";
 import { LearnerDashboardSearch } from "@/modules/dashboard/components/learner/LearnerDashboardSearch";
 import type { LearnerRole, LearnerSearchItem } from "@/modules/dashboard/types/learner-dashboard";
 
 export function LearnerDashboardHeader({
   role,
   firstName,
-  userName,
-  userEmail,
-  userImage,
-  searchItems,
-  onOpenSidebar,
-  onLogout,
 }: {
   role: LearnerRole;
   firstName: string;
-  userName: string;
-  userEmail: string;
-  userImage?: string | null;
-  searchItems: LearnerSearchItem[];
-  onOpenSidebar: () => void;
-  onLogout: () => void;
 }) {
-  const initials = userName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  const dashboardHref =
-    role === Role.STUDENT ? "/dashboard/student" : "/dashboard/teacher";
+  const searchDialogRef = useRef<HTMLDialogElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchRequestRef = useRef<AbortController>(null);
+  const searchLoadStateRef = useRef<"idle" | "loading" | "ready" | "error">("idle");
+  const [searchLoadState, setSearchLoadState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [searchItems, setSearchItems] = useState<LearnerSearchItem[]>([]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+      searchRequestRef.current?.abort();
+    };
+  }, []);
+
+  async function loadSearchItems() {
+    if (
+      searchLoadStateRef.current === "loading" ||
+      searchLoadStateRef.current === "ready"
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    searchRequestRef.current?.abort();
+    searchRequestRef.current = controller;
+    searchLoadStateRef.current = "loading";
+    setSearchLoadState("loading");
+
+    try {
+      const response = await fetch("/api/dashboard/learner-search", {
+        method: "GET",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Search request failed with ${response.status}.`);
+
+      const payload: unknown = await response.json();
+      if (
+        typeof payload !== "object" ||
+        payload === null ||
+        !("items" in payload) ||
+        !Array.isArray(payload.items)
+      ) {
+        throw new Error("Search response is invalid.");
+      }
+      if (controller.signal.aborted) return;
+
+      setSearchItems(payload.items as LearnerSearchItem[]);
+      searchLoadStateRef.current = "ready";
+      setSearchLoadState("ready");
+    } catch {
+      if (controller.signal.aborted) return;
+      searchLoadStateRef.current = "error";
+      setSearchLoadState("error");
+    }
+  }
+
+  function openSearch() {
+    const dialog = searchDialogRef.current;
+    if (!dialog || dialog.open) return;
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    void loadSearchItems();
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  function closeSearch() {
+    searchDialogRef.current?.close();
+  }
+
+  function closeOnBackdrop(event: MouseEvent<HTMLDialogElement>) {
+    if (event.target === event.currentTarget) closeSearch();
+  }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--student-border)] bg-[color-mix(in_srgb,var(--student-bg)_92%,transparent)] backdrop-blur-xl">
-      <div className="mx-auto grid min-h-[88px] w-full max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 sm:px-6 xl:grid-cols-[minmax(210px,0.55fr)_minmax(320px,1.4fr)_auto] xl:gap-7 xl:px-9">
-        <div className="flex min-w-0 items-center gap-3">
-          <button type="button" onClick={onOpenSidebar} aria-label="Abrir navegación" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--student-border)] bg-[var(--student-panel)] text-[var(--student-text)] xl:hidden">
-            <Menu aria-hidden="true" className="h-5 w-5" />
-          </button>
-          <Link href={dashboardHref} className="flex items-center gap-2 xl:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--student-blue)] text-white"><BookOpen aria-hidden="true" className="h-5 w-5" /></span>
-            <span className="hidden font-bold text-[var(--student-text)] sm:inline">EduNivel</span>
-          </Link>
-          <h1 className="hidden truncate text-[1.45rem] font-bold tracking-[-0.03em] text-[var(--student-text)] xl:block">
-            Hola, {firstName} <span aria-hidden="true">👋</span>
-          </h1>
-        </div>
+    <>
+      <header className="sticky top-0 z-30 border-b border-[var(--student-border)] bg-[color-mix(in_srgb,var(--student-bg)_92%,transparent)] backdrop-blur-xl">
+        <div className="mx-auto flex h-16 w-full max-w-[1460px] items-center gap-3 px-4 sm:px-6 lg:grid lg:min-h-[84px] lg:grid-cols-[minmax(220px,0.7fr)_minmax(320px,1.3fr)_minmax(120px,0.7fr)] lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-gold-100 to-white text-gold shadow-sm ring-1 ring-gold/15 dark:from-gold/20 dark:to-[var(--student-panel)]"
+            >
+              <Sparkles className="size-[18px]" fill="currentColor" />
+            </span>
+            <p className="min-w-0 truncate font-heading text-base font-semibold tracking-[-0.02em] text-[var(--student-muted)] sm:text-lg lg:text-xl">
+              Hola, <strong className="font-bold text-[var(--student-text)]">{firstName}</strong>
+              <span aria-hidden="true" className="ml-1.5">👋</span>
+            </p>
+          </div>
 
-        <div className="hidden w-full xl:block">
-          <LearnerDashboardSearch items={searchItems} />
-        </div>
+          <div className="hidden w-full lg:block">
+            <LearnerDashboardSearch
+              items={searchItems}
+              catalogMode={role === Role.STUDENT}
+              loadState={searchLoadState}
+              onRequestItems={loadSearchItems}
+            />
+          </div>
 
-        <div className="flex items-center justify-end gap-2 sm:gap-3">
-          <span title="No hay notificaciones disponibles" aria-label="Notificaciones" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-[var(--student-text)] transition hover:bg-[var(--student-soft)]">
-            <Bell aria-hidden="true" className="h-[22px] w-[22px]" strokeWidth={1.8} />
-          </span>
-          <span className="hidden h-9 w-px bg-[var(--student-border)] sm:block" />
-          <SidebarUserMenu
-            userName={userName}
-            userEmail={userEmail}
-            userRole={role}
-            userImage={userImage}
-            initials={initials}
-            onLogout={onLogout}
-            collapsed={false}
-            variant="learner-header"
+          <div className="ml-auto flex items-center justify-end gap-1 lg:ml-0 lg:gap-2">
+            <button
+              type="button"
+              onClick={openSearch}
+              aria-label="Abrir búsqueda"
+              aria-haspopup="dialog"
+              className="flex size-11 items-center justify-center rounded-full text-[var(--student-text)] hover:bg-[var(--student-soft)] focus-visible:outline-2 focus-visible:outline-[var(--student-blue)] lg:hidden"
+            >
+              <Search aria-hidden="true" className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Notificaciones"
+              title="No hay notificaciones disponibles"
+              className="relative flex size-11 items-center justify-center rounded-full text-gold hover:bg-gold-100 focus-visible:outline-2 focus-visible:outline-[var(--student-blue)] dark:hover:bg-gold/10"
+            >
+              <Bell aria-hidden="true" className="size-[21px]" fill="currentColor" />
+              <span aria-hidden="true" className="absolute right-2 top-2 size-2 rounded-full border-2 border-[var(--student-bg)] bg-coral" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <dialog
+        ref={searchDialogRef}
+        aria-labelledby="learner-search-title"
+        onClose={() => { document.body.style.overflow = ""; }}
+        onClick={closeOnBackdrop}
+        className="fixed inset-x-0 bottom-0 top-auto m-0 min-h-[68dvh] w-full max-w-none rounded-t-[24px] border border-[var(--student-border)] bg-[var(--student-panel)] p-0 text-[var(--student-text)] shadow-2xl backdrop:bg-ink-900/65 backdrop:backdrop-blur-[2px] lg:hidden"
+      >
+        <div className="border-b border-[var(--student-border)] px-4 pb-4 pt-2">
+          <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-10 rounded-full bg-[var(--student-border)]" />
+          <div className="mb-3 flex items-center justify-between">
+            <h2 id="learner-search-title" className="font-heading text-lg font-bold">Buscar en EduNivel</h2>
+            <button
+              type="button"
+              onClick={closeSearch}
+              aria-label="Cerrar búsqueda"
+              className="flex size-11 items-center justify-center rounded-full text-[var(--student-muted)] hover:bg-[var(--student-soft)] focus-visible:outline-2 focus-visible:outline-[var(--student-blue)]"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+          </div>
+          <LearnerDashboardSearch
+            items={searchItems}
+            catalogMode={role === Role.STUDENT}
+            loadState={searchLoadState}
+            onRequestItems={loadSearchItems}
+            inputRef={searchInputRef}
+            onNavigate={closeSearch}
           />
         </div>
-
-        <div className="col-span-3 pb-3 xl:hidden">
-          <LearnerDashboardSearch items={searchItems} />
-        </div>
-      </div>
-    </header>
+      </dialog>
+    </>
   );
 }

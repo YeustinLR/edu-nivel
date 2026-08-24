@@ -1,15 +1,17 @@
 import { FileText, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 
-import {
-  ContentAudience,
-  PublicationStatus,
-  Role,
-} from "@/generated/prisma/enums";
+import { Role } from "@/generated/prisma/enums";
 import { ContentPageHeader } from "@/modules/content/components/admin/ContentPageHeader";
 import { LearnerLevelSelector } from "@/modules/content/components/learner/LearnerLevelSelector";
 import { LearnerSubjectModules } from "@/modules/content/components/learner/LearnerSubjectModules";
 import { getPremiumAccessDecision, requireUser } from "@/server/auth/guards";
+import {
+  getVisibleLearnerModuleWhere,
+  getVisibleLearnerResourceWhere,
+  type LearnerContentRole,
+} from "@/server/content/learner-content-access";
+import { getActiveAcademicLevels } from "@/server/content/published-academic-catalog-queries";
 import { prisma } from "@/server/db/prisma";
 
 export async function LearnerContent({
@@ -18,28 +20,24 @@ export async function LearnerContent({
   title = "Contenido educativo",
   description = "Elige un nivel y explora sus materias, módulos y recursos publicados.",
 }: {
-  role: Role;
+  role: LearnerContentRole;
   presentation?: "default" | "learner";
   title?: string;
   description?: string;
 }) {
   const learner = presentation === "learner";
   const user = await requireUser();
-  const levels = await prisma.level.findMany({
-    where: { isActive: true },
-    orderBy: { levelNumber: "asc" },
-    select: { id: true, levelNumber: true, requiresSubscription: true },
-  });
+  const levels = await getActiveAcademicLevels();
   const selectedLevel = levels.find((level) => level.id === user.selectedLevelId) ?? null;
   const access = selectedLevel ? await getPremiumAccessDecision(selectedLevel.id) : null;
   const canOpen = Boolean(access?.decision.allowed);
+  const moduleWhere = getVisibleLearnerModuleWhere(role);
+  const resourceWhere = getVisibleLearnerResourceWhere();
 
   const modules = selectedLevel && canOpen
     ? await prisma.module.findMany({
         where: {
-          isActive: true,
-          publicationStatus: PublicationStatus.PUBLISHED,
-          audience: { in: [ContentAudience.BOTH, role === Role.STUDENT ? ContentAudience.STUDENT : ContentAudience.TEACHER] },
+          ...moduleWhere,
           subject: { levelId: selectedLevel.id, isActive: true },
         },
         orderBy: [{ subject: { order: "asc" } }, { order: "asc" }],
@@ -49,15 +47,15 @@ export async function LearnerContent({
           description: true,
           subject: { select: { id: true, name: true } },
           resources: {
-            where: { isActive: true, publicationStatus: PublicationStatus.PUBLISHED },
+            where: resourceWhere,
             orderBy: { order: "asc" },
             select: {
               id: true,
               title: true,
-              description: true,
+              instructions: true,
+              content: true,
+              estimatedMinutes: true,
               type: true,
-              lesson: { select: { content: true, estimatedMinutes: true } },
-              didacticResource: { select: { content: true, objective: true } },
               youtubeVideo: { select: { videoId: true, startAt: true } },
               linkResource: { select: { url: true, openInNewTab: true } },
             },

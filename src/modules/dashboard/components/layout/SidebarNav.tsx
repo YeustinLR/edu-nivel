@@ -7,6 +7,7 @@ interface SidebarNavProps {
   activeHref: string | undefined;
   onNavClick?: () => void;
   collapsed: boolean;
+  tone?: "default" | "learner";
 }
 
 export function SidebarNav({
@@ -14,6 +15,7 @@ export function SidebarNav({
   activeHref,
   onNavClick,
   collapsed,
+  tone = "default",
 }: SidebarNavProps) {
   if (collapsed) {
     const items = navGroups.flatMap((group) => group.items);
@@ -54,14 +56,14 @@ export function SidebarNav({
   return (
     <nav
       aria-label="Navegación principal"
-      className="flex-1 overflow-y-auto py-3"
+      className={`flex-1 overflow-y-auto py-3 ${tone === "learner" ? "px-4" : ""}`}
     >
       {navGroups.map((group) => (
         <div key={group.title} className="mb-3">
-          <p className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted">
+          <p className={`mb-1 px-0 text-[11px] font-semibold uppercase tracking-wider ${tone === "learner" ? "text-white/45" : "text-muted"}`}>
             {group.title}
           </p>
-          <ul className="space-y-0.5 px-2">
+          <ul className={`space-y-1.5 ${tone === "learner" ? "" : "px-2"}`}>
             {group.items.map((item) => {
               const Icon = item.icon;
               const isActive = activeHref === item.href;
@@ -72,13 +74,17 @@ export function SidebarNav({
                     href={item.href}
                     onClick={onNavClick}
                     aria-current={isActive ? "page" : undefined}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary ${
-                      isActive
-                        ? "bg-secondary/10 text-secondary"
-                        : "text-foreground-secondary hover:bg-surface-elevated hover:text-foreground"
+                    className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                      tone === "learner"
+                        ? isActive
+                          ? "bg-[#21345f] text-white focus-visible:ring-violet"
+                          : "text-white/75 hover:bg-white/8 hover:text-white focus-visible:ring-violet"
+                        : isActive
+                          ? "bg-secondary/10 text-secondary focus-visible:outline-secondary"
+                          : "text-foreground-secondary hover:bg-surface-elevated hover:text-foreground focus-visible:outline-secondary"
                     }`}
                   >
-                    <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                    <Icon aria-hidden="true" className={`h-[18px] w-[18px] shrink-0 ${tone === "learner" ? (isActive ? "text-[#56c8ff]" : "text-white/55") : ""}`} />
                     {item.label}
                   </Link>
                 </li>

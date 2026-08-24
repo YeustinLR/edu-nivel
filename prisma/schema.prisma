@@ -43,6 +43,7 @@ enum SubscriptionStatus {
   ACTIVE
   CANCELED
   EXPIRED
+  REFUNDED
 }
 
 enum PaymentStatus {
@@ -51,7 +52,17 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   CANCELED
+  REFUNDED
   REQUIRES_REVIEW
+}
+
+enum RefundStatus {
+  REQUESTED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REQUIRES_REVIEW
+  CANCELED
 }
 
 enum PaymentProvider {
@@ -72,18 +83,17 @@ enum WebhookOutcome {
   IGNORED
   REQUIRES_REVIEW
   FAILED
+  PROCESSING
 }
 
 enum ResourceType {
   NOTE
-  LESSON
   QUIZ
   YOUTUBE
   PDF
   FILE
   LINK
   GAME
-  DIDACTIC
   IMAGE
   AUDIO
 }
@@ -143,7 +153,9 @@ model User {
   sessions             Session[]
   subscriptions        Subscription[]
   payments             Payment[]
+  refundsRequested     PaymentRefund[]    @relation("RefundRequester")
   progress             ResourceProgress[]
+  savedResources       SavedResource[]
   createdModules       Module[]           @relation("ModuleCreator")
   reviewedModules      Module[]           @relation("ModuleReviewer")
   publishedModules     Module[]           @relation("ModulePublisher")
@@ -317,9 +329,10 @@ model Payment {
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  level        Level         @relation(fields: [levelId], references: [id], onDelete: Restrict)
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  level        Level           @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  subscription Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  refunds      PaymentRefund[]
 
   @@index([userId, status])
   @@index([levelId])
@@ -329,16 +342,50 @@ model Payment {
   @@map("payment")
 }
 
+model PaymentRefund {
+  id                  String          @id @default(cuid())
+  paymentId           String
+  provider            PaymentProvider @default(ONVO)
+  providerMode        ProviderMode
+  providerRefundId    String?         @unique
+  expectedAmountMinor Int
+  providerAmountMinor Int?
+  currency            String          @db.VarChar(3)
+  status              RefundStatus    @default(REQUESTED)
+  providerStatus      String?
+  reason              String?
+  requestedById       String?
+  requestedAt         DateTime        @default(now())
+  providerCreatedAt   DateTime?
+  providerUpdatedAt   DateTime?
+  lastCheckedAt       DateTime?
+  appliedAt           DateTime?
+  errorCode           String?
+  errorMessage        String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  requestedBy User?   @relation("RefundRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, status])
+  @@index([status, updatedAt])
+  @@index([requestedById, requestedAt])
+  @@map("payment_refund")
+}
+
 model WebhookReceipt {
-  id               String          @id @default(cuid())
-  provider         PaymentProvider @default(ONVO)
-  eventType        String
-  providerObjectId String?
-  payloadHash      String?
-  outcome          WebhookOutcome
-  receivedAt       DateTime        @default(now())
-  processedAt      DateTime?
-  errorCode        String?
+  id                  String          @id @default(cuid())
+  provider            PaymentProvider @default(ONVO)
+  eventType           String
+  providerObjectId    String?
+  payloadHash         String?
+  deduplicationKey    String?         @unique
+  outcome             WebhookOutcome
+  receivedAt          DateTime        @default(now())
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  errorCode           String?
 
   @@index([provider, providerObjectId])
   @@index([payloadHash])
@@ -426,7 +473,9 @@ model Resource {
   module               Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   type                 ResourceType
   title                String
-  description          String?
+  instructions         String?
+  content              String?           @db.Text
+  estimatedMinutes     Int?
   publicationStatus    PublicationStatus @default(DRAFT)
   createdById          String
   createdBy            User              @relation("ResourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -446,18 +495,17 @@ model Resource {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
-  lesson           Lesson?
-  quiz             Quiz?
-  youtubeVideo     YoutubeVideo?
-  pdfResource      PdfResource?
-  fileResource     FileResource?
-  linkResource     LinkResource?
-  gameResource     GameResource?
-  didacticResource DidacticResource?
-  imageResource    ImageResource?
-  audioResource    AudioResource?
+  quiz          Quiz?
+  youtubeVideo  YoutubeVideo?
+  pdfResource   PdfResource?
+  fileResource  FileResource?
+  linkResource  LinkResource?
+  gameResource  GameResource?
+  imageResource ImageResource?
+  audioResource AudioResource?
 
   progress ResourceProgress[]
+  savedBy  SavedResource[]
 
   @@index([moduleId])
   @@index([type])
@@ -476,7 +524,9 @@ model UploadIntent {
   resourceType            ResourceType
   targetPublicationStatus PublicationStatus @default(DRAFT)
   title                   String
-  description             String?
+  instructions            String?
+  content                 String?           @db.Text
+  estimatedMinutes        Int?
   originalName            String
   altText                 String?
   temporaryStorageKey     String            @unique
@@ -508,16 +558,6 @@ model UploadIntent {
 // Tipos de Recursos Especializados
 // Cada tabla apunta a Resource con FK única + onDelete: Cascade
 // ============================================================
-
-model Lesson {
-  id               String   @id @default(cuid())
-  resourceId       String   @unique
-  resource         Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  content          String   @db.Text
-  estimatedMinutes Int?
-
-  @@map("lesson")
-}
 
 model Quiz {
   id               String   @id @default(cuid())
@@ -590,16 +630,6 @@ model GameResource {
   @@map("game_resource")
 }
 
-model DidacticResource {
-  id         String   @id @default(cuid())
-  resourceId String   @unique
-  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  content    String   @db.Text
-  objective  String?
-
-  @@map("didactic_resource")
-}
-
 model ImageResource {
   id           String   @id @default(cuid())
   resourceId   String   @unique
@@ -637,20 +667,37 @@ model AudioResource {
 // ============================================================
 
 model ResourceProgress {
-  id          String    @id @default(cuid())
-  userId      String
-  resourceId  String
-  completed   Boolean   @default(false)
-  score       Float?
-  attempts    Int       @default(0)
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
+  id           String    @id @default(cuid())
+  userId       String
+  resourceId   String
+  completed    Boolean   @default(false)
+  score        Float?
+  attempts     Int       @default(0)
+  startedAt    DateTime  @default(now())
+  lastViewedAt DateTime  @default(now())
+  completedAt  DateTime?
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, resourceId])
   @@index([userId])
+  @@index([userId, lastViewedAt])
   @@index([resourceId])
   @@map("resource_progress")
+}
+
+model SavedResource {
+  id         String   @id @default(cuid())
+  userId     String
+  resourceId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceId])
+  @@index([userId, createdAt])
+  @@index([resourceId])
+  @@map("saved_resource")
 }

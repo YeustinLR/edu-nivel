@@ -6,6 +6,7 @@ import {
   Role,
   UploadStatus,
 } from "@/generated/prisma/enums";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 
 const {
   copyMock,
@@ -62,7 +63,9 @@ const intent = {
   resourceType: ResourceType.PDF,
   targetPublicationStatus: PublicationStatus.DRAFT,
   title: "Guía",
-  description: null,
+  instructions: "Resuelve los ejercicios después de leer",
+  content: "Contenido de la guía",
+  estimatedMinutes: 10,
   originalName: "guia.pdf",
   altText: null,
   temporaryStorageKey: "pending/upload_1/file.pdf",
@@ -124,6 +127,13 @@ describe("confirmContentUpload", () => {
       expect.objectContaining({ sourceEtag: '"etag-a"' }),
     );
     expect(txResourceCreateMock).toHaveBeenCalledTimes(1);
+    expect(txResourceCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        instructions: "Resuelve los ejercicios después de leer",
+        content: normalizeResourceContentForStorage("Contenido de la guía"),
+        estimatedMinutes: 10,
+      }),
+    });
   });
 
   it.each([

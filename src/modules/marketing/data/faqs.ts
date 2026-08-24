@@ -2,12 +2,12 @@ import { FAQItem } from "@/modules/marketing/types/faq";
 
 export const faqs: FAQItem[] = [
   {
-    q: "¿Puedo cancelar mi suscripción en cualquier momento?",
-    a: "Sí. Podés cancelar cuando lo desees desde tu panel de usuario. No hay contratos de permanencia. Si cancelás un plan anual, se mantendrá activo hasta la fecha de vencimiento.",
+    q: "¿La suscripción se renueva automáticamente?",
+    a: "No. El acceso se adquiere por 1 o 12 meses y cada renovación requiere un nuevo pago autorizado por vos.",
   },
   {
     q: "¿Qué métodos de pago aceptan?",
-    a: "Procesamos pagos mediante ONVO, una pasarela de pagos costarricense. Aceptamos tarjetas de crédito y débito Visa, Mastercard y American Express emitidas en Costa Rica y el exterior.",
+    a: "Procesamos pagos por SINPE Móvil mediante ONVO. EduNivel muestra el monto exacto y espera la confirmación del proveedor antes de habilitar el contenido.",
   },
   {
     q: "¿Los contenidos están alineados al currículo del MEP?",

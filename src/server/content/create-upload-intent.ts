@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { ResourceType, Role } from "@/generated/prisma/enums";
 import { getResourceCreationStatus } from "@/modules/content/domain/content-creation";
 import { canCreateResource } from "@/modules/content/domain/content-permissions";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import {
   FilePolicyError,
   getFilePolicy,
@@ -21,6 +22,10 @@ import {
 export async function createContentUploadIntent(
   input: CreateUploadIntentInput,
 ) {
+  input = {
+    ...input,
+    content: normalizeResourceContentForStorage(input.content) ?? undefined,
+  };
   if (!isR2UploadEnabled()) {
     throw new ContentUploadError(
       "R2_UPLOADS_DISABLED",
@@ -66,6 +71,8 @@ export async function createContentUploadIntent(
 
   if (
     !moduleRecord ||
+    (input.expectedSubjectId &&
+      moduleRecord.subjectId !== input.expectedSubjectId) ||
     !moduleRecord.isActive ||
     !moduleRecord.subject.isActive ||
     !moduleRecord.subject.level.isActive
@@ -106,7 +113,9 @@ export async function createContentUploadIntent(
       resourceType,
       targetPublicationStatus,
       title: input.title,
-      description: input.description || null,
+      instructions: input.instructions || null,
+      content: input.content ?? null,
+      estimatedMinutes: input.estimatedMinutes ?? null,
       originalName: input.originalName,
       altText: input.altText || null,
       temporaryStorageKey,

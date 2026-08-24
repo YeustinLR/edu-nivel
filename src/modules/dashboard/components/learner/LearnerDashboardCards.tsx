@@ -84,29 +84,58 @@ export function LearnerSectionHeading({
 export function LearnerSubjectCard({
   subject,
   index,
+  variant = "dashboard",
+  selected = false,
+  onSelect,
 }: {
   subject: LearnerSubjectSummary;
   index: number;
+  variant?: "dashboard" | "explore";
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
   const visual = visualForSubject(subject, index);
   const Icon = visual.Icon;
   const Decoration = visual.Decoration;
 
-  return (
-    <Link href={subject.href} className={`group relative min-h-[166px] overflow-hidden rounded-[1.35rem] border p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(15,23,42,0.08)] ${visual.className}`}>
+  const className = `group relative overflow-hidden rounded-[1.35rem] border p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(15,23,42,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--student-blue)] ${variant === "explore" ? "min-h-[132px]" : "min-h-[166px]"} ${selected ? "ring-2 ring-[var(--student-blue)] ring-offset-2 ring-offset-[var(--student-bg)]" : ""} ${visual.className}`;
+  const content = (
+    <>
       <div className="relative z-10 flex items-start gap-4">
         <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-lg ${visual.iconClassName}`}>
           <Icon aria-hidden="true" className="h-8 w-8" strokeWidth={1.9} />
         </span>
         <div className="min-w-0 pt-1.5">
           <h3 className="truncate text-base font-bold text-[var(--student-text)]">{subject.name}</h3>
-          <p className="mt-1 text-sm text-[var(--student-muted)]">{subject.moduleCount} {subject.moduleCount === 1 ? "módulo" : "módulos"}</p>
+          <p className="mt-1 text-sm text-[var(--student-muted)]">
+            {subject.moduleCount} {subject.moduleCount === 1 ? "módulo" : "módulos"}
+            {variant === "explore" ? ` · ${subject.resourceCount} ${subject.resourceCount === 1 ? "recurso" : "recursos"}` : ""}
+          </p>
         </div>
       </div>
       <Decoration aria-hidden="true" className={`absolute -bottom-6 right-5 h-24 w-24 transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-[-3deg] ${visual.decorationClassName}`} strokeWidth={1.2} />
       <span className="absolute bottom-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/75 bg-white/85 text-slate-700 shadow-sm transition group-hover:bg-white group-hover:text-blue-600 dark:border-white/10 dark:bg-slate-950/55 dark:text-slate-100">
         <ChevronRight aria-hidden="true" className="h-5 w-5" />
       </span>
+    </>
+  );
+
+  if (variant === "explore" && onSelect) {
+    return (
+      <button
+        type="button"
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={subject.href} aria-current={selected ? "true" : undefined} className={className}>
+      {content}
     </Link>
   );
 }

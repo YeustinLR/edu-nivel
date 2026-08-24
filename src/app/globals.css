@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/landing.css";
+@config "../../tailwind.config.ts";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -62,23 +63,31 @@
 .learner-dashboard {
   --student-bg: #f7f9fc;
   --student-panel: #ffffff;
-  --student-text: #0a1931;
-  --student-muted: #68758b;
-  --student-border: rgba(148, 163, 184, 0.28);
-  --student-blue: #1768e5;
-  --student-blue-soft: #eaf2ff;
-  --student-soft: #f0f4fa;
+  --student-text: #131b2e;
+  --student-muted: #6b7590;
+  --student-border: #e7e1d2;
+  --student-blue: #7c5cfc;
+  --student-blue-soft: #ede9fe;
+  --student-soft: #f3efe4;
 }
 
 .dark .learner-dashboard {
   --student-bg: #07111f;
-  --student-panel: #0d1b2e;
-  --student-text: #f1f5fb;
-  --student-muted: #9aa8bc;
-  --student-border: rgba(148, 163, 184, 0.16);
-  --student-blue: #60a5fa;
-  --student-blue-soft: rgba(59, 130, 246, 0.14);
-  --student-soft: #132238;
+  --student-panel: color-mix(in srgb, #131b2e 88%, white);
+  --student-text: #fbf8f1;
+  --student-muted: color-mix(in srgb, #fbf8f1 62%, #131b2e);
+  --student-border: color-mix(in srgb, #fbf8f1 16%, #131b2e);
+  --student-blue: color-mix(in srgb, #7c5cfc 78%, white);
+  --student-blue-soft: color-mix(in srgb, #7c5cfc 18%, transparent);
+  --student-soft: color-mix(in srgb, #fbf8f1 8%, #131b2e);
+}
+
+.learner-dashboard--materias {
+  --student-bg: #ffffff;
+}
+
+.dark .learner-dashboard--materias {
+  --student-bg: color-mix(in srgb, #131b2e 92%, black);
 }
 
 .student-subscription-theme {
@@ -117,12 +126,25 @@ body {
   to { transform: translateX(0); }
 }
 
+@keyframes workspaceDrawerIn {
+  from { transform: translateX(2rem); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.content-workspace-drawer[open] > div {
+  animation: workspaceDrawerIn 0.2s ease-out;
+}
+
 .sidebar-drawer {
   animation: slideInLeft 0.2s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar-drawer {
+    animation: none;
+  }
+
+  .content-workspace-drawer[open] > div {
     animation: none;
   }
 }

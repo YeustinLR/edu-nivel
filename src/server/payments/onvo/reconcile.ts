@@ -16,8 +16,13 @@ import { verifyOnvoPaymentIntent } from "@/modules/payments/domain/verify-onvo-p
 import { prisma } from "@/server/db/prisma";
 import { getOnvoPaymentIntent } from "@/server/payments/onvo/client";
 import type { OnvoPaymentIntent } from "@/server/payments/onvo/schemas";
-
-const MAX_SERIALIZABLE_RETRIES = 3;
+import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
+import { flagProviderRefundWithoutId } from "@/server/payments/onvo/refunds";
+import {
+  isRetryableSerializableConflict,
+  MAX_SERIALIZABLE_ATTEMPTS,
+  waitBeforeSerializableRetry,
+} from "@/server/payments/onvo/serializable-transaction";
 
 export type OnvoReconciliationOutcome =
   | "PROCESSING"
@@ -110,7 +115,7 @@ async function applySucceededPayment(
   const confirmedAt = getConfirmedAt(intent);
   const providerChargeId = getSuccessfulChargeId(intent);
 
-  for (let attempt = 1; attempt <= MAX_SERIALIZABLE_RETRIES; attempt += 1) {
+  for (let attempt = 1; attempt <= MAX_SERIALIZABLE_ATTEMPTS; attempt += 1) {
     try {
       const outcome = await prisma.$transaction(
         async (tx) => {
@@ -235,14 +240,19 @@ async function applySucceededPayment(
         return { paymentId, outcome: "ALREADY_APPLIED" };
       }
 
-      const shouldRetry =
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2034" &&
-        attempt < MAX_SERIALIZABLE_RETRIES;
+      if (!isRetryableSerializableConflict(error)) throw error;
 
-      if (!shouldRetry) {
-        throw error;
-      }
+      const hasNextAttempt = attempt < MAX_SERIALIZABLE_ATTEMPTS;
+      logOnvoPaymentEvent({
+        event: hasNextAttempt
+          ? "transaction.conflict.retry"
+          : "transaction.conflict.exhausted",
+        outcome: `attempt-${attempt}-of-${MAX_SERIALIZABLE_ATTEMPTS}`,
+        paymentId,
+      });
+      if (!hasNextAttempt) throw error;
+
+      await waitBeforeSerializableRetry(attempt);
     }
   }
 
@@ -261,10 +271,32 @@ export async function reconcileOnvoPaymentIntent(
   }
 
   const intent = await getOnvoPaymentIntent(providerPaymentIntentId);
+  logOnvoPaymentEvent({
+    event: "intent.reconciled",
+    outcome: intent.status,
+    paymentId: payment.id,
+    paymentIntentId: providerPaymentIntentId,
+  });
   const verificationIssues = verifyOnvoPaymentIntent(payment, intent);
 
   if (verificationIssues.length > 0) {
     return markForReview(payment.id, intent, verificationIssues.join(","));
+  }
+
+  if (intent.status === "refunded") {
+    await flagProviderRefundWithoutId({
+      paymentId: payment.id,
+      providerStatus: intent.status,
+    });
+    return { paymentId: payment.id, outcome: "REQUIRES_REVIEW" };
+  }
+
+  if (intent.status === "partially_refunded") {
+    await flagProviderRefundWithoutId({
+      paymentId: payment.id,
+      providerStatus: intent.status,
+    });
+    return { paymentId: payment.id, outcome: "REQUIRES_REVIEW" };
   }
 
   if (payment.appliedAt) {
@@ -308,6 +340,20 @@ export async function reconcileOnvoPaymentIntent(
         staleAt: null,
         errorCode: "PAYMENT_METHOD_REQUIRED",
         errorMessage: "ONVO requiere un nuevo metodo de pago.",
+      },
+    });
+    return { paymentId: payment.id, outcome: "FAILED" };
+  }
+
+  if (intent.status === "failed") {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.FAILED,
+        providerStatus: intent.status,
+        staleAt: null,
+        errorCode: "PAYMENT_FAILED",
+        errorMessage: "ONVO confirmo que el pago fallo.",
       },
     });
     return { paymentId: payment.id, outcome: "FAILED" };

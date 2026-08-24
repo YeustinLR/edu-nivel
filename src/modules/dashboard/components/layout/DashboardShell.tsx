@@ -9,7 +9,6 @@ import { DashboardSidebar } from "@/modules/dashboard/components/layout/Dashboar
 import { BottomNavigation } from "@/modules/dashboard/components/layout/BottomNavigation";
 import { useActiveNavItem } from "@/modules/dashboard/hooks/useActiveNavItem";
 import { LearnerDashboardShell } from "@/modules/dashboard/components/learner/LearnerDashboardShell";
-import type { LearnerShellData } from "@/modules/dashboard/types/learner-dashboard";
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -17,7 +16,6 @@ interface DashboardShellProps {
   userEmail: string;
   userRole: string;
   userImage?: string | null;
-  learnerShellData?: LearnerShellData;
 }
 
 export function DashboardShell({
@@ -26,26 +24,20 @@ export function DashboardShell({
   userEmail,
   userRole,
   userImage,
-  learnerShellData,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { allItems, activeItem } = useActiveNavItem(userRole);
 
   const pageTitle =
     activeItem && activeItem.label !== "Panel" ? activeItem.label : null;
 
-  if (
-    (userRole === "STUDENT" || userRole === "TEACHER") &&
-    learnerShellData
-  ) {
+  if (userRole === "STUDENT" || userRole === "TEACHER") {
     return (
       <LearnerDashboardShell
         role={userRole}
         userName={userName}
         userEmail={userEmail}
         userImage={userImage}
-        shellData={learnerShellData}
       >
         {children}
       </LearnerDashboardShell>
@@ -57,16 +49,15 @@ export function DashboardShell({
       <DashboardSidebar
         userName={userName}
         userRole={userRole}
+        userEmail={userEmail}
         userImage={userImage}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
       />
 
       <div
         className={`flex flex-1 flex-col transition-[margin] duration-300 ${
-          sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
+          "lg:ml-[248px]"
         }`}
       >
         <div className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:sticky lg:top-0">

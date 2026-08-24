@@ -19,7 +19,7 @@ export default async function CollaboratorCreateResourcePage() {
         description="Guarda un recurso como borrador o envíalo a revisión dentro de uno de tus módulos disponibles."
         breadcrumbs={[{ label: "Mis contenidos", href: "/dashboard/collaborator/content" }, { label: "Nuevo recurso" }]}
       />
-      <ContentFormSurface>
+      <ContentFormSurface wide>
         <UploadResourceForm
           modules={workspace.moduleOptions}
           requestId={randomUUID()}

@@ -48,6 +48,34 @@ describe("startSinpePaymentSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it.each([
+    [0, "01-1234-5678"],
+    [1, "112345678901"],
+    [2, "2-123-123456"],
+    [3, "3-123-123456"],
+    [4, "4-000-123456"],
+    [5, "512345678901"],
+    [9, "912345678901"],
+  ])("acepta el formato oficial para identificacion tipo %s", (type, id) => {
+    expect(
+      startSinpePaymentSchema.safeParse({
+        ...validInput,
+        identificationType: type,
+        identification: id,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rechaza una identificacion cuyo formato no corresponde al tipo", () => {
+    expect(
+      startSinpePaymentSchema.safeParse({
+        ...validInput,
+        identificationType: 3,
+        identification: "01-1234-5678",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("startLearnerRenewalPaymentSchema", () => {

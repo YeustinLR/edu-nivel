@@ -56,6 +56,7 @@ export async function getCollaboratorContentWorkspace(userId: string) {
       select: {
         id: true,
         title: true,
+        audience: true,
         publicationStatus: true,
         createdBy: { select: { name: true } },
         subject: {

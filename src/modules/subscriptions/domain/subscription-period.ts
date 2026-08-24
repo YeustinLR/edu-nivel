@@ -43,9 +43,8 @@ type SubscriptionPeriod = {
 };
 
 /**
- * A confirmed payment extends an active period from its current end so the user
- * does not lose paid time. Missing, inactive, or expired periods restart at the
- * provider confirmation time.
+ * A confirmed payment extends any still-valid paid period from its current end,
+ * including a canceled subscription that remains usable until period end.
  */
 export function resolveSubscriptionPeriod(
   currentSubscription: ExistingSubscriptionPeriod | null,
@@ -53,7 +52,8 @@ export function resolveSubscriptionPeriod(
   durationMonths: number,
 ): SubscriptionPeriod {
   const carriesExistingTime =
-    currentSubscription?.status === SubscriptionStatus.ACTIVE &&
+    (currentSubscription?.status === SubscriptionStatus.ACTIVE ||
+      currentSubscription?.status === SubscriptionStatus.CANCELED) &&
     currentSubscription.currentPeriodEnd > confirmedAt;
   const currentPeriodStart = carriesExistingTime
     ? currentSubscription.currentPeriodStart

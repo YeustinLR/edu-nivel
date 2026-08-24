@@ -33,12 +33,14 @@ describe("applyEditorialTransition", () => {
       createdById: "collaborator-1",
       subjectId: "subject-1",
       publicationStatus: PublicationStatus.DRAFT,
+      isActive: true,
     });
     mocks.resourceFindUnique.mockResolvedValue({
       id: "resource-1",
       createdById: "collaborator-1",
       moduleId: "module-1",
       publicationStatus: PublicationStatus.DRAFT,
+      isActive: true,
     });
     mocks.moduleUpdateMany.mockResolvedValue({ count: 1 });
     mocks.resourceUpdateMany.mockResolvedValue({ count: 1 });
@@ -112,5 +114,28 @@ describe("applyEditorialTransition", () => {
         }),
       }),
     );
+  });
+
+  it("impide publicar contenido archivado", async () => {
+    mocks.moduleFindUnique.mockResolvedValueOnce({
+      id: "module-1",
+      createdById: "collaborator-1",
+      subjectId: "subject-1",
+      publicationStatus: PublicationStatus.DRAFT,
+      isActive: false,
+    });
+
+    await expect(
+      applyEditorialTransition({
+        targetType: "module",
+        targetId: "module-1",
+        transition: "PUBLISH_DIRECT",
+        actor: { id: "admin-1", role: Role.ADMIN },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_TRANSITION",
+      message: "Reactiva el contenido antes de publicarlo.",
+    });
+    expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
   });
 });

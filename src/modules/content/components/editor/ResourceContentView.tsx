@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   ExternalLink,
   FileText,
+  Lightbulb,
   LinkIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -17,6 +18,7 @@ import { ContextualActionBar } from "@/modules/content/components/admin/Contextu
 import { PdfViewerLauncher } from "@/modules/content/components/shared/PdfCanvasViewer";
 import { YouTubeEmbed } from "@/modules/content/components/shared/YouTubeEmbed";
 import type { ResourceContentDetail } from "@/server/content/content-detail-queries";
+import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
 
 function DetailRow({
   label,
@@ -63,49 +65,25 @@ function ProtectedFileUnavailable() {
   );
 }
 
+function WrittenContent({ resource }: { resource: ResourceContentDetail }) {
+  if (!resource.content && !resource.estimatedMinutes) return null;
+
+  return (
+    <div className="space-y-2">
+      {resource.estimatedMinutes ? (
+        <p className="text-xs text-muted">
+          {resource.estimatedMinutes} minutos estimados
+        </p>
+      ) : null}
+      {resource.content ? (
+        <ResourceContentRenderer content={resource.content} />
+      ) : null}
+    </div>
+  );
+}
+
 function SpecializedContent({ resource }: { resource: ResourceContentDetail }) {
-  if (resource.type === ResourceType.NOTE) {
-    return (
-      <p className="rounded-lg border border-dashed border-border p-4 text-sm leading-6 text-muted">
-        Este recurso no tiene contenido adjunto.
-      </p>
-    );
-  }
-
-  if (resource.lesson) {
-    return (
-      <div className="space-y-2">
-        {resource.lesson.estimatedMinutes ? (
-          <p className="text-xs text-muted">
-            {resource.lesson.estimatedMinutes} minutos estimados
-          </p>
-        ) : null}
-        <div className="whitespace-pre-wrap text-sm leading-7 text-foreground-secondary">
-          {resource.lesson.content}
-        </div>
-      </div>
-    );
-  }
-
-  if (resource.didactic) {
-    return (
-      <div className="space-y-4">
-        {resource.didactic.objective ? (
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Objetivo
-            </p>
-            <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-              {resource.didactic.objective}
-            </p>
-          </div>
-        ) : null}
-        <div className="whitespace-pre-wrap text-sm leading-7 text-foreground-secondary">
-          {resource.didactic.content}
-        </div>
-      </div>
-    );
-  }
+  if (resource.type === ResourceType.NOTE) return null;
 
   if (resource.youtube) {
     return (
@@ -307,14 +285,26 @@ export function ResourceContentView({
         </ContextualActionBar>
       </header>
 
-      {resource.description ? (
-        <p className="whitespace-pre-wrap text-sm leading-6 text-foreground-secondary">
-          {resource.description}
-        </p>
+      {resource.instructions ? (
+        <aside className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+          <h4 className="flex items-center gap-2 text-sm font-semibold">
+            <Lightbulb aria-hidden="true" className="h-4 w-4" />
+            Indicaciones para el estudiante
+          </h4>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+            {resource.instructions}
+          </p>
+        </aside>
       ) : null}
 
-      <section aria-label="Vista previa del recurso">
+      <section aria-label="Vista previa del recurso" className="space-y-5">
+        <WrittenContent resource={resource} />
         <SpecializedContent resource={resource} />
+        {!resource.content && resource.type === ResourceType.NOTE ? (
+          <p className="rounded-lg border border-dashed border-border p-4 text-sm leading-6 text-muted">
+            Este recurso todavía no tiene contenido escrito.
+          </p>
+        ) : null}
       </section>
 
       <TechnicalDetails resource={resource} />

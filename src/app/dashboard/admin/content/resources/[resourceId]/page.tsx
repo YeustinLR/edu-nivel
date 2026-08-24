@@ -53,7 +53,7 @@ export default async function AdminResourceDetailPage({
       <ContentPageHeader
         eyebrow="Recurso"
         title={resource.title}
-        description={resource.description ?? "Este recurso no tiene una descripción."}
+        description="Consulta el contenido, las indicaciones y el estado editorial del recurso."
         breadcrumbs={[
           ...adminCatalogBreadcrumbs,
           { label: `Nivel ${context.module.subject.level.levelNumber}`, href: `/dashboard/admin/content/levels/${encodeURIComponent(context.module.subject.level.id)}` },

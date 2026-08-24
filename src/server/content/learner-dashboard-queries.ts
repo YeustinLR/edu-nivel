@@ -2,29 +2,36 @@ import "server-only";
 
 import { cache } from "react";
 
-import {
-  ContentAudience,
-  PublicationStatus,
-  Role,
-} from "@/generated/prisma/enums";
+import { Role } from "@/generated/prisma/enums";
 import type {
   LearnerContinueTarget,
   LearnerDashboardData,
   LearnerResourceSummary,
   LearnerRole,
+  LearnerSavedResourceSummary,
   LearnerSearchItem,
 } from "@/modules/dashboard/types/learner-dashboard";
 import { getPremiumAccessDecision, requireRole } from "@/server/auth/guards";
+import {
+  getVisibleLearnerModuleWhere,
+  getVisibleLearnerResourceWhere,
+} from "@/server/content/learner-content-access";
+import { getActiveAcademicLevels } from "@/server/content/published-academic-catalog-queries";
 import { prisma } from "@/server/db/prisma";
 
-const audiencesByRole = {
-  [Role.STUDENT]: [ContentAudience.STUDENT, ContentAudience.BOTH],
-  [Role.TEACHER]: [ContentAudience.TEACHER, ContentAudience.BOTH],
-} as const;
-
-function contentHref(role: LearnerRole, subjectId: string) {
+function contentHref(
+  role: LearnerRole,
+  subjectId: string,
+  resourceId?: string,
+) {
   const roleSegment = role === Role.STUDENT ? "student" : "teacher";
-  return `/dashboard/${roleSegment}/content#subject-${encodeURIComponent(subjectId)}`;
+  if (role === Role.TEACHER) {
+    return `/dashboard/${roleSegment}/content#subject-${encodeURIComponent(subjectId)}`;
+  }
+
+  const parameters = new URLSearchParams({ subject: subjectId });
+  if (resourceId) parameters.set("resource", resourceId);
+  return `/dashboard/${roleSegment}/content?${parameters.toString()}`;
 }
 
 function firstName(name: string) {
@@ -35,17 +42,9 @@ export const getLearnerDashboardData = cache(async (
   role: LearnerRole,
 ): Promise<LearnerDashboardData> => {
   const user = await requireRole(role);
-  const audiences = [...audiencesByRole[role]];
-  const levels = await prisma.level.findMany({
-    where: { isActive: true },
-    orderBy: [{ levelNumber: "asc" }, { id: "asc" }],
-    select: {
-      id: true,
-      levelNumber: true,
-      description: true,
-      requiresSubscription: true,
-    },
-  });
+  const moduleWhere = getVisibleLearnerModuleWhere(role);
+  const resourceWhere = getVisibleLearnerResourceWhere();
+  const levels = await getActiveAcademicLevels();
   const selectedLevel =
     levels.find((level) => level.id === user.selectedLevelId) ?? null;
 
@@ -58,6 +57,7 @@ export const getLearnerDashboardData = cache(async (
       subjects: [],
       continueTarget: null,
       recentResources: [],
+      savedResources: [],
       availableResources: [],
       searchItems: [],
     };
@@ -79,6 +79,7 @@ export const getLearnerDashboardData = cache(async (
       subjects: [],
       continueTarget: null,
       recentResources: [],
+      savedResources: [],
       availableResources: [],
       searchItems: [],
     };
@@ -89,11 +90,7 @@ export const getLearnerDashboardData = cache(async (
       levelId: selectedLevel.id,
       isActive: true,
       modules: {
-        some: {
-          isActive: true,
-          publicationStatus: PublicationStatus.PUBLISHED,
-          audience: { in: audiences },
-        },
+        some: moduleWhere,
       },
     },
     orderBy: [{ order: "asc" }, { name: "asc" }, { id: "asc" }],
@@ -102,28 +99,20 @@ export const getLearnerDashboardData = cache(async (
       name: true,
       description: true,
       modules: {
-        where: {
-          isActive: true,
-          publicationStatus: PublicationStatus.PUBLISHED,
-          audience: { in: audiences },
-        },
+        where: moduleWhere,
         orderBy: [{ order: "asc" }, { id: "asc" }],
         select: {
           id: true,
           title: true,
           description: true,
           resources: {
-            where: {
-              isActive: true,
-              publicationStatus: PublicationStatus.PUBLISHED,
-            },
+            where: resourceWhere,
             orderBy: [{ order: "asc" }, { id: "asc" }],
             select: {
               id: true,
               title: true,
-              description: true,
+              estimatedMinutes: true,
               type: true,
-              lesson: { select: { estimatedMinutes: true } },
               youtubeVideo: { select: { duration: true } },
             },
           },
@@ -178,7 +167,7 @@ export const getLearnerDashboardData = cache(async (
           kind: "resource",
           label: resource.title,
           context: `${subject.name} · ${moduleRecord.title}`,
-          href,
+          href: contentHref(role, subject.id, resource.id),
         });
       }
     }
@@ -186,16 +175,25 @@ export const getLearnerDashboardData = cache(async (
 
   const resourceIds = [...resourceContext.keys()];
   const progressRows = resourceIds.length
-    ? await prisma.resourceProgress.findMany({
+      ? await prisma.resourceProgress.findMany({
         where: { userId: user.id, resourceId: { in: resourceIds } },
-        orderBy: [{ startedAt: "desc" }, { id: "asc" }],
+        orderBy: [{ lastViewedAt: "desc" }, { id: "asc" }],
         select: {
           resourceId: true,
           completed: true,
           startedAt: true,
+          lastViewedAt: true,
         },
       })
     : [];
+  const savedRows =
+    role === Role.STUDENT && resourceIds.length
+      ? await prisma.savedResource.findMany({
+          where: { userId: user.id, resourceId: { in: resourceIds } },
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+          select: { resourceId: true, createdAt: true },
+        })
+      : [];
   const progressByResource = new Map(
     progressRows.map((progress) => [progress.resourceId, progress]),
   );
@@ -212,17 +210,17 @@ export const getLearnerDashboardData = cache(async (
     return {
       id: context.resource.id,
       title: context.resource.title,
-      description: context.resource.description,
       type: context.resource.type,
       subjectId: context.subjectId,
       subjectName: context.subjectName,
       moduleId: context.moduleId,
       moduleTitle: context.moduleTitle,
-      estimatedMinutes: context.resource.lesson?.estimatedMinutes ?? null,
+      estimatedMinutes: context.resource.estimatedMinutes,
       durationSeconds: context.resource.youtubeVideo?.duration ?? null,
       startedAt: progress?.startedAt.toISOString() ?? null,
+      lastViewedAt: progress?.lastViewedAt.toISOString() ?? null,
       completed: progress?.completed ?? false,
-      href: contentHref(role, context.subjectId),
+      href: contentHref(role, context.subjectId, context.resource.id),
     };
   }
 
@@ -238,12 +236,34 @@ export const getLearnerDashboardData = cache(async (
     .filter((resource): resource is LearnerResourceSummary => Boolean(resource))
     .slice(0, 6);
 
-  const continueProgress =
-    progressRows.find((progress) => !progress.completed) ?? progressRows[0];
+  const savedResources = savedRows
+    .map((saved): LearnerSavedResourceSummary | null => {
+      const summary = summarizeResource(saved.resourceId, {
+        allowMissingProgress: true,
+      });
+      return summary
+        ? { ...summary, savedAt: saved.createdAt.toISOString() }
+        : null;
+    })
+    .filter(
+      (resource): resource is LearnerSavedResourceSummary => Boolean(resource),
+    );
+
+  const continueProgress = progressRows.find((progress) => !progress.completed);
+  const firstUnstartedResourceId = resourceIds.find(
+    (resourceId) => !progressByResource.has(resourceId),
+  );
+  const continueResourceId =
+    continueProgress?.resourceId ??
+    firstUnstartedResourceId ??
+    progressRows[0]?.resourceId;
   let continueTarget: LearnerContinueTarget | null = null;
-  if (continueProgress) {
-    const summary = summarizeResource(continueProgress.resourceId);
-    const context = resourceContext.get(continueProgress.resourceId);
+  if (continueResourceId) {
+    const progress = progressByResource.get(continueResourceId);
+    const summary = summarizeResource(continueResourceId, {
+      allowMissingProgress: true,
+    });
+    const context = resourceContext.get(continueResourceId);
     if (summary && context) {
       const completedCount = context.moduleResourceIds.filter(
         (resourceId) => progressByResource.get(resourceId)?.completed,
@@ -254,21 +274,7 @@ export const getLearnerDashboardData = cache(async (
           context.moduleResourceIds.length > 0
             ? Math.round((completedCount / context.moduleResourceIds.length) * 100)
             : null,
-        isProgressRecord: true,
-      };
-    }
-  }
-
-  if (!continueTarget) {
-    const firstResourceId = resourceIds[0];
-    const summary = firstResourceId
-      ? summarizeResource(firstResourceId, { allowMissingProgress: true })
-      : null;
-    if (summary) {
-      continueTarget = {
-        ...summary,
-        progressPercent: null,
-        isProgressRecord: false,
+        isProgressRecord: Boolean(progress),
       };
     }
   }
@@ -294,6 +300,7 @@ export const getLearnerDashboardData = cache(async (
     })),
     continueTarget,
     recentResources,
+    savedResources,
     availableResources,
     searchItems,
   };

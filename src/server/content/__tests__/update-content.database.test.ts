@@ -7,6 +7,7 @@ import {
   ResourceType,
   Role,
 } from "@/generated/prisma/enums";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 
 vi.mock("server-only", () => ({}));
 
@@ -77,29 +78,14 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               createdById: adminId,
             },
           });
-          const lessonResource = await prisma.resource.create({
+          const contentResource = await prisma.resource.create({
             data: {
               moduleId: ownedModule.id,
-              type: "LESSON",
-              title: `Lección ${marker}`,
+              type: ResourceType.NOTE,
+              title: `Contenido ${marker}`,
               createdById: collaboratorId,
-              lesson: {
-                create: { content: "Contenido inicial", estimatedMinutes: 5 },
-              },
-            },
-          });
-          const didacticResource = await prisma.resource.create({
-            data: {
-              moduleId: ownedModule.id,
-              type: ResourceType.DIDACTIC,
-              title: `Material ${marker}`,
-              createdById: collaboratorId,
-              didacticResource: {
-                create: {
-                  content: "Contenido didáctico inicial",
-                  objective: "Objetivo inicial",
-                },
-              },
+              content: "Contenido inicial",
+              estimatedMinutes: 5,
             },
           });
           const youtubeResource = await prisma.resource.create({
@@ -108,6 +94,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               type: ResourceType.YOUTUBE,
               title: `Video ${marker}`,
               createdById: collaboratorId,
+              content: "Explicación inicial del video",
               youtubeVideo: {
                 create: { videoId: "dQw4w9WgXcQ", startAt: 0 },
               },
@@ -119,6 +106,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               type: ResourceType.LINK,
               title: `Enlace ${marker}`,
               createdById: collaboratorId,
+              content: "Explicación inicial del enlace",
               linkResource: {
                 create: {
                   url: "https://example.com/inicial",
@@ -181,15 +169,15 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               },
               { id: adminId, role: Role.ADMIN },
             ),
-          ).resolves.toBeUndefined();
+          ).resolves.toEqual({ affectsPublishedContent: true });
 
           await updates.updateCatalogResource(
             {
-              id: lessonResource.id,
-              expectedUpdatedAt: lessonResource.updatedAt.toISOString(),
-              resourceType: ResourceType.LESSON,
-              title: `Lección actualizada ${marker}`,
-              description: "Contenido editable",
+              id: contentResource.id,
+              expectedUpdatedAt: contentResource.updatedAt.toISOString(),
+              resourceType: ResourceType.NOTE,
+              title: `Contenido actualizado ${marker}`,
+              instructions: "Lee el contenido con atención",
               content: "Contenido persistido de la lección",
               estimatedMinutes: 8,
             },
@@ -197,34 +185,31 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           );
 
           await expect(
-            prisma.lesson.findUniqueOrThrow({
-              where: { resourceId: lessonResource.id },
-              select: { content: true, estimatedMinutes: true },
+            prisma.resource.findUniqueOrThrow({
+              where: { id: contentResource.id },
+              select: {
+                instructions: true,
+                content: true,
+                estimatedMinutes: true,
+              },
             }),
           ).resolves.toEqual({
-            content: "Contenido persistido de la lección",
+            instructions: "Lee el contenido con atención",
+            content: normalizeResourceContentForStorage(
+              "Contenido persistido de la lección",
+            ),
             estimatedMinutes: 8,
           });
 
-          await updates.updateCatalogResource(
-            {
-              id: didacticResource.id,
-              expectedUpdatedAt: didacticResource.updatedAt.toISOString(),
-              resourceType: ResourceType.DIDACTIC,
-              title: `Material actualizado ${marker}`,
-              description: undefined,
-              content: "Contenido didáctico actualizado",
-              objective: "Objetivo actualizado",
-            },
-            { id: collaboratorId, role: Role.COLLABORATOR },
-          );
           await updates.updateCatalogResource(
             {
               id: youtubeResource.id,
               expectedUpdatedAt: youtubeResource.updatedAt.toISOString(),
               resourceType: ResourceType.YOUTUBE,
               title: `Video actualizado ${marker}`,
-              description: undefined,
+              instructions: undefined,
+              content: "Explicación actualizada del video",
+              estimatedMinutes: 6,
               videoId: "9bZkp7q19f0",
               startAt: 45,
             },
@@ -236,18 +221,15 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               expectedUpdatedAt: linkResource.updatedAt.toISOString(),
               resourceType: ResourceType.LINK,
               title: `Enlace actualizado ${marker}`,
-              description: undefined,
+              instructions: undefined,
+              content: "Explicación actualizada del enlace",
               url: "https://example.com/actualizado",
               openInNewTab: false,
             },
             { id: collaboratorId, role: Role.COLLABORATOR },
           );
 
-          const [didacticData, youtubeData, linkData] = await Promise.all([
-            prisma.didacticResource.findUniqueOrThrow({
-              where: { resourceId: didacticResource.id },
-              select: { content: true, objective: true },
-            }),
+          const [youtubeData, linkData] = await Promise.all([
             prisma.youtubeVideo.findUniqueOrThrow({
               where: { resourceId: youtubeResource.id },
               select: { videoId: true, startAt: true },
@@ -257,10 +239,6 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               select: { url: true, openInNewTab: true },
             }),
           ]);
-          expect(didacticData).toEqual({
-            content: "Contenido didáctico actualizado",
-            objective: "Objetivo actualizado",
-          });
           expect(youtubeData).toEqual({ videoId: "9bZkp7q19f0", startAt: 45 });
           expect(linkData).toEqual({
             url: "https://example.com/actualizado",
@@ -278,7 +256,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 expectedUpdatedAt: currentLink.updatedAt.toISOString(),
                 resourceType: ResourceType.YOUTUBE,
                 title: `Tipo manipulado ${marker}`,
-                description: undefined,
+                instructions: undefined,
                 videoId: "dQw4w9WgXcQ",
                 startAt: 0,
               },
@@ -287,7 +265,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           ).rejects.toMatchObject({ code: "INVALID_RESOURCE_DATA" });
 
           await prisma.resource.update({
-            where: { id: lessonResource.id },
+            where: { id: contentResource.id },
             data: { publicationStatus: "PUBLISHED" },
           });
           const currentModule = await prisma.module.findUniqueOrThrow({

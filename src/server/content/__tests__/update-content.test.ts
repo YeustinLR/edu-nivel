@@ -73,7 +73,7 @@ describe("content update service", () => {
         id: "collaborator-1",
         role: "COLLABORATOR",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ affectsPublishedContent: true });
     expect(mocks.moduleUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ publicationStatus: "PUBLISHED" }),
@@ -110,7 +110,7 @@ describe("content update service", () => {
         id: "collaborator-1",
         role: "COLLABORATOR",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ affectsPublishedContent: false });
     expect(mocks.moduleUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -180,7 +180,7 @@ describe("content update service", () => {
         },
         { id: "collaborator-1", role: "COLLABORATOR" },
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ affectsPublishedContent: false });
     expect(mocks.resourceFindFirst).not.toHaveBeenCalled();
     expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
   });

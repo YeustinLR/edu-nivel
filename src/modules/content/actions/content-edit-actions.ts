@@ -71,8 +71,10 @@ export async function updateLevelContentAction(
 
   try {
     const actor = await requireRole(Role.ADMIN);
-    await updateCatalogLevel(parsed.data, actor);
-    revalidateContentPages();
+    const result = await updateCatalogLevel(parsed.data, actor);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
     return { status: "success", message: "El nivel fue actualizado." };
   } catch (error) {
     const known = knownEditError(
@@ -97,8 +99,10 @@ export async function updateSubjectContentAction(
 
   try {
     const actor = await requireRole(Role.ADMIN);
-    await updateCatalogSubject(parsed.data, actor);
-    revalidateContentPages();
+    const result = await updateCatalogSubject(parsed.data, actor);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
     return { status: "success", message: "La materia fue actualizada." };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values), "name");
@@ -119,8 +123,10 @@ export async function updateModuleContentAction(
 
   try {
     const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
-    await updateCatalogModule(parsed.data, actor);
-    revalidateContentPages();
+    const result = await updateCatalogModule(parsed.data, actor);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
     return { status: "success", message: "El módulo fue actualizado." };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values));
@@ -141,8 +147,10 @@ export async function updateResourceContentAction(
 
   try {
     const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
-    await updateCatalogResource(parsed.data, actor);
-    revalidateContentPages();
+    const result = await updateCatalogResource(parsed.data, actor);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
     return { status: "success", message: "El recurso fue actualizado." };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values));
@@ -163,8 +171,10 @@ export async function setContentAvailabilityAction(
 
   try {
     const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
-    await setCatalogContentAvailability(parsed.data, actor);
-    revalidateContentPages();
+    const result = await setCatalogContentAvailability(parsed.data, actor);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
     return {
       status: "success",
       message: parsed.data.isActive

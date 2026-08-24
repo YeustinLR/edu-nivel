@@ -12,14 +12,12 @@ import {
 const baseReadiness = {
   moduleId: "module-1",
   title: "Recurso de prueba",
-  description: "",
+  instructions: "",
+  content: "Contenido educativo",
+  estimatedMinutes: "",
   youtubeUrl: "",
   linkUrl: "",
   file: null,
-  lessonContent: "",
-  estimatedMinutes: "",
-  didacticContent: "",
-  objective: "",
 };
 
 describe("resource attachment helpers", () => {
@@ -87,7 +85,7 @@ describe("resource attachment helpers", () => {
     expect(getLocalLinkPreview("javascript:alert(1)")).toBeNull();
   });
 
-  it("keeps creation disabled until the selected type is complete", () => {
+  it("allows creation without written content", () => {
     expect(
       isResourceAttachmentReady({ ...baseReadiness, attachment: null }),
     ).toBe(true);
@@ -95,38 +93,49 @@ describe("resource attachment helpers", () => {
       isResourceAttachmentReady({
         ...baseReadiness,
         attachment: null,
-        title: "",
+        content: "",
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isResourceAttachmentReady({
         ...baseReadiness,
         attachment: "YOUTUBE",
+        content: "",
         youtubeUrl: "https://youtu.be/dQw4w9WgXcQ",
+      }),
+      ).toBe(true);
+    expect(
+      isResourceAttachmentReady({
+        ...baseReadiness,
+        attachment: "LINK",
+        content: "",
+        linkUrl: "https://example.com/recurso",
       }),
     ).toBe(true);
     expect(
       isResourceAttachmentReady({
         ...baseReadiness,
-        attachment: "LESSON",
-        lessonContent: "Contenido",
+        attachment: "UPLOAD",
+        content: "",
+        file: { name: "guia.pdf", type: "application/pdf", size: 1_024 },
+      }),
+    ).toBe(true);
+    expect(
+      isResourceAttachmentReady({
+        ...baseReadiness,
+        attachment: null,
         estimatedMinutes: "0",
       }),
     ).toBe(false);
-    expect(
-      isResourceAttachmentReady({
-        ...baseReadiness,
-        attachment: "DIDACTIC",
-        didacticContent: "Actividad",
-      }),
-    ).toBe(true);
   });
 
   it("changes the upload fingerprint when submitted data changes", () => {
     const input = {
       moduleId: "module-1",
       title: "Guía",
-      description: "Práctica",
+      instructions: "Práctica",
+      content: "Explicación",
+      estimatedMinutes: "8",
       file: { name: "guia.pdf", type: "application/pdf", size: 1_024 },
     };
     expect(createUploadFingerprint(input)).not.toBe(

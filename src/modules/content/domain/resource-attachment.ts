@@ -4,13 +4,12 @@ import {
   getFilePolicy,
 } from "@/modules/content/domain/file-policy";
 import { normalizeYoutubeVideoId } from "@/modules/content/schemas/admin-resource-creation.schema";
+import { getResourceContentValidationMessage } from "@/modules/content/domain/resource-document";
 
 export const resourceAttachmentKinds = [
   "YOUTUBE",
   "UPLOAD",
   "LINK",
-  "LESSON",
-  "DIDACTIC",
 ] as const;
 
 export type ResourceAttachmentKind =
@@ -89,13 +88,17 @@ export function formatUploadSize(sizeBytes: number) {
 export function createUploadFingerprint(input: {
   moduleId: string;
   title: string;
-  description: string;
+  instructions: string;
+  content: string;
+  estimatedMinutes: string;
   file: UploadFileLike;
 }) {
   return [
     input.moduleId,
     input.title.trim(),
-    input.description.trim(),
+    input.instructions.trim(),
+    input.content.trim(),
+    input.estimatedMinutes,
     input.file.name,
     input.file.type,
     input.file.size,
@@ -116,20 +119,20 @@ export function isResourceAttachmentReady(input: {
   attachment: ResourceAttachmentKind | null;
   moduleId: string;
   title: string;
-  description: string;
+  instructions: string;
+  content: string;
+  estimatedMinutes: string;
   youtubeUrl: string;
   linkUrl: string;
   file: UploadFileLike | null;
-  lessonContent: string;
-  estimatedMinutes: string;
-  didacticContent: string;
-  objective: string;
 }) {
   if (
     !input.moduleId ||
     input.title.trim().length < 2 ||
     input.title.trim().length > 160 ||
-    input.description.trim().length > 1_000
+    input.instructions.trim().length > 1_000 ||
+    getResourceContentValidationMessage(input.content) !== null ||
+    !isOptionalIntegerValid(input.estimatedMinutes, 1, 10_000)
   ) {
     return false;
   }
@@ -144,18 +147,6 @@ export function isResourceAttachmentReady(input: {
     case "UPLOAD":
       return Boolean(
         input.file && validateUploadFile(input.file).success,
-      );
-    case "LESSON":
-      return (
-        input.lessonContent.trim().length > 0 &&
-        input.lessonContent.trim().length <= 50_000 &&
-        isOptionalIntegerValid(input.estimatedMinutes, 1, 10_000)
-      );
-    case "DIDACTIC":
-      return (
-        input.didacticContent.trim().length > 0 &&
-        input.didacticContent.trim().length <= 50_000 &&
-        input.objective.trim().length <= 500
       );
     default:
       return false;

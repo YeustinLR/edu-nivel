@@ -95,7 +95,7 @@ describe("evaluatePremiumAccess", () => {
     ).toEqual({ allowed: false, code: "SUBSCRIPTION_EXPIRED" });
   });
 
-  it("rejects canceled subscriptions", () => {
+  it("keeps canceled subscriptions accessible through their paid period", () => {
     expect(
       evaluatePremiumAccess({
         role: Role.STUDENT,
@@ -103,6 +103,35 @@ describe("evaluatePremiumAccess", () => {
         subscription: {
           ...activeStudentSubscription(),
           status: SubscriptionStatus.CANCELED,
+        },
+        now,
+      }),
+    ).toEqual({ allowed: true });
+  });
+
+  it("rejects canceled subscriptions once their paid period expires", () => {
+    expect(
+      evaluatePremiumAccess({
+        role: Role.STUDENT,
+        emailVerified: true,
+        subscription: {
+          ...activeStudentSubscription(),
+          status: SubscriptionStatus.CANCELED,
+          currentPeriodEnd: now,
+        },
+        now,
+      }),
+    ).toEqual({ allowed: false, code: "SUBSCRIPTION_EXPIRED" });
+  });
+
+  it("rejects a refunded subscription even if its former dates look active", () => {
+    expect(
+      evaluatePremiumAccess({
+        role: Role.STUDENT,
+        emailVerified: true,
+        subscription: {
+          ...activeStudentSubscription(),
+          status: SubscriptionStatus.REFUNDED,
         },
         now,
       }),

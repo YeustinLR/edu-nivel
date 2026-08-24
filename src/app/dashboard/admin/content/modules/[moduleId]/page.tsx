@@ -79,7 +79,9 @@ export default async function AdminModuleDetailPage({
         ]}
         metadata={
           <div className="flex flex-wrap items-center gap-2">
-            <PublicationStatusBadge status={detail.publicationStatus} />
+            {detail.isActive ? (
+              <PublicationStatusBadge status={detail.publicationStatus} />
+            ) : null}
             <AudienceBadge audience={detail.audience} />
             <span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground-secondary">{detail.isActive ? "Activo" : "Archivado"}</span>
           </div>
@@ -126,7 +128,7 @@ export default async function AdminModuleDetailPage({
                         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-elevated text-muted"><FileText aria-hidden="true" className="h-5 w-5" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2"><span className="font-semibold text-foreground">{resource.title}</span><ResourceTypeBadge type={resource.type} /></span>
-                          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted"><PublicationStatusBadge status={resource.publicationStatus} /><span>{resource.authorName}</span>{!resource.isActive ? <span>Archivado</span> : null}</span>
+                          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">{resource.isActive ? <PublicationStatusBadge status={resource.publicationStatus} /> : <span>Archivado</span>}<span>{resource.authorName}</span></span>
                         </span>
                       </Link>
                     </li>

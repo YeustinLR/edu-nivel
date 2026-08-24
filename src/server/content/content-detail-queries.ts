@@ -23,7 +23,9 @@ export type ResourceContentDetail = {
   moduleId: string;
   type: ResourceType;
   title: string;
-  description: string | null;
+  instructions: string | null;
+  content: string | null;
+  estimatedMinutes: number | null;
   publicationStatus: PublicationStatus;
   isActive: boolean;
   createdById: string;
@@ -33,8 +35,6 @@ export type ResourceContentDetail = {
   canEdit: boolean;
   canArchive: boolean;
   canReactivate: boolean;
-  lesson: { content: string; estimatedMinutes: number | null } | null;
-  didactic: { content: string; objective: string | null } | null;
   youtube: {
     videoId: string;
     duration: number | null;
@@ -201,23 +201,30 @@ export async function getModuleEditorData(
 export async function getResourceContentDetail({
   resourceId,
   expectedModuleId,
+  expectedSubjectId,
   actor,
 }: {
   resourceId: string;
   expectedModuleId?: string;
+  expectedSubjectId?: string;
   actor: ContentDetailActor;
 }): Promise<ResourceContentDetail | null> {
   const resource = await prisma.resource.findFirst({
     where: {
       id: resourceId,
       ...(expectedModuleId ? { moduleId: expectedModuleId } : {}),
+      ...(expectedSubjectId
+        ? { module: { subjectId: expectedSubjectId } }
+        : {}),
     },
     select: {
       id: true,
       moduleId: true,
       type: true,
       title: true,
-      description: true,
+      instructions: true,
+      content: true,
+      estimatedMinutes: true,
       publicationStatus: true,
       isActive: true,
       createdById: true,
@@ -240,8 +247,6 @@ export async function getResourceContentDetail({
           },
         },
       },
-      lesson: { select: { content: true, estimatedMinutes: true } },
-      didacticResource: { select: { content: true, objective: true } },
       youtubeVideo: {
         select: { videoId: true, duration: true, startAt: true, endAt: true },
       },
@@ -314,7 +319,9 @@ export async function getResourceContentDetail({
     moduleId: resource.moduleId,
     type: resource.type,
     title: resource.title,
-    description: resource.description,
+    instructions: resource.instructions,
+    content: resource.content,
+    estimatedMinutes: resource.estimatedMinutes,
     publicationStatus: resource.publicationStatus,
     isActive: resource.isActive,
     createdById: resource.createdById,
@@ -328,8 +335,6 @@ export async function getResourceContentDetail({
       resource.module.isActive &&
       resource.module.subject.isActive &&
       resource.module.subject.level.isActive,
-    lesson: resource.lesson,
-    didactic: resource.didacticResource,
     youtube: resource.youtubeVideo,
     link: resource.linkResource,
     pdf: resource.pdfResource

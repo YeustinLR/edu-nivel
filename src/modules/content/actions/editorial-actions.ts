@@ -54,7 +54,7 @@ export async function transitionEditorialContentAction(
   }
 
   try {
-    await applyEditorialTransition({
+    const result = await applyEditorialTransition({
       targetType: parsed.data.targetType,
       targetId: parsed.data.targetId,
       expectedParentId: parsed.data.parentId,
@@ -62,7 +62,12 @@ export async function transitionEditorialContentAction(
       reviewNote: parsed.data.reviewNote,
       actor,
     });
-    revalidateContentPages();
+    revalidateContentPages(
+      result.publicationStatus === "PUBLISHED" ||
+        parsed.data.transition === "UNPUBLISH"
+        ? "published"
+        : "authoring",
+    );
 
     return {
       status: "success",

@@ -5,10 +5,14 @@ import type { z } from "zod";
 import { env } from "@/config/env";
 import {
   onvoApiErrorSchema,
+  onvoPaymentIntentListSchema,
   onvoPaymentIntentSchema,
   onvoPaymentMethodSchema,
+  onvoRefundSchema,
   type OnvoPaymentIntent,
+  type OnvoPaymentIntentList,
   type OnvoPaymentMethod,
+  type OnvoRefund,
 } from "@/server/payments/onvo/schemas";
 
 const ONVO_API_BASE_URL = "https://api.onvopay.com/v1";
@@ -48,6 +52,14 @@ export class OnvoApiError extends Error {
     super("ONVO no pudo procesar la solicitud.");
     this.name = "OnvoApiError";
   }
+}
+
+export function isDefinitiveOnvoApiRejection(error: OnvoApiError): boolean {
+  return (
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![408, 409, 425, 429].includes(error.status)
+  );
 }
 
 export class OnvoResponseValidationError extends Error {
@@ -154,3 +166,39 @@ export function getOnvoPaymentIntent(
   );
 }
 
+export function cancelOnvoPaymentIntent(
+  paymentIntentId: string,
+): Promise<OnvoPaymentIntent> {
+  return onvoRequest(
+    `/payment-intents/${encodeURIComponent(paymentIntentId)}/cancel`,
+    onvoPaymentIntentSchema,
+    { method: "POST" },
+  );
+}
+
+export function listOnvoPaymentIntents(input: {
+  createdAtGte: Date;
+  createdAtLte: Date;
+  startingAfter?: string;
+}): Promise<OnvoPaymentIntentList> {
+  const params = new URLSearchParams({
+    "createdAt[gte]": input.createdAtGte.toISOString(),
+    "createdAt[lte]": input.createdAtLte.toISOString(),
+    limit: "100",
+  });
+  if (input.startingAfter) {
+    params.set("startingAfter", input.startingAfter);
+  }
+
+  return onvoRequest(
+    `/payment-intents/account?${params.toString()}`,
+    onvoPaymentIntentListSchema,
+  );
+}
+
+export function getOnvoRefund(refundId: string): Promise<OnvoRefund> {
+  return onvoRequest(
+    `/refunds/${encodeURIComponent(refundId)}`,
+    onvoRefundSchema,
+  );
+}

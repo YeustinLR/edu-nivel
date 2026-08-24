@@ -5,6 +5,7 @@ import {
   SubscriptionProduct,
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
+import { initialLearnerCheckoutActionState } from "@/modules/subscriptions/types/learner-checkout-action-state";
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -54,7 +55,7 @@ function validCheckoutForm(planCode = "STUDENT_MONTHLY") {
   );
   formData.set("mobileNumber", "88888888");
   formData.set("identificationType", "0");
-  formData.set("identification", "01-1234-5678");
+  formData.set("identification", "01-1393-1919");
   return formData;
 }
 
@@ -79,9 +80,16 @@ describe("Learner subscription actions", () => {
     const formData = validCheckoutForm();
     formData.set("levelId", "level-7");
 
-    await expect(startStudentNewSubscriptionAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription/new?error=LEVEL_ALREADY_OWNED",
-    );
+    await expect(
+      startStudentNewSubscriptionAction(
+        initialLearnerCheckoutActionState,
+        formData,
+      ),
+    ).resolves.toMatchObject({
+      status: "error",
+      code: "LEVEL_ALREADY_OWNED",
+      values: { levelId: "level-7", planCode: "STUDENT_MONTHLY" },
+    });
     expect(mocks.subscriptionFindUnique).toHaveBeenCalledWith({
       where: {
         userId_levelId: { userId: "student-1", levelId: "level-7" },
@@ -96,9 +104,12 @@ describe("Learner subscription actions", () => {
     const formData = validCheckoutForm();
     formData.set("subscriptionId", "foreign-subscription");
 
-    await expect(startStudentRenewalAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription?error=SUBSCRIPTION_NOT_FOUND",
-    );
+    await expect(
+      startStudentRenewalAction(initialLearnerCheckoutActionState, formData),
+    ).resolves.toMatchObject({
+      status: "error",
+      code: "SUBSCRIPTION_NOT_FOUND",
+    });
     expect(mocks.subscriptionFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "foreign-subscription", userId: "student-1" },
@@ -117,16 +128,16 @@ describe("Learner subscription actions", () => {
     formData.set("subscriptionId", "sub-8");
     formData.set("levelId", "tampered-level-9");
 
-    await expect(startStudentRenewalAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription/payments/payment-1",
-    );
+    await expect(
+      startStudentRenewalAction(initialLearnerCheckoutActionState, formData),
+    ).rejects.toThrow("REDIRECT:/dashboard/subscription/payments/payment-1");
     expect(mocks.createSinpePayment).toHaveBeenCalledWith({
       planCode: "STUDENT_MONTHLY",
       levelId: "owned-level-8",
       checkoutRequestId: "e07d8f08-8097-4a76-9d7a-e7306ca87f80",
       mobileNumber: "+50688888888",
       identificationType: 0,
-      identification: "01-1234-5678",
+      identification: "01-1393-1919",
     });
   });
 
@@ -182,9 +193,9 @@ describe("Learner subscription actions", () => {
     const formData = validCheckoutForm("TEACHER_YEARLY");
     formData.set("subscriptionId", "teacher-sub-9");
 
-    await expect(startTeacherRenewalAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription/payments/payment-1",
-    );
+    await expect(
+      startTeacherRenewalAction(initialLearnerCheckoutActionState, formData),
+    ).rejects.toThrow("REDIRECT:/dashboard/subscription/payments/payment-1");
     expect(mocks.requireRole).toHaveBeenCalledWith(Role.TEACHER);
     expect(mocks.createSinpePayment).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -203,9 +214,12 @@ describe("Learner subscription actions", () => {
     const formData = validCheckoutForm("TEACHER_MONTHLY");
     formData.set("levelId", "level-10");
 
-    await expect(startTeacherNewSubscriptionAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription/payments/payment-1",
-    );
+    await expect(
+      startTeacherNewSubscriptionAction(
+        initialLearnerCheckoutActionState,
+        formData,
+      ),
+    ).rejects.toThrow("REDIRECT:/dashboard/subscription/payments/payment-1");
     expect(mocks.requireRole).toHaveBeenCalledWith(Role.TEACHER);
     expect(mocks.subscriptionFindUnique).toHaveBeenCalledWith({
       where: {
@@ -219,6 +233,35 @@ describe("Learner subscription actions", () => {
         levelId: "level-10",
       }),
     );
+  });
+
+  it("returns field errors without echoing SINPE payer data", async () => {
+    const formData = validCheckoutForm();
+    formData.set("levelId", "");
+    formData.set("mobileNumber", "+506123");
+    formData.set("identification", "sensitive-invalid-value");
+
+    const result = await startStudentNewSubscriptionAction(
+      initialLearnerCheckoutActionState,
+      formData,
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      code: "INVALID_PAYMENT_DATA",
+      fieldErrors: {
+        levelId: expect.any(Array),
+        mobileNumber: expect.any(Array),
+        identification: expect.any(Array),
+      },
+      values: {
+        levelId: "",
+        planCode: "STUDENT_MONTHLY",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("+506123");
+    expect(JSON.stringify(result)).not.toContain("sensitive-invalid-value");
+    expect(mocks.createSinpePayment).not.toHaveBeenCalled();
   });
 
   it("does not renew a student product from a teacher account", async () => {
@@ -235,9 +278,12 @@ describe("Learner subscription actions", () => {
     const formData = validCheckoutForm("TEACHER_MONTHLY");
     formData.set("subscriptionId", "mismatched-subscription");
 
-    await expect(startTeacherRenewalAction(formData)).rejects.toThrow(
-      "REDIRECT:/dashboard/subscription?error=SUBSCRIPTION_NOT_RENEWABLE",
-    );
+    await expect(
+      startTeacherRenewalAction(initialLearnerCheckoutActionState, formData),
+    ).resolves.toMatchObject({
+      status: "error",
+      code: "SUBSCRIPTION_NOT_RENEWABLE",
+    });
     expect(mocks.createSinpePayment).not.toHaveBeenCalled();
   });
 

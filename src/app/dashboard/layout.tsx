@@ -17,9 +17,7 @@
  */
 import { requireUser } from "@/server/auth/guards";
 
-import { Role } from "@/generated/prisma/enums";
 import { DashboardShell } from "@/modules/dashboard/components/layout/DashboardShell";
-import { getLearnerDashboardData } from "@/server/content/learner-dashboard-queries";
 
 export default async function DashboardLayout({
   children,
@@ -27,13 +25,6 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
-  const learnerRole =
-    user.role === Role.STUDENT || user.role === Role.TEACHER
-      ? user.role
-      : null;
-  const learnerDashboardData = learnerRole
-    ? await getLearnerDashboardData(learnerRole)
-    : null;
 
   return (
     <DashboardShell
@@ -41,12 +32,6 @@ export default async function DashboardLayout({
       userEmail={user.email}
       userRole={user.role}
       userImage={user.image}
-      learnerShellData={learnerDashboardData
-        ? {
-            access: learnerDashboardData.access,
-            searchItems: learnerDashboardData.searchItems,
-          }
-        : undefined}
     >
       {children}
     </DashboardShell>

@@ -8,6 +8,7 @@ const tx = {
   session: { deleteMany: vi.fn() },
   account: { deleteMany: vi.fn() },
   resourceProgress: { deleteMany: vi.fn() },
+  savedResource: { deleteMany: vi.fn() },
   verification: { deleteMany: vi.fn() },
   payment: { updateMany: vi.fn() },
   userInvitation: { updateMany: vi.fn() },
@@ -34,6 +35,8 @@ describe("deleteAdminUser", () => {
 
     expect(tx.account.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
     expect(tx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(tx.resourceProgress.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(tx.savedResource.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
     expect(tx.payment.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
       data: {

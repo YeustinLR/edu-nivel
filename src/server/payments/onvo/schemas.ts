@@ -5,8 +5,12 @@ export const onvoModeSchema = z.enum(["test", "live"]);
 export const onvoPaymentIntentStatusSchema = z.enum([
   "requires_payment_method",
   "requires_action",
+  "requires_capture",
   "processing",
   "succeeded",
+  "failed",
+  "refunded",
+  "partially_refunded",
   "canceled",
 ]);
 
@@ -63,6 +67,22 @@ export const onvoPaymentMethodSchema = z
   })
   .passthrough();
 
+export const onvoPaymentIntentListSchema = z
+  .object({
+    data: z.array(onvoPaymentIntentSchema),
+    meta: z
+      .object({
+        total: z.number().nonnegative().optional(),
+        pages: z.number().nonnegative().optional(),
+        limit: z.number().positive().optional(),
+        cursorNext: z.string().min(1).nullable().optional(),
+        cursorBefore: z.string().min(1).nullable().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
 export const onvoApiErrorSchema = z
   .object({
     code: z.string().optional(),
@@ -72,5 +92,24 @@ export const onvoApiErrorSchema = z
   })
   .passthrough();
 
+export const onvoRefundSchema = z
+  .object({
+    id: z.string().min(1),
+    paymentIntentId: z.string().min(1),
+    amount: z.number().int().positive(),
+    currency: z.string().min(3),
+    mode: onvoModeSchema,
+    status: z.enum(["pending", "succeeded", "failed"]),
+    reason: z.string().optional(),
+    failureReason: nullableStringSchema,
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+  })
+  .passthrough();
+
 export type OnvoPaymentIntent = z.infer<typeof onvoPaymentIntentSchema>;
+export type OnvoPaymentIntentList = z.infer<
+  typeof onvoPaymentIntentListSchema
+>;
 export type OnvoPaymentMethod = z.infer<typeof onvoPaymentMethodSchema>;
+export type OnvoRefund = z.infer<typeof onvoRefundSchema>;

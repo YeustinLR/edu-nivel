@@ -43,6 +43,7 @@ export type AdminReviewQueue = {
 
 export type AdminReviewDetail = AdminReviewQueueItem & {
   description: string | null;
+  instructions: string | null;
   parentId: string;
   previousId: string | null;
   nextId: string | null;

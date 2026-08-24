@@ -12,7 +12,6 @@ const levelNames: Record<number, string> = {
   9: "Noveno año",
   10: "Décimo año",
   11: "Undécimo año",
-  12: "Duodécimo año",
 };
 
 export function formatLearnerLevel(levelNumber: number) {
@@ -37,7 +36,7 @@ export function formatResourceDuration(
 export function resourceTone(type: ResourceType) {
   if (type === "YOUTUBE" || type === "AUDIO") return "blue";
   if (type === "PDF" || type === "FILE") return "rose";
-  if (type === "LESSON" || type === "NOTE" || type === "DIDACTIC") return "green";
+  if (type === "NOTE") return "green";
   if (type === "QUIZ" || type === "GAME") return "violet";
   return "amber";
 }

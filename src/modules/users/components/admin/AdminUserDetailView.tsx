@@ -43,6 +43,7 @@ const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
   [SubscriptionStatus.ACTIVE]: "Activa",
   [SubscriptionStatus.CANCELED]: "Cancelada",
   [SubscriptionStatus.EXPIRED]: "Vencida",
+  [SubscriptionStatus.REFUNDED]: "Reembolsada",
 };
 
 const paymentStatusLabels: Record<PaymentStatus, string> = {
@@ -51,6 +52,7 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
   [PaymentStatus.SUCCEEDED]: "Confirmado",
   [PaymentStatus.FAILED]: "Fallido",
   [PaymentStatus.CANCELED]: "Cancelado",
+  [PaymentStatus.REFUNDED]: "Reembolsado",
   [PaymentStatus.REQUIRES_REVIEW]: "Requiere revisión",
 };
 

@@ -9,12 +9,14 @@ export function AdminUrlSelectFilter({
   label,
   options,
   allLabel,
+  compact = false,
 }: {
   parameter: string;
   value?: string;
   label: string;
   options: ReadonlyArray<{ value: string; label: string }>;
   allLabel: string;
+  compact?: boolean;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,8 +24,12 @@ export function AdminUrlSelectFilter({
   const [isPending, startTransition] = useTransition();
 
   return (
-    <label className="space-y-1.5 text-sm font-medium text-foreground">
-      {label}
+    <label
+      className={
+        compact ? "block" : "space-y-1.5 text-sm font-medium text-foreground"
+      }
+    >
+      <span className={compact ? "sr-only" : "block"}>{label}</span>
       <select
         value={value ?? ""}
         aria-busy={isPending}
@@ -42,7 +48,11 @@ export function AdminUrlSelectFilter({
             });
           });
         }}
-        className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground outline-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20 disabled:opacity-50"
+        className={`w-full border border-border bg-background font-normal text-foreground outline-none transition-colors focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20 disabled:opacity-50 ${
+          compact
+            ? "min-h-11 rounded-md px-2.5 py-1.5 text-xs sm:min-h-9"
+            : "min-h-11 rounded-lg px-3 py-2 text-sm"
+        }`}
       >
         <option value="">{allLabel}</option>
         {options.map((option) => (

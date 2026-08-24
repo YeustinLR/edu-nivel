@@ -7,6 +7,7 @@ import {
   UploadStatus,
 } from "@/generated/prisma/enums";
 import { requireRole } from "@/server/auth/guards";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import { ContentUploadError } from "@/server/content/upload-errors";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -195,7 +196,9 @@ export async function confirmContentUpload(uploadId: string) {
           uploadIntentId: intent.id,
           type: intent.resourceType,
           title: intent.title,
-          description: intent.description,
+          instructions: intent.instructions,
+          content: normalizeResourceContentForStorage(intent.content),
+          estimatedMinutes: intent.estimatedMinutes,
           createdById: intent.createdById,
           publicationStatus: intent.targetPublicationStatus,
           submittedForReviewAt:

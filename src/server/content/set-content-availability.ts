@@ -53,6 +53,9 @@ export async function setCatalogContentAvailability(
   input: ContentAvailabilityInput,
   actor: ContentUpdateActor,
 ) {
+  let affectsPublishedContent =
+    input.type === "level" || input.type === "subject";
+
   if (input.type === "level") {
     assertCatalogManager(actor);
     const level = await prisma.level.findUnique({
@@ -62,7 +65,7 @@ export async function setCatalogContentAvailability(
     if (!level) {
       throw new ContentUpdateError("NOT_FOUND", "El nivel ya no existe.");
     }
-    if (level.isActive === input.isActive) return;
+    if (level.isActive === input.isActive) return { affectsPublishedContent };
 
     if (!input.isActive) {
       const protectedContent = await prisma.module.findFirst({
@@ -99,7 +102,7 @@ export async function setCatalogContentAvailability(
     if (!subject) {
       throw new ContentUpdateError("NOT_FOUND", "La materia ya no existe.");
     }
-    if (subject.isActive === input.isActive) return;
+    if (subject.isActive === input.isActive) return { affectsPublishedContent };
     if (input.isActive && !subject.level.isActive) {
       throw new ContentUpdateError(
         "PARENT_INACTIVE",
@@ -143,6 +146,8 @@ export async function setCatalogContentAvailability(
     if (!moduleRecord) {
       throw new ContentUpdateError("NOT_FOUND", "El módulo ya no existe.");
     }
+    affectsPublishedContent =
+      moduleRecord.publicationStatus === "PUBLISHED";
     const permitted = input.isActive
       ? canReactivateEditorialContent(actor, moduleRecord)
       : canArchiveEditorialContent(actor, moduleRecord);
@@ -152,7 +157,9 @@ export async function setCatalogContentAvailability(
         "No puedes cambiar la disponibilidad de este módulo en su estado actual.",
       );
     }
-    if (moduleRecord.isActive === input.isActive) return;
+    if (moduleRecord.isActive === input.isActive) {
+      return { affectsPublishedContent };
+    }
     if (
       input.isActive &&
       (!moduleRecord.subject.isActive || !moduleRecord.subject.level.isActive)
@@ -197,6 +204,7 @@ export async function setCatalogContentAvailability(
     if (!resource) {
       throw new ContentUpdateError("NOT_FOUND", "El recurso ya no existe.");
     }
+    affectsPublishedContent = resource.publicationStatus === "PUBLISHED";
     const permitted = input.isActive
       ? canReactivateEditorialContent(actor, resource)
       : canArchiveEditorialContent(actor, resource);
@@ -206,7 +214,9 @@ export async function setCatalogContentAvailability(
         "No puedes cambiar la disponibilidad de este recurso en su estado actual.",
       );
     }
-    if (resource.isActive === input.isActive) return;
+    if (resource.isActive === input.isActive) {
+      return { affectsPublishedContent };
+    }
     if (
       input.isActive &&
       (!resource.module.isActive ||
@@ -221,5 +231,5 @@ export async function setCatalogContentAvailability(
   }
 
   await updateAvailabilityWithConcurrency(input);
+  return { affectsPublishedContent };
 }
-

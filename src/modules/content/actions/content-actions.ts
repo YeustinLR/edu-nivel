@@ -8,10 +8,13 @@ import {
   createModuleSchema,
   getCreateModuleFormValues,
 } from "@/modules/content/schemas/admin-content-creation.schema";
-import { requireRole } from "@/server/auth/guards";
+import { getPremiumAccessDecision, requireRole } from "@/server/auth/guards";
 import { applyEditorialTransition } from "@/server/content/apply-editorial-transition";
 import { createCatalogModule } from "@/server/content/create-catalog-content";
-import { revalidateContentPages } from "@/server/content/revalidate-content";
+import {
+  revalidateContentPages,
+  revalidateLearnerSelectionPages,
+} from "@/server/content/revalidate-content";
 import { prisma } from "@/server/db/prisma";
 
 const idSchema = z.string().trim().min(1);
@@ -23,7 +26,9 @@ export async function createModuleAction(formData: FormData) {
   );
 
   const moduleRecord = await createCatalogModule(parsed, user.id);
-  revalidateContentPages();
+  revalidateContentPages(
+    moduleRecord.publicationStatus === "PUBLISHED" ? "published" : "authoring",
+  );
   redirect(
     user.role === Role.ADMIN
       ? `/dashboard/admin/content/modules/${encodeURIComponent(moduleRecord.id)}`
@@ -47,7 +52,26 @@ export async function selectLevelAction(formData: FormData) {
     where: { id: user.id },
     data: { selectedLevelId: levelId },
   });
-  revalidateContentPages();
+  revalidateLearnerSelectionPages(user.role);
+}
+
+export async function enterStudentLevelAction(formData: FormData) {
+  await requireRole(Role.STUDENT);
+  const levelId = idSchema.parse(formData.get("levelId"));
+  const access = await getPremiumAccessDecision(levelId);
+
+  if (!access.decision.allowed) {
+    redirect(
+      `/dashboard/student/explore?level=${encodeURIComponent(levelId)}&error=${encodeURIComponent(access.decision.code)}`,
+    );
+  }
+
+  await prisma.user.update({
+    where: { id: access.user.id },
+    data: { selectedLevelId: levelId },
+  });
+  revalidateLearnerSelectionPages(Role.STUDENT);
+  redirect("/dashboard/student/content");
 }
 
 export async function submitForReviewAction(formData: FormData) {
@@ -55,13 +79,15 @@ export async function submitForReviewAction(formData: FormData) {
   const type = z.enum(["module", "resource"]).parse(formData.get("type"));
   const id = idSchema.parse(formData.get("id"));
 
-  await applyEditorialTransition({
+  const transition = await applyEditorialTransition({
     targetType: type,
     targetId: id,
     transition: "SUBMIT_FOR_REVIEW",
     actor: user,
   });
-  revalidateContentPages();
+  revalidateContentPages(
+    transition.publicationStatus === "PUBLISHED" ? "published" : "authoring",
+  );
 }
 
 export async function withdrawReviewAction(formData: FormData) {
@@ -69,13 +95,15 @@ export async function withdrawReviewAction(formData: FormData) {
   const type = z.enum(["module", "resource"]).parse(formData.get("type"));
   const id = idSchema.parse(formData.get("id"));
 
-  await applyEditorialTransition({
+  const transition = await applyEditorialTransition({
     targetType: type,
     targetId: id,
     transition: "WITHDRAW_REVIEW",
     actor: user,
   });
-  revalidateContentPages();
+  revalidateContentPages(
+    transition.publicationStatus === "PUBLISHED" ? "published" : "authoring",
+  );
 }
 
 export async function publishDirectAction(formData: FormData) {
@@ -89,5 +117,5 @@ export async function publishDirectAction(formData: FormData) {
     transition: "PUBLISH_DIRECT",
     actor: user,
   });
-  revalidateContentPages();
+  revalidateContentPages("published");
 }

@@ -45,7 +45,7 @@ export function getResourceReviewWhere({
           OR: [
             { title: { contains: query, mode: "insensitive" as const } },
             {
-              description: {
+              instructions: {
                 contains: query,
                 mode: "insensitive" as const,
               },

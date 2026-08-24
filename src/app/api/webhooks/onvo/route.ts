@@ -5,11 +5,19 @@ import { z } from "zod";
 
 import { env } from "@/config/env";
 import { WebhookOutcome } from "@/generated/prisma/client";
+import { revalidatePaymentAccessPages } from "@/server/content/revalidate-content";
 import { prisma } from "@/server/db/prisma";
+import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
 import {
   OnvoPaymentNotFoundError,
   reconcileOnvoPaymentIntent,
 } from "@/server/payments/onvo/reconcile";
+import { recoverOnvoPaymentIntentByProviderId } from "@/server/payments/onvo/recover-payment-intent";
+import {
+  claimWebhookReceipt,
+  finalizeWebhookReceipt,
+  type WebhookReceiptClaim,
+} from "@/server/payments/onvo/webhook-receipts";
 
 export const runtime = "nodejs";
 
@@ -37,19 +45,46 @@ async function recordReceipt(input: {
   eventType: string;
   providerObjectId: string | null;
   payloadHash: string;
+  deduplicationKey: string;
   outcome: WebhookOutcome;
   errorCode?: string;
 }) {
-  await prisma.webhookReceipt.create({
-    data: {
-      eventType: input.eventType,
-      providerObjectId: input.providerObjectId,
-      payloadHash: input.payloadHash,
-      outcome: input.outcome,
-      errorCode: input.errorCode,
-      processedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.webhookReceipt.create({
+      data: {
+        eventType: input.eventType,
+        providerObjectId: input.providerObjectId,
+        payloadHash: input.payloadHash,
+        deduplicationKey: input.deduplicationKey,
+        outcome: input.outcome,
+        errorCode: input.errorCode,
+        processedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function finalizeClaim(
+  claim: WebhookReceiptClaim,
+  input: {
+    outcome: Exclude<WebhookOutcome, "PROCESSING">;
+    errorCode?: string;
+  },
+) {
+  const finalized = await finalizeWebhookReceipt(claim, input);
+  if (!finalized) {
+    throw new Error("El claim del webhook ya no pertenece a este request.");
+  }
 }
 
 export async function POST(request: Request) {
@@ -97,14 +132,25 @@ export async function POST(request: Request) {
   const { type, data } = parsed.data;
   const providerObjectId =
     typeof data.id === "string" && data.id.length > 0 ? data.id : null;
+  const deduplicationKey = createHash("sha256")
+    .update(`${type}:${providerObjectId ?? "none"}:${payloadHash}`)
+    .digest("hex");
+  logOnvoPaymentEvent({
+    event: "webhook.received",
+    outcome: reconciledEventTypes.has(type) ? "accepted-type" : "ignored-type",
+    paymentIntentId: providerObjectId,
+    webhookEvent: type,
+  });
 
   if (!reconciledEventTypes.has(type)) {
     await recordReceipt({
       eventType: type,
       providerObjectId,
       payloadHash,
+      deduplicationKey,
       outcome: WebhookOutcome.IGNORED,
     });
+
     return NextResponse.json({ received: true, ignored: true });
   }
 
@@ -113,6 +159,7 @@ export async function POST(request: Request) {
       eventType: type,
       providerObjectId: null,
       payloadHash,
+      deduplicationKey,
       outcome: WebhookOutcome.REQUIRES_REVIEW,
       errorCode: "PAYMENT_INTENT_ID_MISSING",
     });
@@ -122,12 +169,60 @@ export async function POST(request: Request) {
     );
   }
 
+  let claimResult;
   try {
-    const result = await reconcileOnvoPaymentIntent(providerObjectId);
-    await recordReceipt({
+    claimResult = await claimWebhookReceipt({
       eventType: type,
       providerObjectId,
       payloadHash,
+      deduplicationKey,
+    });
+  } catch {
+    return NextResponse.json(
+      { received: false, code: "WEBHOOK_RECEIPT_CLAIM_FAILED" },
+      { status: 500 },
+    );
+  }
+
+  if (claimResult.status === "DUPLICATE") {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+  if (claimResult.status === "PROCESSING") {
+    return NextResponse.json(
+      { received: false, code: "WEBHOOK_ALREADY_PROCESSING" },
+      { status: 503, headers: { "Retry-After": "5" } },
+    );
+  }
+
+  const { claim } = claimResult;
+
+  try {
+    let result: Awaited<ReturnType<typeof reconcileOnvoPaymentIntent>>;
+    try {
+      result = await reconcileOnvoPaymentIntent(providerObjectId);
+    } catch (error) {
+      if (!(error instanceof OnvoPaymentNotFoundError)) throw error;
+
+      const recovery = await recoverOnvoPaymentIntentByProviderId(
+        providerObjectId,
+      );
+      if (recovery === "RECOVERED") {
+        await finalizeClaim(claim, { outcome: WebhookOutcome.PROCESSED });
+        revalidatePaymentAccessPages();
+        return NextResponse.json({ received: true, recovered: true });
+      }
+
+      await finalizeClaim(claim, {
+        outcome: WebhookOutcome.FAILED,
+        errorCode: "LOCAL_PAYMENT_NOT_FOUND",
+      });
+      return NextResponse.json(
+        { received: false, review: true },
+        { status: 500 },
+      );
+    }
+
+    await finalizeClaim(claim, {
       outcome:
         result.outcome === "REQUIRES_REVIEW"
           ? WebhookOutcome.REQUIRES_REVIEW
@@ -138,24 +233,17 @@ export async function POST(request: Request) {
           : undefined,
     });
 
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    if (error instanceof OnvoPaymentNotFoundError) {
-      await recordReceipt({
-        eventType: type,
-        providerObjectId,
-        payloadHash,
-        outcome: WebhookOutcome.REQUIRES_REVIEW,
-        errorCode: "LOCAL_PAYMENT_NOT_FOUND",
-      });
-      return NextResponse.json({ received: true, review: true });
+    if (
+      result.outcome === "SUCCEEDED" ||
+      result.outcome === "ALREADY_APPLIED"
+    ) {
+      revalidatePaymentAccessPages();
     }
 
+    return NextResponse.json({ received: true });
+  } catch {
     try {
-      await recordReceipt({
-        eventType: type,
-        providerObjectId,
-        payloadHash,
+      await finalizeWebhookReceipt(claim, {
         outcome: WebhookOutcome.FAILED,
         errorCode: "TEMPORARY_PROCESSING_FAILURE",
       });

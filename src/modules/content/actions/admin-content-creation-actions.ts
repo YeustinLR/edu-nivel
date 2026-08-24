@@ -71,13 +71,14 @@ export async function createAdminLevelAction(
   try {
     await requireRole(Role.ADMIN);
     const level = await createCatalogLevel(parsed.data);
-    revalidateContentPages();
+    revalidateContentPages("published");
 
     return {
       status: "success",
       message: `El nivel ${level.levelNumber} fue creado correctamente.`,
       destinationHref: `/dashboard/admin/content/levels/${encodeURIComponent(level.id)}`,
       destinationLabel: "Ver nivel creado",
+      createdId: level.id,
     };
   } catch (error) {
     const knownError = knownCreationError(error, values);
@@ -100,13 +101,14 @@ export async function createAdminSubjectAction(
   try {
     await requireRole(Role.ADMIN);
     const subject = await createCatalogSubject(parsed.data);
-    revalidateContentPages();
+    revalidateContentPages("published");
 
     return {
       status: "success",
       message: `La materia ${subject.name} fue creada correctamente.`,
       destinationHref: `/dashboard/admin/content/subjects/${encodeURIComponent(subject.id)}`,
       destinationLabel: "Ver materia creada",
+      createdId: subject.id,
     };
   } catch (error) {
     const knownError = knownCreationError(error, values);
@@ -129,7 +131,11 @@ export async function createAdminModuleAction(
   try {
     const admin = await requireRole(Role.ADMIN);
     const moduleRecord = await createCatalogModule(parsed.data, admin.id);
-    revalidateContentPages();
+    revalidateContentPages(
+      moduleRecord.publicationStatus === "PUBLISHED"
+        ? "published"
+        : "authoring",
+    );
 
     return {
       status: "success",
@@ -139,6 +145,7 @@ export async function createAdminModuleAction(
           : `El módulo ${moduleRecord.title} fue guardado como borrador.`,
       destinationHref: `/dashboard/admin/content/modules/${encodeURIComponent(moduleRecord.id)}`,
       destinationLabel: "Ver módulo creado",
+      createdId: moduleRecord.id,
     };
   } catch (error) {
     const knownError = knownCreationError(error, values);

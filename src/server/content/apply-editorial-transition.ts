@@ -36,6 +36,7 @@ type EditorialTarget = {
   createdById: string;
   parentId: string;
   publicationStatus: PublicationStatus;
+  isActive: boolean;
 };
 
 async function getEditorialTarget(
@@ -50,6 +51,7 @@ async function getEditorialTarget(
         createdById: true,
         subjectId: true,
         publicationStatus: true,
+        isActive: true,
       },
     });
 
@@ -59,6 +61,7 @@ async function getEditorialTarget(
           createdById: moduleRecord.createdById,
           parentId: moduleRecord.subjectId,
           publicationStatus: moduleRecord.publicationStatus,
+          isActive: moduleRecord.isActive,
         }
       : null;
   }
@@ -70,6 +73,7 @@ async function getEditorialTarget(
       createdById: true,
       moduleId: true,
       publicationStatus: true,
+      isActive: true,
     },
   });
 
@@ -79,6 +83,7 @@ async function getEditorialTarget(
         createdById: resource.createdById,
         parentId: resource.moduleId,
         publicationStatus: resource.publicationStatus,
+        isActive: resource.isActive,
       }
     : null;
 }
@@ -194,6 +199,16 @@ export async function applyEditorialTransition({
   }
 
   assertTransitionPermission(actor, target, targetType, transition);
+
+  if (
+    !target.isActive &&
+    (transition === "PUBLISH" || transition === "PUBLISH_DIRECT")
+  ) {
+    throw new EditorialTransitionError(
+      "INVALID_TRANSITION",
+      "Reactiva el contenido antes de publicarlo.",
+    );
+  }
 
   const normalizedNote = reviewNote?.trim() || null;
   if (transition === "REQUEST_CHANGES" && !normalizedNote) {

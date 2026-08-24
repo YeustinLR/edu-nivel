@@ -28,7 +28,7 @@ export type ContentCreationValues = {
 export type ContentCreationActionState = FormActionState<
   ContentCreationFieldErrors,
   ContentCreationValues,
-  { destinationHref: string; destinationLabel: string }
+  { destinationHref: string; destinationLabel: string; createdId: string }
 >;
 
 export const initialContentCreationActionState: ContentCreationActionState =

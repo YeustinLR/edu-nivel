@@ -21,9 +21,9 @@ export default async function RenewLearnerSubscriptionPage({
   searchParams,
 }: {
   params: Promise<{ subscriptionId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; plan?: string }>;
 }) {
-  const [{ subscriptionId }, { error }, user] = await Promise.all([
+  const [{ subscriptionId }, { error, plan }, user] = await Promise.all([
     params,
     searchParams,
     requireUser(),
@@ -40,11 +40,14 @@ export default async function RenewLearnerSubscriptionPage({
     redirect("/dashboard/subscription?error=SUBSCRIPTION_NOT_RENEWABLE");
   }
 
+  const requestedPlan = plan ? getSubscriptionPlan(plan) : null;
   const lastPlan = subscription.lastPlanCode
     ? getSubscriptionPlan(subscription.lastPlanCode)
     : null;
   const suggestedPlan: SubscriptionPlanCode =
-    lastPlan?.requiredRole === user.role
+    requestedPlan?.requiredRole === user.role
+      ? requestedPlan.code
+      : lastPlan?.requiredRole === user.role
       ? lastPlan.code
       : user.role === Role.STUDENT
         ? "STUDENT_MONTHLY"

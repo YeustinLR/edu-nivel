@@ -1,7 +1,7 @@
 import { ArrowRight, BookOpen, Clock3, TrendingUp, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 
-import { Role, SubscriptionStatus } from "@/generated/prisma/client";
+import { PaymentStatus, Role, SubscriptionStatus } from "@/generated/prisma/client";
 import { ContentPageHeader } from "@/modules/content/components/admin/ContentPageHeader";
 import { getAdminContentSummary } from "@/server/content/admin-content-queries";
 import { requireUser } from "@/server/auth/guards";
@@ -17,12 +17,23 @@ function DashboardMetric({ label, value, icon: Icon }: { label: string; value: n
 
 export default async function AdminDashboardPage() {
   const user = await requireUser();
+  const now = new Date();
   const [users, collaborators, activeModules, subscriptions, contentSummary] = await Promise.all([
     prisma.user.count({ where: { deletedAt: null } }),
     prisma.user.count({ where: { role: Role.COLLABORATOR, deletedAt: null } }),
     prisma.module.count({ where: { isActive: true } }),
     prisma.subscription.count({
-      where: { status: SubscriptionStatus.ACTIVE, user: { deletedAt: null } },
+      where: {
+        status: {
+          in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED],
+        },
+        currentPeriodStart: { lte: now },
+        currentPeriodEnd: { gt: now },
+        user: { deletedAt: null },
+        payments: {
+          some: { status: PaymentStatus.SUCCEEDED, appliedAt: { not: null } },
+        },
+      },
     }),
     getAdminContentSummary(),
   ]);

@@ -71,10 +71,6 @@ export function evaluatePremiumAccess({
     return { allowed: false, code: "SUBSCRIPTION_PRODUCT_MISMATCH" };
   }
 
-  if (subscription.status !== SubscriptionStatus.ACTIVE) {
-    return { allowed: false, code: "SUBSCRIPTION_INACTIVE" };
-  }
-
   if (subscription.currentPeriodStart > now) {
     return { allowed: false, code: "SUBSCRIPTION_NOT_STARTED" };
   }
@@ -83,10 +79,20 @@ export function evaluatePremiumAccess({
     return { allowed: false, code: "SUBSCRIPTION_EXPIRED" };
   }
 
+  if (subscription.status === SubscriptionStatus.EXPIRED) {
+    return { allowed: false, code: "SUBSCRIPTION_EXPIRED" };
+  }
+
+  if (
+    subscription.status !== SubscriptionStatus.ACTIVE &&
+    subscription.status !== SubscriptionStatus.CANCELED
+  ) {
+    return { allowed: false, code: "SUBSCRIPTION_INACTIVE" };
+  }
+
   if (!subscription.hasConfirmedPayment) {
     return { allowed: false, code: "SUBSCRIPTION_PAYMENT_UNCONFIRMED" };
   }
 
   return { allowed: true };
 }
-

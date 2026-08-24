@@ -21,6 +21,7 @@ const {
   requireUserMock: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/server/auth/guards", () => ({
   getPremiumAccessDecision: getPremiumAccessDecisionMock,
   requireUser: requireUserMock,
@@ -98,6 +99,60 @@ describe("GET /api/resources/[resourceId]/file", () => {
       "https://r2.example/signed-pdf",
     );
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(findUniqueMock).toHaveBeenCalledWith({
+      where: { id: "resource-1" },
+      select: {
+        id: true,
+        type: true,
+        createdById: true,
+        publicationStatus: true,
+        isActive: true,
+        pdfResource: {
+          select: {
+            storageKey: true,
+            originalName: true,
+            mimeType: true,
+          },
+        },
+        imageResource: {
+          select: {
+            storageKey: true,
+            originalName: true,
+            mimeType: true,
+          },
+        },
+        fileResource: {
+          select: {
+            storageKey: true,
+            originalName: true,
+            mimeType: true,
+          },
+        },
+        audioResource: {
+          select: {
+            storageKey: true,
+            originalName: true,
+            mimeType: true,
+          },
+        },
+        module: {
+          select: {
+            createdById: true,
+            publicationStatus: true,
+            isActive: true,
+            audience: true,
+            subject: {
+              select: {
+                isActive: true,
+                level: {
+                  select: { id: true, isActive: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
     expect(getPremiumAccessDecisionMock).toHaveBeenCalledWith("level-1");
     expect(createPresignedDownloadUrlMock).toHaveBeenCalledWith({
       key: "resources/resource-1/file.pdf",
@@ -126,6 +181,72 @@ describe("GET /api/resources/[resourceId]/file", () => {
     expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["inactive level", { level: false }],
+    ["inactive subject", { subject: false }],
+    ["inactive module", { module: false }],
+    ["inactive resource", { resource: false }],
+  ])("rejects a learner when the %s is not active", async (_label, state) => {
+    const current = pdfResource();
+    findUniqueMock.mockResolvedValue({
+      ...current,
+      isActive: "resource" in state ? state.resource : current.isActive,
+      module: {
+        ...current.module,
+        isActive: "module" in state ? state.module : current.module.isActive,
+        subject: {
+          ...current.module.subject,
+          isActive:
+            "subject" in state ? state.subject : current.module.subject.isActive,
+          level: {
+            ...current.module.subject.level,
+            isActive:
+              "level" in state
+                ? state.level
+                : current.module.subject.level.isActive,
+          },
+        },
+      },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(403);
+    expect(getPremiumAccessDecisionMock).not.toHaveBeenCalled();
+    expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["module", { module: PublicationStatus.DRAFT }],
+    ["resource", { resource: PublicationStatus.DRAFT }],
+  ])("rejects a learner when the %s is not published", async (_label, status) => {
+    const current = pdfResource();
+    findUniqueMock.mockResolvedValue({
+      ...current,
+      publicationStatus:
+        "resource" in status ? status.resource : current.publicationStatus,
+      module: {
+        ...current.module,
+        publicationStatus:
+          "module" in status
+            ? status.module
+            : current.module.publicationStatus,
+      },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(403);
+    expect(getPremiumAccessDecisionMock).not.toHaveBeenCalled();
+    expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a learner without premium access", async () => {
     getPremiumAccessDecisionMock.mockResolvedValue({
       decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
@@ -140,6 +261,47 @@ describe("GET /api/resources/[resourceId]/file", () => {
     expect(await response.json()).toEqual({
       error: "SUBSCRIPTION_REQUIRED",
     });
+    expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("authorizes a teacher for a published teacher resource", async () => {
+    requireUserMock.mockResolvedValue({ id: "teacher-1", role: Role.TEACHER });
+    const current = pdfResource();
+    findUniqueMock.mockResolvedValue({
+      ...current,
+      module: {
+        ...current.module,
+        audience: ContentAudience.TEACHER,
+      },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(307);
+    expect(getPremiumAccessDecisionMock).toHaveBeenCalledWith("level-1");
+  });
+
+  it("rejects a teacher from a student-only resource", async () => {
+    requireUserMock.mockResolvedValue({ id: "teacher-1", role: Role.TEACHER });
+    const current = pdfResource();
+    findUniqueMock.mockResolvedValue({
+      ...current,
+      module: {
+        ...current.module,
+        audience: ContentAudience.STUDENT,
+      },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(403);
+    expect(getPremiumAccessDecisionMock).not.toHaveBeenCalled();
     expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
   });
 
@@ -209,6 +371,37 @@ describe("GET /api/resources/[resourceId]/file", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "RESOURCE_NOT_FOUND" });
+    expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the resource has no matching stored file", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pdfResource(),
+      pdfResource: null,
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "RESOURCE_HAS_NO_FILE" });
+    expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("does not query resource metadata when authentication fails", async () => {
+    const authError = new Error("UNAUTHENTICATED");
+    requireUserMock.mockRejectedValue(authError);
+
+    await expect(
+      GET(
+        new Request("http://localhost/api/resources/resource-1/file"),
+        params,
+      ),
+    ).rejects.toBe(authError);
+
+    expect(findUniqueMock).not.toHaveBeenCalled();
     expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
   });
 

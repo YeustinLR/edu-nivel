@@ -84,10 +84,26 @@ describe("resolveSubscriptionPeriod", () => {
     });
   });
 
+  it("renews a canceled but still-paid period without losing remaining days", () => {
+    expect(
+      resolveSubscriptionPeriod(
+        {
+          status: SubscriptionStatus.CANCELED,
+          currentPeriodStart: new Date("2026-07-01T12:00:00.000Z"),
+          currentPeriodEnd: new Date("2026-08-01T12:00:00.000Z"),
+        },
+        confirmedAt,
+        1,
+      ),
+    ).toEqual({
+      currentPeriodStart: new Date("2026-07-01T12:00:00.000Z"),
+      currentPeriodEnd: new Date("2026-09-01T12:00:00.000Z"),
+    });
+  });
+
   it.each([
     SubscriptionStatus.ACTIVE,
     SubscriptionStatus.EXPIRED,
-    SubscriptionStatus.CANCELED,
   ])(
     "restarts at confirmation when the previous %s period cannot carry time",
     (status) => {

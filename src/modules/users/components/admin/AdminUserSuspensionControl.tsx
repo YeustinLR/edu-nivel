@@ -1,8 +1,7 @@
 "use client";
 
 import { Ban, CheckCircle2, RotateCcw } from "lucide-react";
-import { useActionState, useEffect, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useId, useState } from "react";
 
 import { manageAdminUserSuspensionAction } from "@/modules/users/actions/admin-user-suspension-actions";
 import {
@@ -30,7 +29,6 @@ export function AdminUserSuspensionControl({
   suspensionReason: string | null;
   suspensionExpiresAt: Date | null;
 }) {
-  const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     manageAdminUserSuspensionAction,
     initialAdminUserSuspensionActionState,
@@ -38,10 +36,6 @@ export function AdminUserSuspensionControl({
   const [showSuspendForm, setShowSuspendForm] = useState(false);
   const reasonErrorId = useId();
   const isSuspended = Boolean(suspendedAt && (!suspensionExpiresAt || suspensionExpiresAt > new Date()));
-
-  useEffect(() => {
-    if (state.status === "success") router.refresh();
-  }, [router, state.status]);
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 sm:p-5">

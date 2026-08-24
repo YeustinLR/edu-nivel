@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { FilePlus2 } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { ContentFormSurface } from "@/modules/content/components/admin/ContentFormSurface";
 import { adminCatalogBreadcrumbs, ContentPageHeader } from "@/modules/content/components/admin/ContentPageHeader";
 import { CreateResourceForm } from "@/modules/content/components/admin/creation/CreateResourceForm";
+import { ResourceCreationHelp } from "@/modules/content/components/admin/creation/ResourceCreationHelp";
 import { getResourceCreationUnavailableReason } from "@/modules/content/domain/content-permissions";
 import { getResourceCreationContext } from "@/server/content/create-catalog-resource";
 
@@ -19,6 +19,7 @@ export default async function CreateAdminResourcePage({
   if (!context) redirect("/dashboard/admin/content/catalog");
 
   const moduleHref = `/dashboard/admin/content/modules/${encodeURIComponent(context.id)}`;
+  const subjectHref = `/dashboard/admin/content/subjects/${encodeURIComponent(context.subject.id)}`;
   const unavailableReason = getResourceCreationUnavailableReason({
     publicationStatus: context.publicationStatus,
     moduleIsActive: context.isActive,
@@ -40,30 +41,31 @@ export default async function CreateAdminResourcePage({
           { label: "Nuevo recurso" },
         ]}
       />
-      <ContentFormSurface
-        aside={
-          <div>
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-              <FilePlus2 aria-hidden="true" className="h-5 w-5" />
-            </span>
-            <h2 className="mt-4 font-semibold text-foreground">Añade un recurso</h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              Escribe un título y, si lo necesitas, adjunta un archivo, un video, un vínculo o contenido educativo.
-            </p>
+      <ContentFormSurface wide>
+        <div className="relative -mt-3 sm:-mt-4">
+          <div className="absolute right-0 top-0 z-10">
+            <ResourceCreationHelp
+              title="Ayuda rápida"
+              note="El contenido escrito forma parte del recurso; el adjunto es opcional."
+              items={[
+                "Escribe un título y desarrolla el contenido educativo.",
+                "Añade una duración estimada si puede orientar al estudiante.",
+                "Adjunta un video, archivo, imagen o vínculo si lo necesitas.",
+              ]}
+            />
           </div>
-        }
-      >
-        {unavailableReason ? (
-          <p role="alert" className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
-            {unavailableReason}
-          </p>
-        ) : (
-          <CreateResourceForm
-            moduleId={context.id}
-            requestId={randomUUID()}
-            closeHref={moduleHref}
-          />
-        )}
+          {unavailableReason ? (
+            <p role="alert" className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+              {unavailableReason}
+            </p>
+          ) : (
+            <CreateResourceForm
+              moduleId={context.id}
+              requestId={randomUUID()}
+              closeHref={subjectHref}
+            />
+          )}
+        </div>
       </ContentFormSurface>
     </div>
   );

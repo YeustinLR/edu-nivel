@@ -1,13 +1,37 @@
-import { Role } from "@/generated/prisma/enums";
-import { LearnerContent } from "@/modules/content/components/LearnerContent";
+import type { Metadata } from "next";
 
-export default function StudentExplorePage() {
+import { StudentExploreCatalog } from "@/modules/content/components/student-explore/StudentExploreCatalog";
+import { getStudentExploreData } from "@/server/content/student-explore-queries";
+
+export const metadata: Metadata = { title: "Explorar niveles" };
+
+export default async function StudentExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    stage?: string;
+    level?: string;
+    subject?: string;
+    error?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const data = await getStudentExploreData({
+    requestedStage: params.stage,
+    requestedLevelId: params.level,
+    requestedSubjectId: params.subject,
+  });
+  const catalogSelectionKey = [
+    data.stage,
+    data.selectedLevel?.id ?? "none",
+    data.selectedSubjectId ?? "none",
+  ].join(":");
+
   return (
-    <LearnerContent
-      role={Role.STUDENT}
-      presentation="learner"
-      title="Explorar recursos"
-      description="Recorre las materias y abre los recursos publicados para tu nivel actual."
+    <StudentExploreCatalog
+      key={catalogSelectionKey}
+      data={data}
+      actionError={params.error}
     />
   );
 }

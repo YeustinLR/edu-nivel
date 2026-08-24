@@ -100,7 +100,30 @@ export function StudentDashboardHome({ data }: { data: LearnerDashboardData }) {
 
       <section>
         <LearnerSectionHeading title="Guardados" href="/dashboard/student/saved" label="Ver todos" />
-        <LearnerEmptyPanel icon={Bookmark} title="No hay recursos guardados" description="EduNivel todavía no dispone de favoritos persistentes. Esta sección queda preparada para conectarlos cuando exista esa funcionalidad." />
+        {data.savedResources.length ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {data.savedResources.slice(0, 3).map((resource) => (
+              <LearnerResourceCard key={resource.id} resource={resource} />
+            ))}
+          </div>
+        ) : (
+          <LearnerEmptyPanel
+            icon={Bookmark}
+            title="No hay recursos guardados"
+            description={
+              data.access.status === "LOCKED"
+                ? "Activa el acceso a tu nivel para consultar tus recursos guardados."
+                : "Guarda un recurso desde Materias para encontrarlo rápidamente aquí."
+            }
+            action={
+              data.access.status === "LOCKED"
+                ? { href: "/dashboard/subscription", label: "Ver suscripción" }
+                : data.subjects.length
+                  ? { href: "/dashboard/student/content", label: "Explorar materias" }
+                  : undefined
+            }
+          />
+        )}
       </section>
     </div>
   );

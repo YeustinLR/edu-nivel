@@ -12,17 +12,25 @@ function useIsHydrated() {
 
 interface ThemeToggleProps {
   showLabel?: boolean;
+  tone?: "default" | "learner" | "learner-dark";
 }
 
-export function ThemeToggle({ showLabel = true }: ThemeToggleProps) {
+export function ThemeToggle({ showLabel = true, tone = "default" }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const isHydrated = useIsHydrated();
   const isDark = resolvedTheme === "dark";
+  const toneClass =
+    tone === "learner-dark"
+      ? "text-white/75 hover:bg-white/10 hover:text-white focus-visible:outline-violet"
+      : tone === "learner"
+        ? "text-[var(--student-muted)] hover:bg-[var(--student-soft)] hover:text-[var(--student-text)] focus-visible:outline-[var(--student-blue)]"
+        : "text-foreground-secondary hover:bg-surface-elevated hover:text-foreground focus-visible:outline-secondary";
 
   return (
     <button
+      type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground-secondary transition-colors hover:bg-surface-elevated hover:text-foreground"
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${toneClass}`}
     >
       {isHydrated ? (
         isDark ? (

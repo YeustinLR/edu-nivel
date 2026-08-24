@@ -19,12 +19,18 @@ import {
   confirmOnvoPaymentIntent,
   createOnvoPaymentIntent,
   createOnvoSinpeMobilePaymentMethod,
+  isDefinitiveOnvoApiRejection,
   OnvoApiError,
 } from "@/server/payments/onvo/client";
+import {
+  CheckoutRateLimitError,
+  enforceCheckoutRateLimit,
+} from "@/server/payments/onvo/checkout-rate-limit";
 import {
   providerModeFromEnvironment,
   reconcileOnvoPaymentIntent,
 } from "@/server/payments/onvo/reconcile";
+import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
 
 export class SinpeCheckoutError extends Error {
   constructor(public readonly code: string, message: string) {
@@ -50,6 +56,7 @@ function toPaymentStatus(providerStatus: string): PaymentStatus {
   if (providerStatus === "processing") return PaymentStatus.PROCESSING;
   if (providerStatus === "succeeded") return PaymentStatus.PROCESSING;
   if (providerStatus === "canceled") return PaymentStatus.CANCELED;
+  if (providerStatus === "failed") return PaymentStatus.FAILED;
   if (providerStatus === "requires_payment_method") return PaymentStatus.FAILED;
   return PaymentStatus.REQUIRES_REVIEW;
 }
@@ -141,6 +148,18 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
   const openLevelCheckout = await findOpenLevelCheckout(user.id, level.id);
   if (openLevelCheckout) return openLevelCheckout;
 
+  try {
+    await enforceCheckoutRateLimit(user.id);
+  } catch (error) {
+    if (error instanceof CheckoutRateLimitError) {
+      throw new SinpeCheckoutError(
+        "PAYMENT_RATE_LIMITED",
+        "Espera unos minutos antes de iniciar otro pago.",
+      );
+    }
+    throw error;
+  }
+
   const internalReference = `EDUNIVEL-${randomUUID()}`;
   let payment;
 
@@ -209,6 +228,12 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
         providerStatus: intent.status,
       },
     });
+    logOnvoPaymentEvent({
+      event: "intent.created",
+      outcome: intent.status,
+      paymentId: payment.id,
+      paymentIntentId: intent.id,
+    });
 
     const paymentMethod = await createOnvoSinpeMobilePaymentMethod({
       mobileNumber: {
@@ -226,7 +251,6 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
       where: { id: payment.id },
       data: { providerPaymentMethodId: paymentMethod.id },
     });
-
     const confirmedIntent = await confirmOnvoPaymentIntent(
       intent.id,
       paymentMethod.id,
@@ -240,6 +264,12 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
         receivedAmountMinor: confirmedIntent.receivedAmount ?? null,
       },
     });
+    logOnvoPaymentEvent({
+      event: "intent.confirmed",
+      outcome: confirmedIntent.status,
+      paymentId: payment.id,
+      paymentIntentId: intent.id,
+    });
 
     if (confirmedIntent.status === "succeeded") {
       await reconcileOnvoPaymentIntent(intent.id);
@@ -250,7 +280,8 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
 
     return payment;
   } catch (error) {
-    const isKnownProviderRejection = error instanceof OnvoApiError;
+    const isKnownProviderRejection =
+      error instanceof OnvoApiError && isDefinitiveOnvoApiRejection(error);
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -264,6 +295,12 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
           ? "ONVO rechazo la inicializacion del pago."
           : "No se pudo confirmar con certeza el estado de la operacion.",
       },
+    });
+    logOnvoPaymentEvent({
+      event: "checkout.initialization",
+      outcome: isKnownProviderRejection ? "rejected" : "uncertain",
+      paymentId: payment.id,
+      paymentIntentId: payment.providerPaymentIntentId,
     });
 
     throw new SinpeCheckoutError(

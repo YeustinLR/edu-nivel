@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useEffect, useId } from "react";
 
 import { updateModuleContentAction } from "@/modules/content/actions/content-edit-actions";
 import {
@@ -24,6 +24,8 @@ const audienceLabels = {
 export function EditModuleForm({
   moduleRecord,
   closeHref,
+  onCancel,
+  onSuccess,
 }: {
   moduleRecord: {
     id: string;
@@ -33,6 +35,8 @@ export function EditModuleForm({
     updatedAt: string;
   };
   closeHref?: string;
+  onCancel?: () => void;
+  onSuccess?: (message: string) => void;
 }) {
   const [state, formAction, isPending] = useActionState(
     updateModuleContentAction,
@@ -43,6 +47,10 @@ export function EditModuleForm({
   const audienceErrorId = useId();
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   const values = state.status === "error" ? state.values : undefined;
+
+  useEffect(() => {
+    if (state.status === "success") onSuccess?.(state.message);
+  }, [onSuccess, state]);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -109,7 +117,7 @@ export function EditModuleForm({
         <EditFieldError id={descriptionErrorId} messages={errors?.description} />
       </label>
 
-      <EditFormActions closeHref={closeHref} isPending={isPending} />
+      <EditFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} />
     </form>
   );
 }

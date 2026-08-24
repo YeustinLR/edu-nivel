@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ResourceType } from "@/generated/prisma/enums";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import {
   contentAvailabilitySchema,
   parseContentEditSearchParams,
@@ -14,7 +15,7 @@ import {
 const updatedAt = "2026-08-01T18:30:00.000Z";
 
 describe("content edit schema", () => {
-  it("parses valid level, module and lesson updates", () => {
+  it("parses valid level, module and resource updates", () => {
     expect(
       updateLevelSchema.parse({
         id: "level-1",
@@ -43,9 +44,9 @@ describe("content edit schema", () => {
       updateResourceSchema.parse({
         id: "resource-1",
         expectedUpdatedAt: updatedAt,
-        resourceType: ResourceType.LESSON,
+        resourceType: ResourceType.NOTE,
         title: "Lectura inicial",
-        description: "",
+        instructions: "",
         content: "Texto de la lección",
         estimatedMinutes: "12",
       }),
@@ -55,15 +56,18 @@ describe("content edit schema", () => {
   it("validates and normalizes structured resource fields", () => {
     expect(
       updateResourceSchema.parse({
-        id: "resource-didactic",
+        id: "resource-content",
         expectedUpdatedAt: updatedAt,
-        resourceType: ResourceType.DIDACTIC,
-        title: "Actividad guiada",
-        description: "",
-        content: "Contenido didáctico",
-        objective: "  Comprender el tema  ",
+        resourceType: ResourceType.NOTE,
+        title: "Contenido guiado",
+        instructions: "",
+        content: "  Contenido educativo  ",
+        estimatedMinutes: "8",
       }),
-    ).toMatchObject({ objective: "Comprender el tema" });
+    ).toMatchObject({
+      content: normalizeResourceContentForStorage("Contenido educativo"),
+      estimatedMinutes: 8,
+    });
 
     expect(
       updateResourceSchema.parse({
@@ -71,7 +75,7 @@ describe("content edit schema", () => {
         expectedUpdatedAt: updatedAt,
         resourceType: ResourceType.YOUTUBE,
         title: "Video educativo",
-        description: "",
+        instructions: "",
         videoId: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         startAt: "25",
       }),
@@ -83,7 +87,7 @@ describe("content edit schema", () => {
         expectedUpdatedAt: updatedAt,
         resourceType: ResourceType.LINK,
         title: "Enlace educativo",
-        description: "",
+        instructions: "",
         url: "https://example.com/recurso",
         openInNewTab: true,
       }),
@@ -100,7 +104,7 @@ describe("content edit schema", () => {
         expectedUpdatedAt: updatedAt,
         resourceType: ResourceType.YOUTUBE,
         title: "Video educativo",
-        description: "",
+        instructions: "",
       }).success,
     ).toBe(false);
 
@@ -110,7 +114,7 @@ describe("content edit schema", () => {
         expectedUpdatedAt: updatedAt,
         resourceType: ResourceType.LINK,
         title: "Enlace educativo",
-        description: "",
+        instructions: "",
         url: "javascript:alert(1)",
         openInNewTab: true,
       }).success,

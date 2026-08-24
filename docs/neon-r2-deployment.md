@@ -40,7 +40,7 @@ como producción confirmada.
 | `ONVO_ENV` | Opcional; `test` o `live` |
 | `ONVO_SECRET_KEY` | Opcional, pero obligatoria si existe `ONVO_ENV`, y viceversa |
 | `ONVO_WEBHOOK_SECRET` | Opcional; debe usar el prefijo validado |
-| `ONVO_SINPE_DESTINATION_NUMBER` | Opcional; la interfaz tiene un destino predeterminado |
+| `ONVO_SINPE_DESTINATION_NUMBER` | Requerido cuando ONVO está configurado; la interfaz no usa destinos predeterminados |
 | `CRON_SECRET` | Opcional en general, mínimo 16 caracteres; obligatorio al habilitar R2 |
 | `VERCEL_ENV` | Opcional; `development`, `preview` o `production` |
 | `R2_UPLOADS_ENABLED` | `true` o `false`; predeterminado `false` |

@@ -20,20 +20,13 @@ dominio público o despliegue de Vercel estén configurados actualmente. Tampoco
 demuestra una prueba real en producción. Esos pasos requieren el Dashboard y
 credenciales externas.
 
-### Inconsistencia conocida fuera de `docs/`
-
-`src/modules/marketing/data/faqs.ts` afirma que se aceptan tarjetas, pero el
-checkout implementado en el repositorio solo ofrece SINPE Móvil. Esta guía
-describe el comportamiento ejecutable y no considera las tarjetas como una
-funcionalidad disponible. Corregir ese texto de marketing requiere un cambio de
-código separado y no forma parte de esta actualización documental.
-
 ## Variables
 
 Ejemplo de Sandbox:
 
 ```dotenv
 ONVO_ENV="test"
+ONVO_LIVE_ENABLED="false"
 ONVO_SECRET_KEY="onvo_test_secret_key_reemplaza_con_tu_llave"
 ONVO_WEBHOOK_SECRET="webhook_secret_reemplaza_con_el_valor_real"
 ONVO_SINPE_DESTINATION_NUMBER="+50670196686"
@@ -46,8 +39,12 @@ Reglas implementadas en `src/config/env.ts`:
 - `ONVO_ENV` y `ONVO_SECRET_KEY` deben aparecer juntas;
 - una llave de prueba debe comenzar con `onvo_test_secret_key_`;
 - una llave en vivo debe comenzar con `onvo_live_secret_key_`;
-- el secreto del webhook, si existe, debe comenzar con `webhook_secret_`;
-- `CRON_SECRET`, si existe, debe tener al menos 16 caracteres.
+- Live exige además `ONVO_LIVE_ENABLED=true` y `VERCEL_ENV=production`, por lo
+  que una llave Live no puede activarse accidentalmente en localhost o Preview;
+- el secreto del webhook debe comenzar con `webhook_secret_`;
+- cuando ONVO está habilitado, webhook, número destino y `CRON_SECRET` son
+  obligatorios;
+- `CRON_SECRET` debe tener al menos 16 caracteres.
 
 Las llaves son exclusivamente server-side y nunca deben utilizar
 `NEXT_PUBLIC_`.
@@ -109,7 +106,8 @@ El servidor comprueba:
 - nivel existente, activo y premium;
 - teléfono costarricense de ocho dígitos, normalizado a `+506...`;
 - tipo de identificación permitido por el esquema;
-- identificación con longitud válida;
+- identificación con el formato exacto documentado para su tipo (`0`, `1`,
+  `2`, `3`, `4`, `5` o `9`);
 - UUID de idempotencia `checkoutRequestId`.
 
 Si se repite el mismo `checkoutRequestId`, se devuelve el pago existente del
@@ -145,6 +143,9 @@ Resultados locales:
 | `succeeded` y verificaciones válidas | `SUCCEEDED` y suscripción aplicada |
 | `canceled` | `CANCELED` |
 | `requires_payment_method` | `FAILED` |
+| `failed` | `FAILED` |
+| `refunded` | crea alerta administrativa hasta registrar el `refundId` |
+| `partially_refunded` | conserva acceso y exige seguimiento administrativo |
 | estado o datos inesperados | `REQUIRES_REVIEW` |
 
 `Payment.levelId`, no `User.selectedLevelId`, determina el nivel desbloqueado.
@@ -209,8 +210,16 @@ pendiente y todavía no se considera estancado. El refresco visual no llama por
 sí mismo a ONVO.
 
 Después de 30 minutos en procesamiento, la interfaz marca el intento como
-demorado y deja de refrescar automáticamente. Esto no convierte el pago en
-fallido.
+demorado y deja de refrescar automáticamente. El usuario puede pedir una
+cancelación: EduNivel consulta primero ONVO, cancela la intención únicamente si
+sigue pendiente y vuelve a conciliar. Si el intent llegó a éxito durante la
+carrera, se aplica en vez de descartarse.
+
+Si la respuesta de creación se perdió antes de guardar el ID externo, la
+conciliación busca intenciones ONVO por ventana temporal y por la metadata
+completa del pago. Solo enlaza una coincidencia única. Una búsqueda completa
+sin resultados libera el intento local después de 30 minutos; resultados
+múltiples o una búsqueda incompleta requieren revisión.
 
 ## Conciliación programada
 
@@ -231,11 +240,31 @@ La ruta:
 - devuelve `{ enabled: false }` si `CRON_SECRET` no existe;
 - devuelve 401 si el token no coincide;
 - procesa como máximo 20 pagos por ejecución;
-- selecciona pagos `INITIALIZING` o `PROCESSING` con intención externa;
+- selecciona pagos `INITIALIZING` o `PROCESSING` con intención externa y también
+  intentos huérfanos sin ID externo para recuperación;
 - espera al menos cinco minutos desde su última actualización;
 - marca `staleAt` después de 30 minutos, sin cerrar el pago;
 - continúa procesando el lote aunque una conciliación individual falle;
+- vuelve a consultar reembolsos registrados que continúan `PENDING`;
 - responde 500 cuando el resumen contiene fallos.
+
+## Reembolsos manuales
+
+EduNivel no invoca `POST /v1/refunds`. El administrador abre **Cobros**,
+prepara el caso local, ejecuta un reembolso total en el Dashboard de ONVO y
+registra el `refundId`. El servidor consulta `GET /v1/refunds/{id}` y verifica
+PaymentIntent, modo, moneda y monto completo.
+
+- `pending`: no modifica el acceso y queda disponible para cron/consulta.
+- `failed`: conserva el acceso y registra el fallo.
+- `succeeded` total: marca el Payment `REFUNDED` y reconstruye el periodo con
+  los demás pagos válidos.
+- parcial o inconsistente: `REQUIRES_REVIEW`, sin ajuste automático.
+
+Cada aplicación usa una transacción serializable y `PaymentRefund.appliedAt`.
+Repetir la consulta no resta meses nuevamente. La API pública de ONVO exige
+conocer el ID para consultar el objeto; por eso copiarlo al caso local es un
+paso obligatorio del procedimiento.
 
 La frecuencia diaria es compatible con Vercel Hobby. En ese plan la invocación
 puede ocurrir en cualquier momento dentro de la hora programada. El webhook y la
@@ -256,9 +285,9 @@ usarse con llaves `onvo_test_`:
 | Fallido/sin transferencia | `+50688889521` | No simula transferencia; la intención permanece pendiente |
 | Parcial | `+50688883333` | Simula 50 % y luego el 50 % restante |
 
-No se debe transferir dinero real durante estas pruebas. La identificación puede
-usar un valor sintético con formato aceptado; nunca deben escribirse cédulas
-reales en esta guía ni en pruebas versionadas.
+No se debe transferir dinero real durante estas pruebas. ONVO documenta para
+Sandbox la identificación `01-1393-1919` con tipo `0`; no debe sustituirse por
+la cédula real de una persona.
 
 Como los escenarios pertenecen a un servicio externo y pueden cambiar, deben
 verificarse en la documentación oficial de ONVO antes de una campaña de
@@ -283,44 +312,16 @@ transaccional de pagos. En CI se usa un servicio PostgreSQL 16.
 
 ### Prueba E2E manual de Sandbox
 
-Existe:
+La certificación vigente se ejecuta con la guía:
 
 ```text
-src/server/payments/onvo/__tests__/sandbox-renewal.manual.test.ts
+docs/onvo-gate-1-local.md
 ```
 
-Está omitida por defecto. El comando que la habilita es:
-
-```bash
-RUN_ONVO_SANDBOX_E2E=1 pnpm exec vitest run src/server/payments/onvo/__tests__/sandbox-renewal.manual.test.ts
-```
-
-Requisitos:
-
-- aplicación activa en `http://localhost:3000`;
-- PostgreSQL de prueba migrado;
-- variables ONVO Sandbox y webhook;
-- capacidad de recibir los eventos;
-- no ejecutar contra datos de producción.
-
-Su objetivo es crear usuarios sintéticos, marcar el correo verificado
-directamente en la base, iniciar pagos de Sandbox y validar renovación,
-idempotencia, propiedad y producto por rol. No prueba la entrega de OTP.
-
-Sin embargo, la prueba manual está desactualizada respecto del flujo vigente:
-
-- sus solicitudes de registro no envían el `role` obligatorio;
-- su formulario de pago no envía el `levelId` obligatorio.
-
-Por esas razones, no debe presentarse como una prueba ejecutable y aprobada del
-estado actual. Antes de volver a usarla se debe actualizar su fixture con un rol
-público válido, crear o seleccionar un nivel premium y enviar ese `levelId`.
-Esta auditoría no modifica el test porque su alcance está limitado a `docs/`.
-
-El documento anterior contenía resultados fechados de ejecuciones externas. Se
-eliminaron como afirmaciones actuales porque el repositorio no conserva logs ni
-artefactos suficientes para reproducirlos. La existencia del test no demuestra
-que haya pasado en el entorno presente.
+Incluye éxito, demora, ausencia, parcial, duplicados, concurrencia, webhook
+perdido, conciliación manual, aislamiento, renovación y reembolso. El comando
+`pnpm onvo:audit -- --email=... --level=1` produce una instantánea de evidencia
+de solo lectura y sin datos completos del pagador.
 
 ## Paso a modo Live
 
@@ -328,6 +329,7 @@ Antes de usar `ONVO_ENV=live`:
 
 - completar onboarding y habilitación con ONVO;
 - obtener una llave `onvo_live_secret_key_...`;
+- configurar conscientemente `ONVO_LIVE_ENABLED=true` solo en Production;
 - registrar y probar el webhook del dominio definitivo;
 - confirmar el número SINPE destino asignado;
 - ejecutar pruebas extremo a extremo controladas;
@@ -344,5 +346,6 @@ completado.
 - [SINPE Móvil en ONVO](https://docs.onvopay.com/payments/sinpe-mobile)
 - [Métodos de prueba de ONVO](https://docs.onvopay.com/payments/testing)
 - [Webhooks de ONVO](https://docs.onvopay.com/webhooks)
+- [Reembolsos de ONVO](https://docs.onvopay.com/payments/refunds)
 - [Cron Jobs de Vercel](https://vercel.com/docs/cron-jobs)
 - [Límites de Cron Jobs](https://vercel.com/docs/cron-jobs/usage-and-pricing)

@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResourceType, Role } from "@/generated/prisma/enums";
+import {
+  MAX_SERIALIZED_RESOURCE_DOCUMENT_BYTES,
+  getResourceDocumentByteLength,
+  normalizeResourceContentForStorage,
+  normalizeResourceDocument,
+  serializeResourceDocument,
+} from "@/modules/content/domain/resource-document";
 import { createAdminStructuredResourceAction } from "@/modules/content/actions/admin-resource-creation-actions";
 import { initialResourceCreationActionState } from "@/modules/content/types/resource-creation-action-state";
 import { AuthGuardError } from "@/server/auth/guards";
@@ -53,15 +60,16 @@ vi.mock("@/server/content/revalidate-content", () => ({
   revalidateContentPages: mocks.revalidateContentPages,
 }));
 
-function lessonFormData() {
+function youtubeFormData() {
   const formData = new FormData();
   formData.set("requestId", "734790ea-f53c-4f2c-a70c-22f13683c6f1");
   formData.set("moduleId", "module-1");
-  formData.set("resourceType", ResourceType.LESSON);
+  formData.set("resourceType", ResourceType.YOUTUBE);
   formData.set("title", "Introducción");
-  formData.set("description", "Descripción");
+  formData.set("instructions", "Observa el video y toma apuntes");
   formData.set("content", "Contenido de la lección");
   formData.set("estimatedMinutes", "10");
+  formData.set("videoId", "dQw4w9WgXcQ");
   formData.set("disposition", "PUBLISH");
   return formData;
 }
@@ -72,9 +80,22 @@ function noteFormData() {
   formData.set("moduleId", "module-1");
   formData.set("resourceType", ResourceType.NOTE);
   formData.set("title", "Recordatorio");
-  formData.set("description", "Descripción opcional");
+  formData.set("instructions", "Lee el contenido con atención");
+  formData.set("content", "Contenido del recordatorio");
   formData.set("disposition", "DRAFT");
   return formData;
+}
+
+function largeTableContent(padding: number, validate = true) {
+  const rows = Array.from({ length: 100 }, (_, rowIndex) => ({
+    cells: Array.from({ length: 33 }, (_, cellIndex) =>
+      rowIndex === 0 && cellIndex === 0 ? "x".repeat(padding) : "",
+    ),
+  }));
+  const document = normalizeResourceDocument([
+    { id: "transport-table", type: "table", props: {}, content: { type: "tableContent", rows }, children: [] },
+  ]);
+  return validate ? serializeResourceDocument(document) : JSON.stringify(document);
 }
 
 describe("admin structured resource creation action", () => {
@@ -90,7 +111,7 @@ describe("admin structured resource creation action", () => {
 
     const result = await createAdminStructuredResourceAction(
       initialResourceCreationActionState,
-      lessonFormData(),
+      youtubeFormData(),
     );
 
     expect(mocks.requireRole).toHaveBeenCalledWith([
@@ -108,19 +129,20 @@ describe("admin structured resource creation action", () => {
     mocks.createCatalogStructuredResource.mockResolvedValue({
       id: "resource-1",
       title: "Introducción",
-      type: ResourceType.LESSON,
+      type: ResourceType.YOUTUBE,
     });
 
     const result = await createAdminStructuredResourceAction(
       initialResourceCreationActionState,
-      lessonFormData(),
+      youtubeFormData(),
     );
 
     expect(mocks.createCatalogStructuredResource).toHaveBeenCalledWith(
       expect.objectContaining({
         moduleId: "module-1",
-        resourceType: ResourceType.LESSON,
-        content: "Contenido de la lección",
+        resourceType: ResourceType.YOUTUBE,
+        instructions: "Observa el video y toma apuntes",
+        content: normalizeResourceContentForStorage("Contenido de la lección"),
         estimatedMinutes: 10,
       }),
       { id: "admin-1", role: Role.ADMIN },
@@ -130,7 +152,7 @@ describe("admin structured resource creation action", () => {
       message: "Introducción fue publicado.",
       resourceId: "resource-1",
     });
-    expect(mocks.revalidateContentPages).toHaveBeenCalledOnce();
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
   it("lets a collaborator create a note without an attachment", async () => {
@@ -157,6 +179,49 @@ describe("admin structured resource creation action", () => {
       status: "success",
       resourceId: "resource-note",
     });
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
+  });
+
+  it("passes a valid FormData document close to 512 KiB without truncation", async () => {
+    const content = largeTableContent(14_000);
+    expect(getResourceDocumentByteLength(content)).toBeGreaterThan(
+      MAX_SERIALIZED_RESOURCE_DOCUMENT_BYTES - 2_048,
+    );
+    mocks.createCatalogStructuredResource.mockResolvedValue({
+      id: "large-resource",
+      title: "Documento grande",
+      type: ResourceType.NOTE,
+    });
+    const formData = noteFormData();
+    formData.set("title", "Documento grande");
+    formData.set("content", content);
+
+    await expect(
+      createAdminStructuredResourceAction(initialResourceCreationActionState, formData),
+    ).resolves.toMatchObject({ status: "success", resourceId: "large-resource" });
+    expect(mocks.createCatalogStructuredResource).toHaveBeenCalledWith(
+      expect.objectContaining({ content }),
+      expect.any(Object),
+    );
+  });
+
+  it("rejects an oversized FormData document in domain validation", async () => {
+    const content = largeTableContent(15_000, false);
+    expect(getResourceDocumentByteLength(content)).toBeGreaterThan(
+      MAX_SERIALIZED_RESOURCE_DOCUMENT_BYTES,
+    );
+    const formData = noteFormData();
+    formData.set("content", content);
+
+    const result = await createAdminStructuredResourceAction(
+      initialResourceCreationActionState,
+      formData,
+    );
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { content: ["El documento no puede superar 512 KiB."] },
+    });
+    expect(mocks.createCatalogStructuredResource).not.toHaveBeenCalled();
   });
 
   it("does not grant structured attachments to a collaborator", async () => {
@@ -167,7 +232,7 @@ describe("admin structured resource creation action", () => {
 
     const result = await createAdminStructuredResourceAction(
       initialResourceCreationActionState,
-      lessonFormData(),
+      youtubeFormData(),
     );
 
     expect(mocks.createCatalogStructuredResource).not.toHaveBeenCalled();
@@ -187,7 +252,7 @@ describe("admin structured resource creation action", () => {
 
     const result = await createAdminStructuredResourceAction(
       initialResourceCreationActionState,
-      lessonFormData(),
+      youtubeFormData(),
     );
 
     expect(result).toMatchObject({

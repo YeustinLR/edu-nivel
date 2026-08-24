@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { env } from "@/config/env";
 import { reconcilePendingOnvoPayments } from "@/server/payments/onvo/reconcile-pending";
+import { revalidatePaymentAccessPages } from "@/server/content/revalidate-content";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,14 @@ export async function GET(request: Request) {
   }
 
   const summary = await reconcilePendingOnvoPayments();
+  if (
+    summary.succeeded > 0 ||
+    summary.alreadyApplied > 0 ||
+    summary.refundSucceeded > 0 ||
+    summary.refundAlreadyApplied > 0
+  ) {
+    revalidatePaymentAccessPages();
+  }
 
   return NextResponse.json(
     { enabled: true, summary },

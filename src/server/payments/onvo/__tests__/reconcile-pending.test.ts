@@ -4,10 +4,16 @@ const {
   findManyMock,
   paymentUpdateManyMock,
   reconcileMock,
+  recoverMock,
+  refundFindManyMock,
+  reconcileRefundMock,
 } = vi.hoisted(() => ({
   findManyMock: vi.fn(),
   paymentUpdateManyMock: vi.fn(),
   reconcileMock: vi.fn(),
+  recoverMock: vi.fn(),
+  refundFindManyMock: vi.fn(),
+  reconcileRefundMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -17,10 +23,19 @@ vi.mock("@/server/db/prisma", () => ({
       findMany: findManyMock,
       updateMany: paymentUpdateManyMock,
     },
+    paymentRefund: {
+      findMany: refundFindManyMock,
+    },
   },
 }));
 vi.mock("@/server/payments/onvo/reconcile", () => ({
   reconcileOnvoPaymentIntent: reconcileMock,
+}));
+vi.mock("@/server/payments/onvo/recover-payment-intent", () => ({
+  recoverOnvoPaymentIntent: recoverMock,
+}));
+vi.mock("@/server/payments/onvo/refunds", () => ({
+  reconcileOnvoRefund: reconcileRefundMock,
 }));
 
 import { reconcilePendingOnvoPayments } from "@/server/payments/onvo/reconcile-pending";
@@ -31,10 +46,11 @@ describe("reconcilePendingOnvoPayments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     paymentUpdateManyMock.mockResolvedValue({ count: 1 });
+    refundFindManyMock.mockResolvedValue([]);
   });
 
   it("reconciles a bounded eligible batch and marks only old processing attempts", async () => {
-    findManyMock.mockResolvedValue([
+    findManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
         id: "old",
         providerPaymentIntentId: "intent_old",
@@ -61,7 +77,8 @@ describe("reconcilePendingOnvoPayments", () => {
 
     const summary = await reconcilePendingOnvoPayments(now);
 
-    expect(findManyMock).toHaveBeenCalledWith(
+    expect(findManyMock).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         take: 20,
         where: expect.objectContaining({
@@ -78,6 +95,15 @@ describe("reconcilePendingOnvoPayments", () => {
       review: 0,
       alreadyApplied: 0,
       failed: 1,
+      orphanSelected: 0,
+      recovered: 0,
+      abandoned: 0,
+      refundSelected: 0,
+      refundSucceeded: 0,
+      refundPending: 0,
+      refundReview: 0,
+      refundAlreadyApplied: 0,
+      refundFailed: 0,
     });
     expect(paymentUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(paymentUpdateManyMock).toHaveBeenCalledWith({

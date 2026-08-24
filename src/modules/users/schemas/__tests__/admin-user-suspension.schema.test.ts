@@ -1,8 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminUserSuspensionSchema } from "@/modules/users/schemas/admin-user-suspension.schema";
 
 describe("adminUserSuspensionSchema", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-19T10:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("accepts an indefinite suspension with a reason", () => {
     expect(
       adminUserSuspensionSchema.parse({

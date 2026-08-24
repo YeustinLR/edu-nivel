@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChevronDown, ExternalLink } from "lucide-react";
+import { BookOpen, ChevronDown, ExternalLink, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -11,14 +11,15 @@ import {
 import { ModuleResourcePanel } from "@/modules/content/components/shared/ModuleResourcePanel";
 import { PdfCanvasViewer } from "@/modules/content/components/shared/PdfCanvasViewer";
 import { YouTubeEmbed } from "@/modules/content/components/shared/YouTubeEmbed";
+import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
 
 export type LearnerModuleResource = {
   id: string;
   title: string;
-  description: string | null;
+  instructions: string | null;
+  content: string | null;
+  estimatedMinutes: number | null;
   type: ResourceType;
-  lesson: { content: string; estimatedMinutes: number | null } | null;
-  didacticResource: { content: string; objective: string | null } | null;
   youtubeVideo: { videoId: string; startAt: number | null } | null;
   linkResource: { url: string; openInNewTab: boolean } | null;
 };
@@ -43,10 +44,6 @@ function ResourcePresentation({
   onClosePdf: () => void;
   student: boolean;
 }) {
-  const cardClass =
-    student
-      ? "block rounded-2xl border border-[var(--student-border)] bg-[var(--student-panel)] p-5 shadow-[0_5px_22px_rgba(15,23,42,0.035)] transition hover:-translate-y-0.5 hover:border-blue-300/70 hover:shadow-[0_12px_32px_rgba(15,23,42,0.07)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--student-blue)]"
-      : "block rounded-xl border border-border bg-background p-4 transition-colors hover:border-secondary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary";
   const surfaceClass = student
     ? "rounded-2xl border border-[var(--student-border)] bg-[var(--student-panel)] p-5 shadow-[0_5px_22px_rgba(15,23,42,0.035)]"
     : "rounded-xl border border-border bg-background p-4";
@@ -57,20 +54,40 @@ function ResourcePresentation({
     ? "mt-1 text-sm leading-6 text-[var(--student-muted)]"
     : "mt-1 text-sm text-muted";
 
+  const header = (
+    <>
+      <ResourceTypeBadge type={resource.type} showIcon />
+      <p className={titleClass}>{resource.title}</p>
+    </>
+  );
+  const instructions = resource.instructions ? (
+    <details className={student ? "mt-4 rounded-xl border border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25" : "mt-4 rounded-lg border border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25"}>
+      <summary className={student ? "flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-bold text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-100" : "flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-100"}>
+        <Lightbulb aria-hidden="true" className="h-4 w-4" />
+        Ver indicaciones
+      </summary>
+      <p className="border-t border-amber-200 px-3 py-3 whitespace-pre-wrap text-sm leading-6 text-amber-950 dark:border-amber-900/60 dark:text-amber-100">
+        {resource.instructions}
+      </p>
+    </details>
+  ) : null;
+  const writtenContent = resource.content ? (
+    <details className={student ? "mt-4 rounded-xl border border-[var(--student-border)] p-3" : "mt-4 rounded-lg border border-border p-3"}>
+      <summary className={student ? "cursor-pointer text-sm font-bold text-[var(--student-blue)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--student-blue)]" : "cursor-pointer text-sm font-medium text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"}>
+        Leer contenido
+        {resource.estimatedMinutes
+          ? ` · ${resource.estimatedMinutes} min`
+          : ""}
+      </summary>
+      <ResourceContentRenderer
+        content={resource.content}
+        className={student ? "mt-3 text-[var(--student-text)]" : "mt-3"}
+      />
+    </details>
+  ) : null;
+
   if (resource.type === ResourceType.NOTE) {
-    return (
-      <div className={surfaceClass}>
-        <ResourceTypeBadge type={resource.type} showIcon />
-        <p className={titleClass}>{resource.title}</p>
-        {resource.description ? (
-          <p className={`${descriptionClass} whitespace-pre-wrap`}>
-            {resource.description}
-          </p>
-        ) : (
-          <p className={descriptionClass}>Recurso sin adjunto.</p>
-        )}
-      </div>
-    );
+    return <div className={surfaceClass}>{header}{instructions}{writtenContent}</div>;
   }
 
   if (resource.type === ResourceType.PDF) {
@@ -82,11 +99,9 @@ function ResourcePresentation({
           isOpen ? "md:col-span-2" : ""
         }`}
       >
-        <ResourceTypeBadge type={resource.type} showIcon />
-        <p className={titleClass}>{resource.title}</p>
-        {resource.description ? (
-          <p className={descriptionClass}>{resource.description}</p>
-        ) : null}
+        {header}
+        {instructions}
+        {writtenContent}
 
         <div className="mt-4">
           {isOpen ? (
@@ -109,41 +124,26 @@ function ResourcePresentation({
     );
   }
 
-  if (
-    resource.type === ResourceType.IMAGE ||
-    resource.type === ResourceType.FILE ||
-    resource.type === ResourceType.AUDIO
-  ) {
+  if (resource.type === ResourceType.IMAGE || resource.type === ResourceType.FILE || resource.type === ResourceType.AUDIO) {
     return (
-      <Link
-        href={`/api/resources/${resource.id}/file`}
-        target="_blank"
-        className={cardClass}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <ResourceTypeBadge type={resource.type} showIcon />
-          <ExternalLink aria-hidden="true" className="h-4 w-4 text-muted" />
-        </div>
-        <p className={titleClass}>{resource.title}</p>
-        {resource.description ? (
-          <p className={`${descriptionClass} line-clamp-2`}>
-            {resource.description}
-          </p>
-        ) : null}
-      </Link>
+      <div className={surfaceClass}>
+        {header}
+        {instructions}
+        {writtenContent}
+        <Link href={`/api/resources/${resource.id}/file`} target="_blank" className={student ? "mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--student-border)] px-3 py-2 text-sm font-bold text-[var(--student-blue)] hover:bg-[var(--student-blue-soft)]" : "mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-secondary hover:bg-surface-elevated"}>
+          {resource.type === ResourceType.IMAGE ? "Ver imagen" : "Abrir archivo"}
+          <ExternalLink aria-hidden="true" className="h-4 w-4" />
+        </Link>
+      </div>
     );
   }
 
   if (resource.type === ResourceType.YOUTUBE && resource.youtubeVideo) {
     return (
-      <div className={surfaceClass}>
-        <ResourceTypeBadge type={resource.type} showIcon />
-        <p className={titleClass}>{resource.title}</p>
-        {resource.description ? (
-          <p className={descriptionClass}>
-            {resource.description}
-          </p>
-        ) : null}
+      <div className={`${surfaceClass} md:col-span-2`}>
+        {header}
+        {instructions}
+        {writtenContent}
         <div className="mt-4">
           <YouTubeEmbed
             videoId={resource.youtubeVideo.videoId}
@@ -157,59 +157,23 @@ function ResourcePresentation({
 
   if (resource.type === ResourceType.LINK && resource.linkResource) {
     return (
-      <a
-        href={resource.linkResource.url}
-        target={resource.linkResource.openInNewTab ? "_blank" : undefined}
-        rel={resource.linkResource.openInNewTab ? "noreferrer" : undefined}
-        className={cardClass}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <ResourceTypeBadge type={resource.type} showIcon />
-          <ExternalLink aria-hidden="true" className="h-4 w-4 text-muted" />
-        </div>
-        <p className={titleClass}>{resource.title}</p>
-        {resource.description ? (
-          <p className={`${descriptionClass} line-clamp-2`}>
-            {resource.description}
-          </p>
-        ) : null}
-      </a>
-    );
-  }
-
-  if (
-    (resource.type === ResourceType.LESSON && resource.lesson) ||
-    (resource.type === ResourceType.DIDACTIC && resource.didacticResource)
-  ) {
-    const content = resource.lesson?.content ?? resource.didacticResource?.content;
-
-    return (
-      <details className={student ? `${surfaceClass} open:border-blue-300/70` : "rounded-xl border border-border bg-background p-4 open:border-secondary/30"}>
-        <summary className={student ? "cursor-pointer list-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--student-blue)]" : "cursor-pointer list-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"}>
-          <ResourceTypeBadge type={resource.type} showIcon />
-          <p className={titleClass}>{resource.title}</p>
-          <p className={descriptionClass}>
-            Selecciona para leer el contenido.
-          </p>
-        </summary>
-        <div className={student ? "mt-4 border-t border-[var(--student-border)] pt-4" : "mt-4 border-t border-border pt-4"}>
-          {resource.didacticResource?.objective ? (
-            <p className={student ? "mb-3 text-sm font-bold text-[var(--student-blue)]" : "mb-3 text-sm font-medium text-secondary"}>
-              Objetivo: {resource.didacticResource.objective}
-            </p>
-          ) : null}
-          <p className={student ? "whitespace-pre-wrap text-sm leading-7 text-[var(--student-text)]" : "whitespace-pre-wrap text-sm leading-7 text-foreground-secondary"}>
-            {content}
-          </p>
-        </div>
-      </details>
+      <div className={surfaceClass}>
+        {header}
+        {instructions}
+        {writtenContent}
+        <a href={resource.linkResource.url} target={resource.linkResource.openInNewTab ? "_blank" : undefined} rel={resource.linkResource.openInNewTab ? "noreferrer" : undefined} className={student ? "mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--student-border)] px-3 py-2 text-sm font-bold text-[var(--student-blue)] hover:bg-[var(--student-blue-soft)]" : "mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-secondary hover:bg-surface-elevated"}>
+          Abrir vínculo
+          <ExternalLink aria-hidden="true" className="h-4 w-4" />
+        </a>
+      </div>
     );
   }
 
   return (
     <div className={surfaceClass}>
-      <ResourceTypeBadge type={resource.type} showIcon />
-      <p className={titleClass}>{resource.title}</p>
+      {header}
+      {instructions}
+      {writtenContent}
       <p className={descriptionClass}>
         Este tipo de recurso todavía no tiene un visor compatible.
       </p>

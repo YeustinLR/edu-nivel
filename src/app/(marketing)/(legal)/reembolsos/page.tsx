@@ -23,7 +23,6 @@ export default function ReembolsosPage() {
         </p>
         <p>No se procesarán reembolsos para:</p>
         <ul className="list-disc pl-6 space-y-1">
-          <li>Renovaciones automáticas de suscripciones activas.</li>
           <li>Compras que incumplan las condiciones establecidas en esta política.</li>
         </ul>
 
@@ -51,15 +50,15 @@ export default function ReembolsosPage() {
           <li>Motivo de la solicitud.</li>
         </ul>
         <p>
-          Si el reembolso es aprobado, se procesará utilizando el mismo método de pago empleado originalmente.
+          Si el reembolso es aprobado, EduNivel gestionará manualmente un reembolso total desde ONVO y conciliará su resultado antes de actualizar el acceso. En esta versión no se procesan reembolsos parciales.
         </p>
 
-        <h2 className="text-xl font-bold text-foreground pt-4">Cancelación de suscripciones</h2>
+        <h2 className="text-xl font-bold text-foreground pt-4">Renovación del acceso</h2>
         <p>
-          Las suscripciones pueden cancelarse en cualquier momento desde la configuración de la cuenta.
+          Los planes de EduNivel son periodos prepagados de 1 o 12 meses y no se renuevan automáticamente mediante ONVO.
         </p>
         <p>
-          La cancelación evitará futuros cobros, pero no implica el reembolso automático de pagos ya realizados, salvo los casos contemplados en esta política.
+          Cada renovación requiere un nuevo pago. Dejar vencer el periodo no implica el reembolso de pagos ya realizados.
         </p>
 
         <h2 className="text-xl font-bold text-foreground pt-4">Excepciones</h2>
@@ -82,7 +81,7 @@ export default function ReembolsosPage() {
         </p>
 
         <p className="text-muted pt-6 text-xs">
-          Última actualización: Junio 2026 · San José, Costa Rica
+          Última actualización: Agosto 2026 · San José, Costa Rica
         </p>
       </section>
     </section>

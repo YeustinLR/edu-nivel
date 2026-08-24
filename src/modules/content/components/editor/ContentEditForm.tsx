@@ -17,6 +17,6 @@ export function EditActionFeedback({ state }: { state: ContentEditActionState })
   );
 }
 
-export function EditFormActions({ closeHref, isPending }: { closeHref?: string; isPending: boolean }) {
-  return <ContentFormActions closeHref={closeHref} isPending={isPending} submitLabel="Guardar cambios" />;
+export function EditFormActions({ closeHref, onCancel, isPending, submitDisabled }: { closeHref?: string; onCancel?: () => void; isPending: boolean; submitDisabled?: boolean }) {
+  return <ContentFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} submitDisabled={submitDisabled} submitLabel="Guardar cambios" />;
 }

@@ -6,7 +6,7 @@ import {
   Presentation,
   UsersRound,
 } from "lucide-react";
-import { useActionState, useId } from "react";
+import { useActionState, useEffect, useId } from "react";
 
 import { createAdminModuleAction } from "@/modules/content/actions/admin-content-creation-actions";
 import { ContentPanelSection } from "@/modules/content/components/admin/ContentPanelPrimitives";
@@ -37,9 +37,13 @@ const audienceIcons = {
 export function CreateModuleForm({
   subjectId,
   closeHref,
+  onCancel,
+  onSuccess,
 }: {
   subjectId: string;
-  closeHref: string;
+  closeHref?: string;
+  onCancel?: () => void;
+  onSuccess?: (moduleId: string, message: string) => void;
 }) {
   const [state, formAction, isPending] = useActionState(
     createAdminModuleAction,
@@ -52,7 +56,13 @@ export function CreateModuleForm({
   const values = state.status === "error" ? state.values : undefined;
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
 
-  if (state.status === "success") {
+  useEffect(() => {
+    if (state.status === "success") {
+      onSuccess?.(state.createdId, state.message);
+    }
+  }, [onSuccess, state]);
+
+  if (state.status === "success" && !onSuccess) {
     return <CreationActionFeedback state={state} />;
   }
 
@@ -150,6 +160,7 @@ export function CreateModuleForm({
 
       <CreationFormActions
         closeHref={closeHref}
+        onCancel={onCancel}
         isPending={isPending}
         submitLabel="Publicar módulo"
         pendingLabel="Procesando…"

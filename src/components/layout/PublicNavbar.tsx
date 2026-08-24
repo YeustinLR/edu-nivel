@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 
 import { navigationLinks } from "@/constants/navigation";
+import { EduNivelLogo } from "@/components/layout/EduNivelLogo";
 
 import ThemeToggle from "./ThemeToggle";
 import { useScrolled } from "./useScrolled";
@@ -21,16 +22,7 @@ export default function PublicNavbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
-            <GraduationCap
-              size={17}
-              className="text-accent-foreground"
-              strokeWidth={2.5}
-            />
-          </div>
-          <span className="logo-text">
-            Edu<span className="text-accent">Nivel</span>
-          </span>
+          <EduNivelLogo />
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex" aria-label="Navegación principal">

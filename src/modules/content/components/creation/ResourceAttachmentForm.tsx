@@ -1,15 +1,12 @@
 "use client";
 
 import {
-  BookOpen,
   CircleCheck,
+  Clock3,
   ExternalLink,
   FileText,
-  GraduationCap,
   ImageIcon,
-  LinkIcon,
   Paperclip,
-  PlayCircle,
   Trash2,
   UploadCloud,
   X,
@@ -44,6 +41,12 @@ import {
   validateUploadFile,
 } from "@/modules/content/domain/resource-attachment";
 import { initialResourceCreationActionState } from "@/modules/content/types/resource-creation-action-state";
+import { ResourceDocumentField } from "@/modules/content/components/editor/ResourceDocumentField";
+import {
+  adminResourceAttachments,
+  collaboratorResourceAttachments,
+  ResourceAttachmentChoices,
+} from "@/modules/content/components/creation/ResourceAttachmentChoices";
 
 export type ResourceModuleOption = {
   id: string;
@@ -67,62 +70,6 @@ type UploadAttempt = {
   uploaded: boolean;
 };
 
-const attachmentPresentation = {
-  YOUTUBE: {
-    label: "YouTube",
-    icon: PlayCircle,
-    idleClass:
-      "border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300",
-    selectedClass: "border-red-500 bg-red-500 text-white shadow-sm",
-  },
-  UPLOAD: {
-    label: "Subir",
-    icon: UploadCloud,
-    idleClass:
-      "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
-    selectedClass: "border-sky-500 bg-sky-500 text-white shadow-sm",
-  },
-  LINK: {
-    label: "Vínculo",
-    icon: LinkIcon,
-    idleClass:
-      "border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300",
-    selectedClass: "border-violet-500 bg-violet-500 text-white shadow-sm",
-  },
-  LESSON: {
-    label: "Lección",
-    icon: BookOpen,
-    idleClass:
-      "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-    selectedClass: "border-emerald-500 bg-emerald-500 text-white shadow-sm",
-  },
-  DIDACTIC: {
-    label: "Material didáctico",
-    icon: GraduationCap,
-    idleClass:
-      "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
-    selectedClass: "border-amber-500 bg-amber-500 text-white shadow-sm",
-  },
-} satisfies Record<
-  ResourceAttachmentKind,
-  {
-    label: string;
-    icon: typeof BookOpen;
-    idleClass: string;
-    selectedClass: string;
-  }
->;
-
-const adminAttachments: ResourceAttachmentKind[] = [
-  "YOUTUBE",
-  "UPLOAD",
-  "LINK",
-  "LESSON",
-  "DIDACTIC",
-];
-
-const collaboratorAttachments: ResourceAttachmentKind[] = ["UPLOAD"];
-
 export function ResourceAttachmentForm({
   mode,
   fixedModuleId,
@@ -130,13 +77,19 @@ export function ResourceAttachmentForm({
   requestId = "",
   closeHref,
   successBaseHref,
+  expectedSubjectId,
+  onCancel,
+  onSuccess,
 }: {
   mode: "admin" | "collaborator";
   fixedModuleId?: string;
   modules?: ResourceModuleOption[];
   requestId?: string;
-  closeHref: string;
-  successBaseHref: string;
+  closeHref?: string;
+  successBaseHref?: string;
+  expectedSubjectId?: string;
+  onCancel?: () => void;
+  onSuccess?: (resourceId: string, message: string) => void;
 }) {
   const [state, structuredAction, isStructuredPending] = useActionState(
     createAdminStructuredResourceAction,
@@ -148,13 +101,12 @@ export function ResourceAttachmentForm({
   const [attachment, setAttachment] =
     useState<ResourceAttachmentKind | null>(null);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [lessonContent, setLessonContent] = useState("");
+  const [content, setContent] = useState("");
+  const [contentValidationError, setContentValidationError] = useState<string | null>(null);
   const [estimatedMinutes, setEstimatedMinutes] = useState("");
-  const [didacticContent, setDidacticContent] = useState("");
-  const [objective, setObjective] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
@@ -163,17 +115,16 @@ export function ResourceAttachmentForm({
 
   const moduleErrorId = useId();
   const titleErrorId = useId();
-  const descriptionErrorId = useId();
+  const instructionsErrorId = useId();
   const attachmentErrorId = useId();
   const videoErrorId = useId();
   const urlErrorId = useId();
   const contentErrorId = useId();
   const estimatedMinutesErrorId = useId();
-  const objectiveErrorId = useId();
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   const moduleId = fixedModuleId ?? selectedModuleId;
   const attachments =
-    mode === "admin" ? adminAttachments : collaboratorAttachments;
+    mode === "admin" ? adminResourceAttachments : collaboratorResourceAttachments;
   const youtubeVideoId = useMemo(
     () => normalizeYoutubeUrl(youtubeUrl),
     [youtubeUrl],
@@ -190,11 +141,15 @@ export function ResourceAttachmentForm({
 
   useEffect(() => {
     if (state.status !== "success") return;
-    router.replace(
-      `${successBaseHref}/${encodeURIComponent(state.resourceId)}`,
-      { scroll: false },
-    );
-  }, [router, state, successBaseHref]);
+    if (onSuccess) {
+      onSuccess(state.resourceId, state.message);
+    } else if (successBaseHref) {
+      router.replace(
+        `${successBaseHref}/${encodeURIComponent(state.resourceId)}`,
+        { scroll: false },
+      );
+    }
+  }, [onSuccess, router, state, successBaseHref]);
 
   function invalidateUploadAttempt() {
     setUploadAttempt(null);
@@ -215,10 +170,6 @@ export function ResourceAttachmentForm({
   function resetAttachmentFields() {
     setYoutubeUrl("");
     setLinkUrl("");
-    setLessonContent("");
-    setEstimatedMinutes("");
-    setDidacticContent("");
-    setObjective("");
     clearSelectedFile();
   }
 
@@ -258,15 +209,13 @@ export function ResourceAttachmentForm({
       attachment,
       moduleId,
       title,
-      description,
+      instructions,
+      content,
+      estimatedMinutes,
       youtubeUrl,
       linkUrl,
       file,
-      lessonContent,
-      estimatedMinutes,
-      didacticContent,
-      objective,
-    }) && !isPending;
+    }) && !contentValidationError && !isPending;
 
   async function submitUpload(disposition: ContentCreationDisposition) {
     if (!file || !fileValidation?.success) return;
@@ -274,7 +223,9 @@ export function ResourceAttachmentForm({
     const fingerprint = createUploadFingerprint({
       moduleId,
       title,
-      description,
+      instructions,
+      content,
+      estimatedMinutes,
       file,
     }) + `:${disposition}`;
     let attempt =
@@ -293,9 +244,14 @@ export function ResourceAttachmentForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             moduleId,
+            expectedSubjectId,
             resourceType: fileValidation.data.resourceType,
             title: title.trim(),
-            description: description.trim() || undefined,
+            instructions: instructions.trim() || undefined,
+            content: content.trim(),
+            estimatedMinutes: estimatedMinutes
+              ? Number(estimatedMinutes)
+              : undefined,
             originalName: file.name,
             mimeType: file.type,
             sizeBytes: file.size,
@@ -374,9 +330,19 @@ export function ResourceAttachmentForm({
             ? "Archivo enviado a revisión."
             : "Archivo guardado como borrador.",
       );
-      router.replace(
-        `${successBaseHref}/${encodeURIComponent(confirmation.resource.id)}`,
-      );
+      const message =
+        disposition === "PUBLISH"
+          ? "Recurso publicado."
+          : disposition === "SUBMIT_FOR_REVIEW"
+            ? "Recurso enviado a revisión."
+            : "Recurso guardado como borrador.";
+      if (onSuccess) {
+        onSuccess(confirmation.resource.id, message);
+      } else if (successBaseHref) {
+        router.replace(
+          `${successBaseHref}/${encodeURIComponent(confirmation.resource.id)}`,
+        );
+      }
     } catch (error) {
       setUploadStage("error");
       setUploadMessage(
@@ -410,11 +376,7 @@ export function ResourceAttachmentForm({
       ? ResourceType.YOUTUBE
       : attachment === "LINK"
         ? ResourceType.LINK
-        : attachment === "LESSON"
-          ? ResourceType.LESSON
-          : attachment === "DIDACTIC"
-            ? ResourceType.DIDACTIC
-            : "";
+        : "";
   const pendingLabel =
     uploadStage === "preparing"
       ? "Preparando…"
@@ -445,6 +407,13 @@ export function ResourceAttachmentForm({
   return (
     <form action={structuredAction} onSubmit={handleSubmit} className="space-y-6">
       <input type="hidden" name="moduleId" value={moduleId} />
+      {expectedSubjectId ? (
+        <input
+          type="hidden"
+          name="expectedSubjectId"
+          value={expectedSubjectId}
+        />
+      ) : null}
       <input type="hidden" name="requestId" value={requestId} />
       <input type="hidden" name="resourceType" value={structuredResourceType} />
       {attachment === "LINK" ? (
@@ -472,8 +441,8 @@ export function ResourceAttachmentForm({
         </p>
       ) : null}
 
-      {mode === "collaborator" ? (
-        <label className="block space-y-1.5 text-sm font-medium text-foreground">
+      {!fixedModuleId ? (
+        <label className="block max-w-md space-y-1.5 text-sm font-medium text-foreground">
           Módulo
           <select
             name="moduleSelection"
@@ -509,47 +478,110 @@ export function ResourceAttachmentForm({
             Identifica el recurso antes de elegir qué deseas adjuntar.
           </p>
         </div>
-        <label className="block space-y-1.5 text-sm font-medium text-foreground">
-          Título
-          <input
-            name="title"
-            type="text"
-            minLength={2}
-            maxLength={160}
-            required
-            autoFocus
-            value={title}
-            disabled={isPending}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              invalidateUploadAttempt();
-            }}
-            aria-invalid={Boolean(errors?.title)}
-            aria-describedby={titleErrorId}
-            className={creationFieldClass}
-          />
-          <CreationFieldError id={titleErrorId} messages={errors?.title} />
-        </label>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="block space-y-1.5 text-sm font-medium text-foreground">
+            Título
+            <input
+              name="title"
+              type="text"
+              minLength={2}
+              maxLength={160}
+              required
+              autoFocus
+              value={title}
+              disabled={isPending}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                invalidateUploadAttempt();
+              }}
+              aria-invalid={Boolean(errors?.title)}
+              aria-describedby={titleErrorId}
+              className={creationFieldClass}
+            />
+            <CreationFieldError id={titleErrorId} messages={errors?.title} />
+          </label>
 
-        <label className="block space-y-1.5 text-sm font-medium text-foreground">
-          Descripción <span className="font-normal text-muted">(opcional)</span>
-          <textarea
-            name="description"
-            rows={3}
-            maxLength={1_000}
-            value={description}
+          <label className="block space-y-1.5 text-sm font-medium text-foreground">
+            Indicaciones para el estudiante{" "}
+            <span className="font-normal text-muted">(opcional)</span>
+            <input
+              name="instructions"
+              type="text"
+              maxLength={1_000}
+              value={instructions}
+              disabled={isPending}
+              onChange={(event) => {
+                setInstructions(event.target.value);
+                invalidateUploadAttempt();
+              }}
+              placeholder="Escribe una instrucción breve para que el estudiante sepa qué hacer."
+              aria-invalid={Boolean(errors?.instructions)}
+              aria-describedby={instructionsErrorId}
+              className={creationFieldClass}
+            />
+            <span className="block text-xs font-normal leading-5 text-muted">
+              Explica brevemente qué debe hacer o en qué debe prestar atención.
+            </span>
+            <CreationFieldError
+              id={instructionsErrorId}
+              messages={errors?.instructions}
+            />
+          </label>
+        </div>
+
+        <div className="space-y-1.5 text-sm font-medium text-foreground">
+          <div>Contenido <span className="font-normal text-muted">(opcional)</span></div>
+          <textarea name="content" value={content} readOnly hidden />
+          <ResourceDocumentField
+            initialValue={content}
             disabled={isPending}
-            onChange={(event) => {
-              setDescription(event.target.value);
+            invalid={Boolean(errors?.content) || Boolean(contentValidationError)}
+            describedBy={contentErrorId}
+            onChange={(serialized, error) => {
+              setContent(serialized);
+              setContentValidationError(error);
               invalidateUploadAttempt();
             }}
-            aria-invalid={Boolean(errors?.description)}
-            aria-describedby={descriptionErrorId}
-            className={`${creationFieldClass} resize-y`}
           />
           <CreationFieldError
-            id={descriptionErrorId}
-            messages={errors?.description}
+            id={contentErrorId}
+            messages={errors?.content ?? (contentValidationError ? [contentValidationError] : undefined)}
+          />
+        </div>
+
+        <label className="block text-sm font-medium text-foreground">
+          <span className="flex items-center gap-1.5">
+            <Clock3 aria-hidden="true" className="h-4 w-4 text-secondary" />
+            Tiempo estimado
+            <span className="font-normal text-muted">(opcional)</span>
+          </span>
+          <span className="mt-1.5 flex w-fit items-center rounded-lg border border-border bg-background focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+            <input
+              name="estimatedMinutes"
+              type="number"
+              min={1}
+              max={10_000}
+              step={1}
+              value={estimatedMinutes}
+              disabled={isPending}
+              onChange={(event) => {
+                setEstimatedMinutes(event.target.value);
+                invalidateUploadAttempt();
+              }}
+              aria-label="Duración estimada"
+              aria-invalid={Boolean(errors?.estimatedMinutes)}
+              aria-describedby={estimatedMinutesErrorId}
+              placeholder="45"
+              className="h-10 w-20 bg-transparent px-3 text-center text-sm text-foreground outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <span className="border-l border-border px-3 text-sm text-muted">min</span>
+          </span>
+          <span className="mt-1 block text-xs font-normal text-muted">
+            Indica los minutos aproximados, por ejemplo 45.
+          </span>
+          <CreationFieldError
+            id={estimatedMinutesErrorId}
+            messages={errors?.estimatedMinutes}
           />
         </label>
       </section>
@@ -575,36 +607,15 @@ export function ResourceAttachmentForm({
           ) : null}
         </div>
         <p className="mt-1 text-sm text-muted">
-          Puedes guardar el recurso solo con el título o agregar un contenido.
+          Añade, si lo necesitas, un video, archivo, imagen o vínculo al contenido escrito.
         </p>
-        <div
-          className={`mt-3 grid gap-2 ${
-            mode === "admin"
-              ? "grid-cols-2 sm:grid-cols-5"
-              : "max-w-44 grid-cols-1"
-          }`}
-        >
-          {attachments.map((kind) => {
-            const option = attachmentPresentation[kind];
-            const Icon = option.icon;
-            const selected = attachment === kind;
-
-            return (
-              <button
-                key={kind}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => selectAttachment(kind)}
-                className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-2.5 py-2 text-center text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary ${
-                  kind === "DIDACTIC" ? "col-span-2 sm:col-span-1" : ""
-                } ${selected ? option.selectedClass : option.idleClass}`}
-              >
-                <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                <span className="leading-tight">{option.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <ResourceAttachmentChoices
+          attachments={attachments}
+          selected={attachment}
+          disabled={isPending}
+          compact={mode !== "admin"}
+          onSelect={selectAttachment}
+        />
         <CreationFieldError
           id={attachmentErrorId}
           messages={errors?.resourceType}
@@ -765,89 +776,9 @@ export function ResourceAttachmentForm({
         </div>
       ) : null}
 
-      {attachment === "LESSON" ? (
-        <div className="space-y-4">
-          <label className="block space-y-1.5 text-sm font-medium text-foreground">
-            Contenido
-            <textarea
-              name="content"
-              rows={10}
-              maxLength={50_000}
-              required
-              value={lessonContent}
-              disabled={isPending}
-              onChange={(event) => setLessonContent(event.target.value)}
-              aria-invalid={Boolean(errors?.content)}
-              aria-describedby={contentErrorId}
-              className={`${creationFieldClass} resize-y`}
-            />
-            <CreationFieldError id={contentErrorId} messages={errors?.content} />
-          </label>
-          <label className="block max-w-xs space-y-1.5 text-sm font-medium text-foreground">
-            Duración en minutos{" "}
-            <span className="font-normal text-muted">(opcional)</span>
-            <input
-              name="estimatedMinutes"
-              type="number"
-              min={1}
-              max={10_000}
-              step={1}
-              value={estimatedMinutes}
-              disabled={isPending}
-              onChange={(event) => setEstimatedMinutes(event.target.value)}
-              aria-invalid={Boolean(errors?.estimatedMinutes)}
-              aria-describedby={estimatedMinutesErrorId}
-              className={creationFieldClass}
-            />
-            <CreationFieldError
-              id={estimatedMinutesErrorId}
-              messages={errors?.estimatedMinutes}
-            />
-          </label>
-        </div>
-      ) : null}
-
-      {attachment === "DIDACTIC" ? (
-        <div className="space-y-4">
-          <label className="block space-y-1.5 text-sm font-medium text-foreground">
-            Contenido
-            <textarea
-              name="content"
-              rows={10}
-              maxLength={50_000}
-              required
-              value={didacticContent}
-              disabled={isPending}
-              onChange={(event) => setDidacticContent(event.target.value)}
-              aria-invalid={Boolean(errors?.content)}
-              aria-describedby={contentErrorId}
-              className={`${creationFieldClass} resize-y`}
-            />
-            <CreationFieldError id={contentErrorId} messages={errors?.content} />
-          </label>
-          <label className="block space-y-1.5 text-sm font-medium text-foreground">
-            Objetivo <span className="font-normal text-muted">(opcional)</span>
-            <textarea
-              name="objective"
-              rows={3}
-              maxLength={500}
-              value={objective}
-              disabled={isPending}
-              onChange={(event) => setObjective(event.target.value)}
-              aria-invalid={Boolean(errors?.objective)}
-              aria-describedby={objectiveErrorId}
-              className={`${creationFieldClass} resize-y`}
-            />
-            <CreationFieldError
-              id={objectiveErrorId}
-              messages={errors?.objective}
-            />
-          </label>
-        </div>
-      ) : null}
-
       <CreationFormActions
         closeHref={closeHref}
+        onCancel={onCancel}
         isPending={isPending}
         submitDisabled={!canSubmit}
         submitLabel={

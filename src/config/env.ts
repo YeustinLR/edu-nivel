@@ -25,6 +25,10 @@ const envSchema = z
       )
       .default("50670196686"),
     ONVO_ENV: z.enum(["test", "live"]).optional(),
+    ONVO_LIVE_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     ONVO_SECRET_KEY: z.string().min(1).optional(),
     ONVO_WEBHOOK_SECRET: z.string().min(1).optional(),
     ONVO_SINPE_DESTINATION_NUMBER: z.string().min(8).optional(),
@@ -80,6 +84,36 @@ const envSchema = z
         code: "custom",
         path: ["ONVO_ENV"],
         message: "ONVO_ENV es requerida cuando ONVO_SECRET_KEY esta configurada",
+      });
+    }
+
+    if (env.ONVO_ENV) {
+      const requiredOnvoOperationsVariables = [
+        "ONVO_WEBHOOK_SECRET",
+        "ONVO_SINPE_DESTINATION_NUMBER",
+        "CRON_SECRET",
+      ] as const;
+
+      for (const variable of requiredOnvoOperationsVariables) {
+        if (!env[variable]) {
+          ctx.addIssue({
+            code: "custom",
+            path: [variable],
+            message: `${variable} es requerida cuando ONVO_ENV esta configurada`,
+          });
+        }
+      }
+    }
+
+    if (
+      env.ONVO_ENV === "live" &&
+      (!env.ONVO_LIVE_ENABLED || env.VERCEL_ENV !== "production")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ONVO_LIVE_ENABLED"],
+        message:
+          "ONVO live requiere ONVO_LIVE_ENABLED=true y VERCEL_ENV=production",
       });
     }
 
@@ -151,6 +185,7 @@ const parsedEnv = envSchema.safeParse({
   EMAIL_FROM: process.env.EMAIL_FROM,
   CONTACT_WHATSAPP_NUMBER: process.env.CONTACT_WHATSAPP_NUMBER,
   ONVO_ENV: process.env.ONVO_ENV,
+  ONVO_LIVE_ENABLED: process.env.ONVO_LIVE_ENABLED,
   ONVO_SECRET_KEY: process.env.ONVO_SECRET_KEY,
   ONVO_WEBHOOK_SECRET: process.env.ONVO_WEBHOOK_SECRET,
   ONVO_SINPE_DESTINATION_NUMBER: process.env.ONVO_SINPE_DESTINATION_NUMBER,

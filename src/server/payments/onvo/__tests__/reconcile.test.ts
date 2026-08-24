@@ -4,6 +4,7 @@ import {
   BillingInterval,
   PaymentStatus,
   PlanCode,
+  Prisma,
   ProviderMode,
   Role,
   SubscriptionProduct,
@@ -18,8 +19,13 @@ const {
   transactionMock,
   txPaymentFindUniqueMock,
   txPaymentUpdateManyMock,
+  txPaymentFindManyMock,
+  txPaymentUpdateMock,
   txSubscriptionFindUniqueMock,
   txSubscriptionUpsertMock,
+  txSubscriptionUpdateMock,
+  flagRefundMock,
+  logPaymentEventMock,
 } = vi.hoisted(() => ({
   getIntentMock: vi.fn(),
   outerPaymentFindUniqueMock: vi.fn(),
@@ -27,14 +33,27 @@ const {
   transactionMock: vi.fn(),
   txPaymentFindUniqueMock: vi.fn(),
   txPaymentUpdateManyMock: vi.fn(),
+  txPaymentFindManyMock: vi.fn(),
+  txPaymentUpdateMock: vi.fn(),
   txSubscriptionFindUniqueMock: vi.fn(),
   txSubscriptionUpsertMock: vi.fn(),
+  txSubscriptionUpdateMock: vi.fn(),
+  flagRefundMock: vi.fn(),
+  logPaymentEventMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/server/payments/onvo/client", () => ({
   getOnvoPaymentIntent: getIntentMock,
+}));
+
+vi.mock("@/server/payments/onvo/refunds", () => ({
+  flagProviderRefundWithoutId: flagRefundMock,
+}));
+
+vi.mock("@/server/payments/onvo/payment-log", () => ({
+  logOnvoPaymentEvent: logPaymentEventMock,
 }));
 
 vi.mock("@/server/db/prisma", () => ({
@@ -47,17 +66,22 @@ vi.mock("@/server/db/prisma", () => ({
   },
 }));
 
-import { reconcileOnvoPaymentIntent } from "@/server/payments/onvo/reconcile";
+import {
+  reconcileOnvoPaymentIntent,
+} from "@/server/payments/onvo/reconcile";
+import { isRetryableSerializableConflict } from "@/server/payments/onvo/serializable-transaction";
 
 const tx = {
   payment: {
     findUnique: txPaymentFindUniqueMock,
-    update: paymentUpdateMock,
+    findMany: txPaymentFindManyMock,
+    update: txPaymentUpdateMock,
     updateMany: txPaymentUpdateManyMock,
   },
   subscription: {
     findUnique: txSubscriptionFindUniqueMock,
     upsert: txSubscriptionUpsertMock,
+    update: txSubscriptionUpdateMock,
   },
 };
 
@@ -70,6 +94,9 @@ type TestPaymentOptions = {
   durationMonths?: number;
   expectedAmountMinor?: number;
   roleAtCheckout?: Role;
+  subscriptionId?: string | null;
+  appliedAt?: Date | null;
+  status?: PaymentStatus;
 };
 
 function makePayment(options: TestPaymentOptions = {}) {
@@ -79,7 +106,7 @@ function makePayment(options: TestPaymentOptions = {}) {
     id,
     userId: "user_student",
     levelId: "level_7",
-    subscriptionId: null,
+    subscriptionId: options.subscriptionId ?? null,
     planCode: options.planCode ?? PlanCode.STUDENT_MONTHLY,
     product: options.product ?? SubscriptionProduct.STUDENT_PREMIUM,
     billingInterval: options.billingInterval ?? BillingInterval.MONTHLY,
@@ -98,9 +125,9 @@ function makePayment(options: TestPaymentOptions = {}) {
     providerChargeId: null,
     internalReference: `EDU-${id}`,
     checkoutRequestId: `checkout_${id}`,
-    status: PaymentStatus.PROCESSING,
+    status: options.status ?? PaymentStatus.PROCESSING,
     confirmedAt: null,
-    appliedAt: null as Date | null,
+    appliedAt: options.appliedAt ?? null,
     staleAt: null,
     payerPhoneLast4: "8888",
     payerIdentificationLast4: "0101",
@@ -143,6 +170,20 @@ function makeSucceededIntent(
   };
 }
 
+function p2034Error() {
+  return new Prisma.PrismaClientKnownRequestError(
+    "Transaction failed due to a write conflict.",
+    { code: "P2034", clientVersion: "7.8.0" },
+  );
+}
+
+function driverTransactionWriteConflict() {
+  return Object.assign(new Error("TransactionWriteConflict"), {
+    name: "DriverAdapterError",
+    cause: { kind: "TransactionWriteConflict" },
+  });
+}
+
 describe("reconcileOnvoPaymentIntent subscription application", () => {
   beforeEach(() => {
     const payment = makePayment();
@@ -162,8 +203,80 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     txSubscriptionFindUniqueMock.mockResolvedValue(null);
     txSubscriptionUpsertMock.mockResolvedValue({ id: "subscription_1" });
     txPaymentUpdateManyMock.mockResolvedValue({ count: 1 });
+    txPaymentFindManyMock.mockResolvedValue([]);
+    txPaymentUpdateMock.mockResolvedValue(payment);
+    txSubscriptionUpdateMock.mockResolvedValue({ id: "subscription_1" });
     paymentUpdateMock.mockResolvedValue(payment);
     transactionMock.mockImplementation(async (callback) => callback(tx));
+  });
+
+  it("retries P2034 with a fresh transaction and then succeeds", async () => {
+    transactionMock.mockRejectedValueOnce(p2034Error());
+
+    await expect(
+      reconcileOnvoPaymentIntent("intent_monthly"),
+    ).resolves.toEqual({
+      paymentId: "payment_monthly",
+      outcome: "SUCCEEDED",
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(logPaymentEventMock).toHaveBeenCalledWith({
+      event: "transaction.conflict.retry",
+      outcome: "attempt-1-of-3",
+      paymentId: "payment_monthly",
+    });
+  });
+
+  it("retries the adapter's structured TransactionWriteConflict", async () => {
+    transactionMock.mockRejectedValueOnce(driverTransactionWriteConflict());
+
+    await expect(
+      reconcileOnvoPaymentIntent("intent_monthly"),
+    ).resolves.toMatchObject({ outcome: "SUCCEEDED" });
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(logPaymentEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "transaction.conflict.retry",
+        outcome: "attempt-1-of-3",
+      }),
+    );
+  });
+
+  it("stops after three retryable serialization conflicts", async () => {
+    const conflict = driverTransactionWriteConflict();
+    transactionMock.mockRejectedValue(conflict);
+
+    await expect(
+      reconcileOnvoPaymentIntent("intent_monthly"),
+    ).rejects.toBe(conflict);
+    expect(transactionMock).toHaveBeenCalledTimes(3);
+    expect(logPaymentEventMock).toHaveBeenLastCalledWith({
+      event: "transaction.conflict.exhausted",
+      outcome: "attempt-3-of-3",
+      paymentId: "payment_monthly",
+    });
+  });
+
+  it("does not retry validation errors or message-only lookalikes", async () => {
+    const validationError = new Error(
+      "TransactionWriteConflict mentioned without a structured cause",
+    );
+    transactionMock.mockRejectedValue(validationError);
+
+    await expect(
+      reconcileOnvoPaymentIntent("intent_monthly"),
+    ).rejects.toBe(validationError);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(logPaymentEventMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "transaction.conflict.retry" }),
+    );
+    expect(isRetryableSerializableConflict(validationError)).toBe(false);
+    expect(
+      isRetryableSerializableConflict({
+        name: "DriverAdapterError",
+        cause: { kind: "UniqueConstraintViolation" },
+      }),
+    ).toBe(false);
   });
 
   it("creates a new period from ONVO's confirmation timestamp", async () => {
@@ -385,7 +498,7 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
       paymentId: payment.id,
       outcome: "REQUIRES_REVIEW",
     });
-    expect(paymentUpdateMock).toHaveBeenCalledWith(
+    expect(txPaymentUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: PaymentStatus.REQUIRES_REVIEW,
@@ -394,5 +507,30 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
       }),
     );
     expect(txSubscriptionUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("requires the refundId before recalculating a refunded payment", async () => {
+    const payment = makePayment({
+      subscriptionId: "subscription_1",
+      appliedAt: new Date("2026-07-23T18:00:01.000Z"),
+      status: PaymentStatus.SUCCEEDED,
+    });
+    outerPaymentFindUniqueMock.mockResolvedValue(payment);
+    getIntentMock.mockResolvedValue({
+      ...makeSucceededIntent(payment),
+      status: "refunded",
+      updatedAt: "2026-07-24T18:00:00.000Z",
+    });
+    flagRefundMock.mockResolvedValue(undefined);
+
+    await expect(reconcileOnvoPaymentIntent("intent_monthly")).resolves.toEqual({
+      paymentId: payment.id,
+      outcome: "REQUIRES_REVIEW",
+    });
+    expect(flagRefundMock).toHaveBeenCalledWith({
+      paymentId: payment.id,
+      providerStatus: "refunded",
+    });
+    expect(txSubscriptionUpdateMock).not.toHaveBeenCalled();
   });
 });

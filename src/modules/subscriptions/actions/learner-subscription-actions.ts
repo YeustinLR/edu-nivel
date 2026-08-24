@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -15,7 +17,14 @@ import {
   evaluatePremiumAccess,
   getRequiredSubscriptionProduct,
 } from "@/modules/subscriptions/domain/premium-access";
+import { isSubscriptionPlanCode } from "@/modules/subscriptions/config/plan-catalog";
 import type { LearnerSubscriptionRole } from "@/modules/subscriptions/types/learner-subscription";
+import {
+  learnerCheckoutErrorMessages,
+  type LearnerCheckoutActionState,
+  type LearnerCheckoutFieldErrors,
+  type LearnerCheckoutSafeValues,
+} from "@/modules/subscriptions/types/learner-checkout-action-state";
 import { requireRole } from "@/server/auth/guards";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -29,6 +38,69 @@ function checkoutErrorCode(error: unknown) {
     : "PAYMENT_INITIALIZATION_FAILED";
 }
 
+function safeCheckoutValues(formData: FormData): LearnerCheckoutSafeValues {
+  const planCode = formData.get("planCode");
+  const levelId = formData.get("levelId");
+  const subscriptionId = formData.get("subscriptionId");
+  const checkoutRequestId = formData.get("checkoutRequestId");
+
+  return {
+    checkoutRequestId:
+      typeof checkoutRequestId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        checkoutRequestId,
+      )
+        ? checkoutRequestId
+        : randomUUID(),
+    planCode:
+      typeof planCode === "string" && isSubscriptionPlanCode(planCode)
+        ? planCode
+        : undefined,
+    levelId:
+      typeof levelId === "string" && levelId.length <= 100
+        ? levelId
+        : undefined,
+    subscriptionId:
+      typeof subscriptionId === "string" && subscriptionId.length <= 100
+        ? subscriptionId
+        : undefined,
+  };
+}
+
+function checkoutError(
+  previousState: LearnerCheckoutActionState,
+  values: LearnerCheckoutSafeValues,
+  code: string,
+  fieldErrors?: LearnerCheckoutFieldErrors,
+): LearnerCheckoutActionState {
+  return {
+    status: "error",
+    revision: previousState.revision + 1,
+    code,
+    message:
+      learnerCheckoutErrorMessages[code] ?? "No fue posible preparar el pago.",
+    fieldErrors,
+    values,
+  };
+}
+
+function logCheckoutValidationIssues(
+  flow: "new" | "renew",
+  issues: Array<{ path: PropertyKey[]; code: string }>,
+) {
+  if (process.env.NODE_ENV !== "development") return;
+  console.warn(
+    JSON.stringify({
+      scope: "subscription-checkout-validation",
+      flow,
+      fields: [
+        ...new Set(issues.map((issue) => String(issue.path[0] ?? "form"))),
+      ],
+      codes: [...new Set(issues.map((issue) => issue.code))],
+    }),
+  );
+}
+
 function roleDashboardPath(role: LearnerSubscriptionRole) {
   return role === Role.STUDENT
     ? "/dashboard/student"
@@ -36,9 +108,11 @@ function roleDashboardPath(role: LearnerSubscriptionRole) {
 }
 
 async function startNewSubscription(
+  previousState: LearnerCheckoutActionState,
   formData: FormData,
   role: LearnerSubscriptionRole,
-) {
+): Promise<LearnerCheckoutActionState> {
+  const values = safeCheckoutValues(formData);
   const parsed = startSinpePaymentSchema.safeParse({
     planCode: formData.get("planCode"),
     levelId: formData.get("levelId"),
@@ -49,7 +123,15 @@ async function startNewSubscription(
   });
 
   if (!parsed.success) {
-    redirect("/dashboard/subscription/new?error=INVALID_PAYMENT_DATA");
+    logCheckoutValidationIssues("new", parsed.error.issues);
+    const errors = parsed.error.flatten().fieldErrors;
+    return checkoutError(previousState, values, "INVALID_PAYMENT_DATA", {
+      levelId: errors.levelId,
+      planCode: errors.planCode,
+      mobileNumber: errors.mobileNumber,
+      identificationType: errors.identificationType,
+      identification: errors.identification,
+    });
   }
 
   const user = await requireRole(role);
@@ -60,7 +142,9 @@ async function startNewSubscription(
     select: { id: true },
   });
   if (existingSubscription) {
-    redirect("/dashboard/subscription/new?error=LEVEL_ALREADY_OWNED");
+    return checkoutError(previousState, values, "LEVEL_ALREADY_OWNED", {
+      levelId: [learnerCheckoutErrorMessages.LEVEL_ALREADY_OWNED],
+    });
   }
 
   let paymentId: string;
@@ -68,17 +152,18 @@ async function startNewSubscription(
     const payment = await createSinpePayment(parsed.data);
     paymentId = payment.id;
   } catch (error) {
-    redirect(
-      `/dashboard/subscription/new?error=${encodeURIComponent(checkoutErrorCode(error))}`,
-    );
+    const code = checkoutErrorCode(error);
+    return checkoutError(previousState, values, code);
   }
   redirect(`/dashboard/subscription/payments/${encodeURIComponent(paymentId)}`);
 }
 
 async function startRenewal(
+  previousState: LearnerCheckoutActionState,
   formData: FormData,
   role: LearnerSubscriptionRole,
-) {
+): Promise<LearnerCheckoutActionState> {
+  const values = safeCheckoutValues(formData);
   const parsed = startLearnerRenewalPaymentSchema.safeParse({
     subscriptionId: formData.get("subscriptionId"),
     planCode: formData.get("planCode"),
@@ -89,7 +174,14 @@ async function startRenewal(
   });
 
   if (!parsed.success) {
-    redirect("/dashboard/subscription?error=INVALID_PAYMENT_DATA");
+    logCheckoutValidationIssues("renew", parsed.error.issues);
+    const errors = parsed.error.flatten().fieldErrors;
+    return checkoutError(previousState, values, "INVALID_PAYMENT_DATA", {
+      planCode: errors.planCode,
+      mobileNumber: errors.mobileNumber,
+      identificationType: errors.identificationType,
+      identification: errors.identification,
+    });
   }
 
   const user = await requireRole(role);
@@ -104,7 +196,7 @@ async function startRenewal(
   });
 
   if (!subscription) {
-    redirect("/dashboard/subscription?error=SUBSCRIPTION_NOT_FOUND");
+    return checkoutError(previousState, values, "SUBSCRIPTION_NOT_FOUND");
   }
   if (
     !expectedProduct ||
@@ -112,7 +204,7 @@ async function startRenewal(
     !subscription.level.isActive ||
     !subscription.level.requiresSubscription
   ) {
-    redirect("/dashboard/subscription?error=SUBSCRIPTION_NOT_RENEWABLE");
+    return checkoutError(previousState, values, "SUBSCRIPTION_NOT_RENEWABLE");
   }
 
   let paymentId: string;
@@ -127,9 +219,7 @@ async function startRenewal(
     });
     paymentId = payment.id;
   } catch (error) {
-    redirect(
-      `/dashboard/subscription/renew/${encodeURIComponent(parsed.data.subscriptionId)}?error=${encodeURIComponent(checkoutErrorCode(error))}`,
-    );
+    return checkoutError(previousState, values, checkoutErrorCode(error));
   }
   redirect(`/dashboard/subscription/payments/${encodeURIComponent(paymentId)}`);
 }
@@ -184,20 +274,32 @@ async function selectSubscriptionLevel(
   redirect(roleDashboardPath(role));
 }
 
-export async function startStudentNewSubscriptionAction(formData: FormData) {
-  return startNewSubscription(formData, Role.STUDENT);
+export async function startStudentNewSubscriptionAction(
+  previousState: LearnerCheckoutActionState,
+  formData: FormData,
+) {
+  return startNewSubscription(previousState, formData, Role.STUDENT);
 }
 
-export async function startTeacherNewSubscriptionAction(formData: FormData) {
-  return startNewSubscription(formData, Role.TEACHER);
+export async function startTeacherNewSubscriptionAction(
+  previousState: LearnerCheckoutActionState,
+  formData: FormData,
+) {
+  return startNewSubscription(previousState, formData, Role.TEACHER);
 }
 
-export async function startStudentRenewalAction(formData: FormData) {
-  return startRenewal(formData, Role.STUDENT);
+export async function startStudentRenewalAction(
+  previousState: LearnerCheckoutActionState,
+  formData: FormData,
+) {
+  return startRenewal(previousState, formData, Role.STUDENT);
 }
 
-export async function startTeacherRenewalAction(formData: FormData) {
-  return startRenewal(formData, Role.TEACHER);
+export async function startTeacherRenewalAction(
+  previousState: LearnerCheckoutActionState,
+  formData: FormData,
+) {
+  return startRenewal(previousState, formData, Role.TEACHER);
 }
 
 export async function selectStudentSubscriptionLevelAction(

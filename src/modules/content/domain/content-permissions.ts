@@ -19,6 +19,12 @@ export const resourceCreationPublicationStatuses = [
   "PUBLISHED",
 ] as const satisfies readonly PublicationStatus[];
 
+export const deletableModulePublicationStatuses = [
+  "DRAFT",
+  "CHANGES_REQUESTED",
+  "UNPUBLISHED",
+] as const satisfies readonly PublicationStatus[];
+
 export type ContentPermissionActor = {
   id: string;
   role: Role;
@@ -66,6 +72,14 @@ export function isResourceCreationPublicationStatus(
 ): boolean {
   return resourceCreationPublicationStatuses.some(
     (creationStatus) => creationStatus === status,
+  );
+}
+
+export function isModulePermanentlyDeletable(
+  status: PublicationStatus,
+): boolean {
+  return deletableModulePublicationStatuses.some(
+    (deletableStatus) => deletableStatus === status,
   );
 }
 

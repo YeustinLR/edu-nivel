@@ -286,6 +286,7 @@ export async function getPremiumAccessDecision(
           status: PaymentStatus.SUCCEEDED,
           appliedAt: { not: null },
         },
+        select: { id: true },
         orderBy: { appliedAt: "desc" },
         take: 1,
       },

@@ -22,6 +22,6 @@ describe("learner presentation helpers", () => {
   it("assigns a consistent visual tone by resource type", () => {
     expect(resourceTone(ResourceType.YOUTUBE)).toBe("blue");
     expect(resourceTone(ResourceType.PDF)).toBe("rose");
-    expect(resourceTone(ResourceType.LESSON)).toBe("green");
+    expect(resourceTone(ResourceType.NOTE)).toBe("green");
   });
 });

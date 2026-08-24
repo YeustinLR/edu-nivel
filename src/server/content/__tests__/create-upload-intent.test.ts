@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PublicationStatus, Role } from "@/generated/prisma/enums";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -35,7 +36,9 @@ const input = {
   moduleId: "module-1",
   resourceType: "PDF" as const,
   title: "Guía",
-  description: undefined,
+  instructions: "Resuelve los ejercicios después de leer",
+  content: "Contenido de la guía",
+  estimatedMinutes: 10,
   originalName: "guia.pdf",
   altText: undefined,
   mimeType: "application/pdf",
@@ -68,7 +71,25 @@ describe("createContentUploadIntent", () => {
     expect(mocks.intentCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         moduleId: "module-1",
+        instructions: "Resuelve los ejercicios después de leer",
+        content: normalizeResourceContentForStorage("Contenido de la guía"),
+        estimatedMinutes: 10,
         targetPublicationStatus: PublicationStatus.PUBLISHED,
+      }),
+    });
+  });
+
+  it("permite publicar un archivo sin contenido escrito", async () => {
+    await createContentUploadIntent({
+      ...input,
+      content: undefined,
+      estimatedMinutes: undefined,
+    });
+
+    expect(mocks.intentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        content: null,
+        estimatedMinutes: null,
       }),
     });
   });

@@ -1,11 +1,10 @@
 import { ResourceType } from "@/generated/prisma/enums";
 import { contentCreationDispositions } from "@/modules/content/domain/content-creation";
+import { optionalResourceDocumentContentSchema } from "@/modules/content/schemas/resource-content.schema";
 import { z } from "zod";
 
 export const structuredResourceTypes = [
   ResourceType.NOTE,
-  ResourceType.LESSON,
-  ResourceType.DIDACTIC,
   ResourceType.YOUTUBE,
   ResourceType.LINK,
 ] as const;
@@ -19,16 +18,12 @@ const title = z
   .trim()
   .min(2, "El título debe contener al menos 2 caracteres.")
   .max(160, "El título no puede superar 160 caracteres.");
-const optionalDescription = z
+const optionalInstructions = z
   .string()
   .trim()
-  .max(1_000, "La descripción no puede superar 1 000 caracteres.")
+  .max(1_000, "Las indicaciones no pueden superar 1 000 caracteres.")
   .transform((value) => value || undefined);
-const educationalContent = z
-  .string()
-  .trim()
-  .min(1, "El contenido es obligatorio.")
-  .max(50_000, "El contenido no puede superar 50 000 caracteres.");
+const optionalEducationalContent = optionalResourceDocumentContentSchema;
 
 const optionalPositiveInteger = z
   .union([
@@ -80,32 +75,17 @@ const webUrl = z
 const baseFields = {
   requestId,
   moduleId: entityId,
+  expectedSubjectId: entityId.optional(),
   title,
-  description: optionalDescription,
+  instructions: optionalInstructions,
+  content: optionalEducationalContent,
+  estimatedMinutes: optionalPositiveInteger,
   disposition: z.enum(contentCreationDispositions),
 };
 
 const noteSchema = z.object({
   ...baseFields,
   resourceType: z.literal(ResourceType.NOTE),
-});
-
-const lessonSchema = z.object({
-  ...baseFields,
-  resourceType: z.literal(ResourceType.LESSON),
-  content: educationalContent,
-  estimatedMinutes: optionalPositiveInteger,
-});
-
-const didacticSchema = z.object({
-  ...baseFields,
-  resourceType: z.literal(ResourceType.DIDACTIC),
-  content: educationalContent,
-  objective: z
-    .string()
-    .trim()
-    .max(500, "El objetivo no puede superar 500 caracteres.")
-    .transform((value) => value || undefined),
 });
 
 const youtubeSchema = z.object({
@@ -124,7 +104,7 @@ const linkSchema = z.object({
 
 export const createAdminStructuredResourceSchema = z.discriminatedUnion(
   "resourceType",
-  [noteSchema, lessonSchema, didacticSchema, youtubeSchema, linkSchema],
+  [noteSchema, youtubeSchema, linkSchema],
 );
 
 export type CreateAdminStructuredResourceInput = z.output<
@@ -176,12 +156,13 @@ export function getAdminStructuredResourceFormValues(formData: FormData) {
   return {
     requestId: getTextValue(formData, "requestId"),
     moduleId: getTextValue(formData, "moduleId"),
+    expectedSubjectId:
+      getTextValue(formData, "expectedSubjectId") || undefined,
     resourceType: getTextValue(formData, "resourceType"),
     title: getTextValue(formData, "title"),
-    description: getTextValue(formData, "description"),
+    instructions: getTextValue(formData, "instructions"),
     content: getTextValue(formData, "content"),
     estimatedMinutes: getTextValue(formData, "estimatedMinutes"),
-    objective: getTextValue(formData, "objective"),
     videoId: normalizeYoutubeVideoId(rawVideoValue) ?? rawVideoValue,
     startAt: getTextValue(formData, "startAt"),
     url: getTextValue(formData, "url"),

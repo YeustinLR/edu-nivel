@@ -18,6 +18,7 @@ obligatorio del flujo normal.
 | `/dashboard` | Cualquier sesión válida | Redirige al dashboard canónico |
 | `/dashboard/student` | `STUDENT` | Implementada; métricas aún son valores iniciales |
 | `/dashboard/student/content` | `STUDENT` | Catálogo filtrado para estudiantes |
+| `/dashboard/student/explore` | `STUDENT` | Catálogo seguro de metadata por nivel |
 | `/dashboard/teacher` | `TEACHER` | Implementada; métricas aún son valores iniciales |
 | `/dashboard/teacher/content` | `TEACHER` | Catálogo filtrado para docentes |
 | `/dashboard/collaborator` | `COLLABORATOR` | Resumen de contenido propio |
@@ -185,6 +186,15 @@ Level -> Subject -> Module -> Resource
 `User.selectedLevelId`. Este campo representa la selección de navegación; no es
 la fuente de verdad del nivel comprado.
 
+`/dashboard/student/explore` mantiene una selección distinta en los parámetros
+`stage`, `level` y `subject`. Cambiar la vista previa nunca actualiza
+`selectedLevelId`. Solo la acción protegida **Entrar al nivel** valida el acceso,
+actualiza la selección de consumo y redirige a `/dashboard/student/content`.
+La metadata segura de los niveles activos se carga una vez en el Server
+Component. Tabs, niveles y materias cambian después mediante estado local y
+History API, por lo que conservan una URL navegable sin repetir autorización ni
+consultas a PostgreSQL en cada interacción.
+
 Para mostrar contenido se aplican, entre otros, estos filtros:
 
 - nivel y materia activos;
@@ -200,6 +210,24 @@ Si `Level.requiresSubscription` es `false`, el nivel no exige pago. Si es
 producto compatible con su rol, vigencia, estado y existencia de un pago
 exitoso aplicado. El modelo actual vende acceso al nivel completo; no implementa
 recursos gratuitos individuales dentro de un nivel premium.
+
+### Catálogo seguro de Explorar
+
+La consulta `student-explore-queries.ts` devuelve una allowlist específica para
+catálogo: identificadores, nombres, títulos, tipos, conteos y estado de acceso.
+Para un recurso no selecciona cuerpos de lecciones o material didáctico, IDs de
+YouTube, URLs, claves R2, configuraciones de juegos, preguntas ni relaciones
+Prisma completas. La vista previa no reutiliza `LearnerContent`, que pertenece a
+la superficie de consumo autorizada.
+
+Los conteos Student consideran únicamente niveles y materias activos, módulos
+activos `PUBLISHED` con audiencia `STUDENT` o `BOTH`, y recursos activos
+`PUBLISHED`. Un nivel activo vacío continúa visible y muestra conteos en cero.
+
+Una suscripción `CANCELED` conserva acceso si su periodo pagado sigue vigente y
+tiene un pago exitoso aplicado. Mantiene su estado administrativo cancelado; al
+llegar `currentPeriodEnd`, el dominio de acceso vuelve a denegar consumo y
+descargas.
 
 ## Descarga de archivos protegidos
 

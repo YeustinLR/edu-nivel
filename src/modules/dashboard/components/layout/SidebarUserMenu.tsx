@@ -20,7 +20,7 @@ interface SidebarUserMenuProps {
   initials: string;
   onLogout: () => void;
   collapsed: boolean;
-  variant?: "sidebar" | "learner-header";
+  variant?: "sidebar" | "learner-header" | "learner-sidebar";
 }
 
 export function SidebarUserMenu({
@@ -117,6 +117,67 @@ export function SidebarUserMenu({
             </div>
           </div>
         ) : null}
+      </div>
+    );
+  }
+
+  if (variant === "learner-sidebar") {
+    return (
+      <div className="relative" ref={menuRef}>
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 z-50 overflow-hidden rounded-control border border-white/10 bg-[#1b2745] p-2 text-white shadow-[0_18px_50px_rgba(0,0,0,0.28)]"
+          >
+            {userEmail ? (
+              <p className="truncate border-b border-white/10 px-3 py-2 text-[11px] text-white/55">
+                {userEmail}
+              </p>
+            ) : null}
+            <div className="py-1">
+              <ThemeToggle tone="learner-dark" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={onLogout}
+                className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-[#ff9d86] transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
+              >
+                <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          className="flex w-full items-center gap-3 rounded-control px-1 py-2 text-left transition-colors hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
+        >
+          {userImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={userImage}
+              alt=""
+              className="size-9 shrink-0 rounded-full object-cover ring-2 ring-white/10"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-100 font-heading text-xs font-bold text-violet">
+              {initials}
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold text-white">{userName}</span>
+            <span className="block text-xs text-white/50">{roleLabel[userRole] ?? userRole}</span>
+          </span>
+          <ChevronDown
+            aria-hidden="true"
+            className={`size-4 text-white/45 transition-transform motion-reduce:transition-none ${menuOpen ? "rotate-180" : ""}`}
+          />
+        </button>
       </div>
     );
   }

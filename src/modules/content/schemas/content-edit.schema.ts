@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ResourceType } from "@/generated/prisma/enums";
 import { contentAudienceValues } from "@/modules/content/domain/content-audience";
 import { normalizeYoutubeVideoId } from "@/modules/content/schemas/admin-resource-creation.schema";
+import { optionalResourceDocumentContentSchema } from "@/modules/content/schemas/resource-content.schema";
 
 export const contentEditModes = [
   "level",
@@ -54,6 +55,12 @@ const optionalDescription = (maximum: number) =>
     .trim()
     .max(maximum, `La descripción no puede superar ${maximum} caracteres.`)
     .transform((value) => value || undefined);
+
+const optionalInstructions = z
+  .string()
+  .trim()
+  .max(1_000, "Las indicaciones no pueden superar 1 000 caracteres.")
+  .transform((value) => value || undefined);
 
 const editBaseSchema = z.object({
   id: entityId,
@@ -133,13 +140,8 @@ export const updateResourceSchema = editBaseSchema
       .trim()
       .min(2, "El título debe contener al menos 2 caracteres.")
       .max(160, "El título no puede superar 160 caracteres."),
-    description: optionalDescription(1_000),
-    content: z
-      .string()
-      .trim()
-      .max(50_000, "El contenido no puede superar 50 000 caracteres.")
-      .transform((value) => value || undefined)
-      .optional(),
+    instructions: optionalInstructions,
+    content: optionalResourceDocumentContentSchema.optional(),
     estimatedMinutes: z
       .union([
         z.literal(""),
@@ -152,12 +154,6 @@ export const updateResourceSchema = editBaseSchema
       .transform((value) =>
         value === "" || value === undefined ? undefined : value,
       )
-      .optional(),
-    objective: z
-      .string()
-      .trim()
-      .max(500, "El objetivo no puede superar 500 caracteres.")
-      .transform((value) => value || undefined)
       .optional(),
     videoId: optionalYoutubeVideoId,
     startAt: z
@@ -178,18 +174,6 @@ export const updateResourceSchema = editBaseSchema
     altText: z.string().trim().max(300).optional(),
   })
   .superRefine((value, context) => {
-    if (
-      (value.resourceType === ResourceType.LESSON ||
-        value.resourceType === ResourceType.DIDACTIC) &&
-      !value.content
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["content"],
-        message: "El contenido es obligatorio.",
-      });
-    }
-
     if (value.resourceType === ResourceType.YOUTUBE && !value.videoId) {
       context.addIssue({
         code: "custom",
@@ -263,10 +247,9 @@ export function getUpdateResourceFormValues(formData: FormData) {
     ...getEditBaseValues(formData),
     resourceType: getTextValue(formData, "resourceType"),
     title: getTextValue(formData, "title"),
-    description: getTextValue(formData, "description"),
+    instructions: getTextValue(formData, "instructions"),
     content: getTextValue(formData, "content") || undefined,
     estimatedMinutes: getTextValue(formData, "estimatedMinutes"),
-    objective: getTextValue(formData, "objective") || undefined,
     videoId: getTextValue(formData, "videoId") || undefined,
     startAt: getTextValue(formData, "startAt"),
     url: getTextValue(formData, "url") || undefined,

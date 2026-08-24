@@ -45,7 +45,9 @@ export async function createAdminStructuredResourceAction(
       };
     }
     const resource = await createCatalogStructuredResource(parsed.data, actor);
-    revalidateContentPages();
+    revalidateContentPages(
+      parsed.data.disposition === "PUBLISH" ? "published" : "authoring",
+    );
 
     return {
       status: "success",

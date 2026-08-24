@@ -139,7 +139,7 @@ describe("admin content creation actions", () => {
       status: "success",
       destinationHref: "/dashboard/admin/content/levels/level-12",
     });
-    expect(mocks.revalidateContentPages).toHaveBeenCalledOnce();
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
   it("creates a subject and returns its selected context", async () => {
@@ -163,7 +163,7 @@ describe("admin content creation actions", () => {
       status: "success",
       destinationHref: "/dashboard/admin/content/subjects/subject-1",
     });
-    expect(mocks.revalidateContentPages).toHaveBeenCalledOnce();
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
   it("returns a field error when the selected level is inactive", async () => {
@@ -216,6 +216,6 @@ describe("admin content creation actions", () => {
       status: "success",
       destinationHref: "/dashboard/admin/content/modules/module-1",
     });
-    expect(mocks.revalidateContentPages).toHaveBeenCalledOnce();
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 });

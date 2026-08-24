@@ -8,6 +8,7 @@ import {
   ResourceType,
   Role,
 } from "@/generated/prisma/enums";
+import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 
 vi.mock("server-only", () => ({}));
 
@@ -60,53 +61,42 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             },
           });
 
-          const lessonRequest = {
+          const contentRequest = {
             requestId: randomUUID(),
             moduleId: moduleRecord.id,
-            resourceType: ResourceType.LESSON,
-            title: `Lección ${marker}`,
-            description: "Descripción",
+            resourceType: ResourceType.NOTE,
+            title: `Contenido ${marker}`,
+            instructions: "Lee el contenido con atención",
             content: "Contenido de prueba",
             estimatedMinutes: 12,
             disposition: "DRAFT",
           } as const;
-          const lesson = await creation.createCatalogStructuredResource(
-            lessonRequest,
+          const contentResource = await creation.createCatalogStructuredResource(
+            contentRequest,
             actor,
           );
           const replay = await creation.createCatalogStructuredResource(
-            lessonRequest,
+            contentRequest,
             actor,
           );
-          expect(replay.id).toBe(lesson.id);
+          expect(replay.id).toBe(contentResource.id);
 
           await expect(
             creation.createCatalogStructuredResource(
-              { ...lessonRequest, title: "Solicitud modificada" },
+              { ...contentRequest, title: "Solicitud modificada" },
               actor,
             ),
           ).rejects.toMatchObject({ code: "REQUEST_CONFLICT" });
 
-          const didactic = await creation.createCatalogStructuredResource(
-            {
-              requestId: randomUUID(),
-              moduleId: moduleRecord.id,
-              resourceType: ResourceType.DIDACTIC,
-              title: `Didáctico ${marker}`,
-              description: undefined,
-              content: "Actividad guiada",
-              objective: "Comprender el contenido",
-              disposition: "DRAFT",
-            },
-            actor,
-          );
           const youtube = await creation.createCatalogStructuredResource(
             {
               requestId: randomUUID(),
               moduleId: moduleRecord.id,
               resourceType: ResourceType.YOUTUBE,
               title: `Video ${marker}`,
-              description: undefined,
+              instructions: undefined,
+              content: "Explicación del video",
+              estimatedMinutes: 8,
               videoId: "dQw4w9WgXcQ",
               startAt: 20,
               disposition: "DRAFT",
@@ -119,51 +109,42 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               moduleId: moduleRecord.id,
               resourceType: ResourceType.LINK,
               title: `Enlace ${marker}`,
-              description: undefined,
+              instructions: undefined,
+              content: "Explicación del vínculo",
+              estimatedMinutes: undefined,
               url: "https://example.com/recurso",
               openInNewTab: true,
               disposition: "DRAFT",
             },
             actor,
           );
-          const note = await creation.createCatalogStructuredResource(
-            {
-              requestId: randomUUID(),
-              moduleId: moduleRecord.id,
-              resourceType: ResourceType.NOTE,
-              title: `Nota ${marker}`,
-              description: undefined,
-              disposition: "DRAFT",
-            },
-            actor,
-          );
-
           const persisted = await prisma.resource.findMany({
             where: {
-              id: { in: [lesson.id, didactic.id, youtube.id, link.id, note.id] },
+              id: { in: [contentResource.id, youtube.id, link.id] },
             },
             orderBy: { type: "asc" },
             select: {
               type: true,
+              instructions: true,
+              content: true,
+              estimatedMinutes: true,
               publicationStatus: true,
-              lesson: { select: { content: true } },
-              didacticResource: { select: { objective: true } },
               youtubeVideo: { select: { videoId: true, startAt: true } },
               linkResource: { select: { url: true, openInNewTab: true } },
             },
           });
-          expect(persisted).toHaveLength(5);
+          expect(persisted).toHaveLength(3);
           expect(
             persisted.every(
               (resource) =>
                 resource.publicationStatus === PublicationStatus.DRAFT,
             ),
           ).toBe(true);
-          expect(persisted.find((item) => item.type === ResourceType.LESSON))
-            .toMatchObject({ lesson: { content: "Contenido de prueba" } });
-          expect(persisted.find((item) => item.type === ResourceType.DIDACTIC))
+          expect(persisted.find((item) => item.type === ResourceType.NOTE))
             .toMatchObject({
-              didacticResource: { objective: "Comprender el contenido" },
+              instructions: "Lee el contenido con atención",
+              content: normalizeResourceContentForStorage("Contenido de prueba"),
+              estimatedMinutes: 12,
             });
           expect(persisted.find((item) => item.type === ResourceType.YOUTUBE))
             .toMatchObject({
@@ -175,14 +156,6 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 url: "https://example.com/recurso",
                 openInNewTab: true,
               },
-            });
-          expect(persisted.find((item) => item.type === ResourceType.NOTE))
-            .toMatchObject({
-              type: ResourceType.NOTE,
-              lesson: null,
-              didacticResource: null,
-              youtubeVideo: null,
-              linkResource: null,
             });
 
           await prisma.module.update({
@@ -196,7 +169,9 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 moduleId: moduleRecord.id,
                 resourceType: ResourceType.NOTE,
                 title: `Nota publicada ${marker}`,
-                description: undefined,
+                instructions: undefined,
+                content: "Contenido publicado",
+                estimatedMinutes: undefined,
                 disposition: "PUBLISH",
               },
               actor,
@@ -222,7 +197,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           });
           await expect(
             creation.createCatalogStructuredResource(
-              { ...lessonRequest, requestId: randomUUID() },
+              { ...contentRequest, requestId: randomUUID() },
               actor,
             ),
           ).rejects.toMatchObject({ code: "MODULE_NOT_EDITABLE" });

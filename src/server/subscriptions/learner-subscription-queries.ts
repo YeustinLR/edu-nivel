@@ -8,9 +8,13 @@ import {
   SubscriptionProduct,
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
-import { getRequiredSubscriptionProduct } from "@/modules/subscriptions/domain/premium-access";
+import {
+  evaluatePremiumAccess,
+  getRequiredSubscriptionProduct,
+} from "@/modules/subscriptions/domain/premium-access";
 import type {
   LearnerPendingPaymentItem,
+  LearnerPaymentHistoryItem,
   LearnerSubscriptionCheckoutLevel,
   LearnerSubscriptionEffectiveStatus,
   LearnerSubscriptionItem,
@@ -25,6 +29,14 @@ const openPaymentStatuses = [
   PaymentStatus.PROCESSING,
   PaymentStatus.REQUIRES_REVIEW,
 ];
+
+export const LEARNER_PAYMENT_HISTORY_PAGE_SIZE = 10;
+
+export function normalizeLearnerPaymentHistoryPage(value: string | undefined) {
+  if (!value || !/^\d+$/.test(value)) return 1;
+  const page = Number(value);
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
 
 function requiredProduct(role: LearnerSubscriptionRole) {
   const product = getRequiredSubscriptionProduct(role);
@@ -46,6 +58,7 @@ function effectiveStatus(
   isLevelActive: boolean,
   now: Date,
 ): LearnerSubscriptionEffectiveStatus {
+  if (subscription.status === SubscriptionStatus.REFUNDED) return "REFUNDED";
   if (subscription.status === SubscriptionStatus.CANCELED) return "CANCELED";
   if (
     subscription.status === SubscriptionStatus.EXPIRED ||
@@ -68,11 +81,18 @@ function effectiveStatus(
 export const getLearnerSubscriptionOverview = cache(
   async (
     role: LearnerSubscriptionRole,
+    paymentPage = 1,
   ): Promise<LearnerSubscriptionOverview> => {
     const user = await requireRole(role);
     const product = requiredProduct(role);
     const now = new Date();
-    const [subscriptions, pendingPayments, availableLevelCount] =
+    const safePaymentPage = Math.max(1, Math.trunc(paymentPage));
+    const [
+      subscriptions,
+      pendingPayments,
+      paymentHistoryCount,
+      availableLevelCount,
+    ] =
       await Promise.all([
         prisma.subscription.findMany({
           where: { userId: user.id, product },
@@ -97,7 +117,15 @@ export const getLearnerSubscriptionOverview = cache(
               },
               orderBy: { appliedAt: "desc" },
               take: 1,
-              select: { id: true },
+              select: {
+                id: true,
+                planCode: true,
+                expectedAmountMinor: true,
+                receivedAmountMinor: true,
+                currency: true,
+                method: true,
+                confirmedAt: true,
+              },
             },
           },
         }),
@@ -110,6 +138,7 @@ export const getLearnerSubscriptionOverview = cache(
           orderBy: { createdAt: "desc" },
           select: {
             id: true,
+            levelId: true,
             planCode: true,
             status: true,
             expectedAmountMinor: true,
@@ -118,6 +147,7 @@ export const getLearnerSubscriptionOverview = cache(
             level: { select: { levelNumber: true } },
           },
         }),
+        prisma.payment.count({ where: { userId: user.id, product } }),
         prisma.level.count({
           where: {
             isActive: true,
@@ -132,10 +162,51 @@ export const getLearnerSubscriptionOverview = cache(
           },
         }),
       ]);
+    const totalPages = Math.max(
+      1,
+      Math.ceil(paymentHistoryCount / LEARNER_PAYMENT_HISTORY_PAGE_SIZE),
+    );
+    const effectivePaymentPage = Math.min(safePaymentPage, totalPages);
+    const paymentHistory = await prisma.payment.findMany({
+      where: { userId: user.id, product },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (effectivePaymentPage - 1) * LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
+      take: LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
+      select: {
+        id: true,
+        planCode: true,
+        status: true,
+        expectedAmountMinor: true,
+        receivedAmountMinor: true,
+        currency: true,
+        method: true,
+        createdAt: true,
+        confirmedAt: true,
+        level: { select: { levelNumber: true } },
+      },
+    });
+
+    const pendingItems: LearnerPendingPaymentItem[] = pendingPayments.map(
+      (payment) => ({
+        id: payment.id,
+        levelId: payment.levelId,
+        levelNumber: payment.level.levelNumber,
+        planCode: payment.planCode,
+        status: payment.status as LearnerPendingPaymentItem["status"],
+        expectedAmountMinor: payment.expectedAmountMinor,
+        currency: payment.currency,
+        createdAt: payment.createdAt.toISOString(),
+        href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
+      }),
+    );
+    const pendingByLevelId = new Map(
+      pendingItems.map((payment) => [payment.levelId, payment]),
+    );
 
     const items: LearnerSubscriptionItem[] = subscriptions.map(
       (subscription) => {
         const hasConfirmedPayment = subscription.payments.length > 0;
+        const latestPayment = subscription.payments[0] ?? null;
         const status = effectiveStatus(
           subscription,
           product,
@@ -143,6 +214,20 @@ export const getLearnerSubscriptionOverview = cache(
           subscription.level.isActive,
           now,
         );
+        const canStudy =
+          subscription.level.isActive &&
+          evaluatePremiumAccess({
+            role: user.role,
+            emailVerified: user.emailVerified,
+            subscription: {
+              product: subscription.product,
+              status: subscription.status,
+              currentPeriodStart: subscription.currentPeriodStart,
+              currentPeriodEnd: subscription.currentPeriodEnd,
+              hasConfirmedPayment,
+            },
+            now,
+          }).allowed;
         return {
           id: subscription.id,
           level: subscription.level,
@@ -153,30 +238,54 @@ export const getLearnerSubscriptionOverview = cache(
           lastPlanCode: subscription.lastPlanCode,
           hasConfirmedPayment,
           isSelectedLevel: user.selectedLevelId === subscription.levelId,
-          canStudy: status === "ACTIVE" && subscription.level.isActive,
+          canStudy,
           canRenew:
             subscription.level.isActive &&
             subscription.level.requiresSubscription &&
             subscription.product === product,
+          latestPayment: latestPayment
+            ? {
+                planCode: latestPayment.planCode,
+                expectedAmountMinor: latestPayment.expectedAmountMinor,
+                receivedAmountMinor: latestPayment.receivedAmountMinor,
+                currency: latestPayment.currency,
+                method: latestPayment.method,
+                confirmedAt: latestPayment.confirmedAt?.toISOString() ?? null,
+              }
+            : null,
+          openPayment: pendingByLevelId.get(subscription.levelId) ?? null,
         };
       },
     );
 
-    return {
-      subscriptions: items,
-      pendingPayments: pendingPayments.map((payment) => ({
+    const historyItems: LearnerPaymentHistoryItem[] = paymentHistory.map(
+      (payment) => ({
         id: payment.id,
         levelNumber: payment.level.levelNumber,
         planCode: payment.planCode,
-        status: payment.status as LearnerPendingPaymentItem["status"],
+        status: payment.status,
         expectedAmountMinor: payment.expectedAmountMinor,
+        receivedAmountMinor: payment.receivedAmountMinor,
         currency: payment.currency,
+        method: payment.method,
         createdAt: payment.createdAt.toISOString(),
+        confirmedAt: payment.confirmedAt?.toISOString() ?? null,
         href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
-      })),
+      }),
+    );
+    return {
+      subscriptions: items,
+      pendingPayments: pendingItems,
       availableLevelCount,
       activeCount: items.filter((item) => item.effectiveStatus === "ACTIVE")
         .length,
+      paymentHistory: {
+        items: historyItems,
+        page: effectivePaymentPage,
+        pageSize: LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
+        totalItems: paymentHistoryCount,
+        totalPages,
+      },
     };
   },
 );
