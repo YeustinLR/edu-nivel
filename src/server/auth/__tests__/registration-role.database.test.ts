@@ -124,16 +124,47 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           });
 
           const signInResult = await auth.api.signInEmail({
+            returnHeaders: true,
             body: {
               email: verifiedStudentEmail,
               password: "Segura9!alfabeto",
             },
           });
 
-          expect(signInResult.user).toMatchObject({
+          expect(signInResult.response.user).toMatchObject({
             email: verifiedStudentEmail,
             role: Role.STUDENT,
           });
+
+          // Las paginas publicas de auth deben consultar la sesion real incluso si el
+          // navegador conserva una cookie de cache emitida antes de la revocacion.
+          const cookie = signInResult.headers.getSetCookie()
+            .map((value) => value.split(";")[0])
+            .join("; ");
+          expect(cookie).toContain("better-auth.session_token=");
+          expect(cookie).toContain("better-auth.session_data=");
+          const sessionRequest = {
+            headers: new Headers({ cookie }),
+            query: { disableCookieCache: true },
+          };
+
+          await expect(auth.api.getSession(sessionRequest)).resolves.toMatchObject({
+            user: { email: verifiedStudentEmail },
+          });
+          await expect(auth.api.getSession({
+            ...sessionRequest,
+            headers: new Headers({
+              cookie: cookie.replace(
+                /((?:__Secure-)?better-auth\.session_token=)[^;]+/,
+                "$1invalid-signature",
+              ),
+            }),
+          })).resolves.toBeNull();
+
+          await prisma.session.deleteMany({
+            where: { token: signInResult.response.token },
+          });
+          await expect(auth.api.getSession(sessionRequest)).resolves.toBeNull();
         } finally {
           await prisma.verification.deleteMany({
             where: {

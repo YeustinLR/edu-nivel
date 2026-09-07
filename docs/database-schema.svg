@@ -1,0 +1,493 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="6800" height="3600" viewBox="0 0 6800 3600">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="80" y="58" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#0F172A">EduNivel — esquema de base de datos PostgreSQL</text>
+<path d="M 580 413 L 580 2631" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="1518" font-family="Arial, sans-serif" font-size="12" fill="#475569">selectedLevelId (SET NULL)</text>
+<path d="M 580 413 L 1670 269" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="337" font-family="Arial, sans-serif" font-size="12" fill="#475569">sessions (CASCADE)</text>
+<path d="M 580 413 L 2760 329" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="367" font-family="Arial, sans-serif" font-size="12" fill="#475569">accounts (CASCADE)</text>
+<path d="M 580 413 L 580 1697" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="1051" font-family="Arial, sans-serif" font-size="12" fill="#475569">subscriptions (CASCADE)</text>
+<path d="M 580 413 L 1670 1961" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="1183" font-family="Arial, sans-serif" font-size="12" fill="#475569">payments (RESTRICT)</text>
+<path d="M 580 413 L 2760 1829" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="1117" font-family="Arial, sans-serif" font-size="12" fill="#475569">requested refunds (RESTRICT)</text>
+<path d="M 580 413 L 580 4459" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="2432" font-family="Arial, sans-serif" font-size="12" fill="#475569">progress (CASCADE)</text>
+<path d="M 580 413 L 1670 4399" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="2402" font-family="Arial, sans-serif" font-size="12" fill="#475569">saved resources (CASCADE)</text>
+<path d="M 580 413 L 2760 2751" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="1578" font-family="Arial, sans-serif" font-size="12" fill="#475569">created modules (RESTRICT)</text>
+<path d="M 580 413 L 2760 2751" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="1578" font-family="Arial, sans-serif" font-size="12" fill="#475569">reviewed modules (SET NULL)</text>
+<path d="M 580 413 L 2760 2751" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="1578" font-family="Arial, sans-serif" font-size="12" fill="#475569">published modules (SET NULL)</text>
+<path d="M 580 413 L 3850 2799" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="1602" font-family="Arial, sans-serif" font-size="12" fill="#475569">created resources (RESTRICT)</text>
+<path d="M 580 413 L 3850 2799" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="1602" font-family="Arial, sans-serif" font-size="12" fill="#475569">reviewed resources (SET NULL)</text>
+<path d="M 580 413 L 3850 2799" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="1602" font-family="Arial, sans-serif" font-size="12" fill="#475569">published resources (SET NULL)</text>
+<path d="M 580 413 L 580 3127" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="1766" font-family="Arial, sans-serif" font-size="12" fill="#475569">upload intents (RESTRICT)</text>
+<path d="M 580 413 L 1670 1207" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="806" font-family="Arial, sans-serif" font-size="12" fill="#475569">sent invitations (RESTRICT)</text>
+<path d="M 580 413 L 1670 1207" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="806" font-family="Arial, sans-serif" font-size="12" fill="#475569">accepted invitation (SET NULL)</text>
+<path d="M 580 413 L 580 1123" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="764" font-family="Arial, sans-serif" font-size="12" fill="#475569">actor (RESTRICT)</text>
+<path d="M 580 413 L 580 1123" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="764" font-family="Arial, sans-serif" font-size="12" fill="#475569">target (RESTRICT)</text>
+<path d="M 580 2631 L 1670 2643" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="2633" font-family="Arial, sans-serif" font-size="12" fill="#475569">subjects (CASCADE)</text>
+<path d="M 580 2631 L 580 1697" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="586" y="2160" font-family="Arial, sans-serif" font-size="12" fill="#475569">subscriptions (RESTRICT)</text>
+<path d="M 580 2631 L 1670 1961" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="2292" font-family="Arial, sans-serif" font-size="12" fill="#475569">payments (RESTRICT)</text>
+<path d="M 580 2631 L 1670 1207" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="1915" font-family="Arial, sans-serif" font-size="12" fill="#475569">selected level (SET NULL)</text>
+<path d="M 1670 2643 L 2760 2751" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="2693" font-family="Arial, sans-serif" font-size="12" fill="#475569">modules (CASCADE)</text>
+<path d="M 2760 2751 L 3850 2799" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="3311" y="2771" font-family="Arial, sans-serif" font-size="12" fill="#475569">resources (CASCADE)</text>
+<path d="M 2760 2751 L 580 3127" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1676" y="2935" font-family="Arial, sans-serif" font-size="12" fill="#475569">upload intents (RESTRICT)</text>
+<path d="M 580 1697 L 1670 1961" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="1131" y="1825" font-family="Arial, sans-serif" font-size="12" fill="#475569">payments (SET NULL)</text>
+<path d="M 1670 1961 L 2760 1829" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="1891" font-family="Arial, sans-serif" font-size="12" fill="#475569">refunds (RESTRICT)</text>
+<path d="M 3850 2799 L 580 4459" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="3625" font-family="Arial, sans-serif" font-size="12" fill="#475569">progress (CASCADE)</text>
+<path d="M 3850 2799 L 1670 4399" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2766" y="3595" font-family="Arial, sans-serif" font-size="12" fill="#475569">saved by users (CASCADE)</text>
+<path d="M 580 3127 L 3850 2799" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="2959" font-family="Arial, sans-serif" font-size="12" fill="#475569">confirmed resource (SET NULL)</text>
+<path d="M 3850 2799 L 580 3725" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="3258" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 1670 3725" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2766" y="3258" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 2760 3737" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="3311" y="3264" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 3850 3725" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="3856" y="3258" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 580 3933" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2221" y="3362" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 1670 3933" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="2766" y="3362" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 2760 4029" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="3311" y="3410" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<path d="M 3850 2799 L 3850 3981" stroke="#64748B" stroke-width="2" fill="none" opacity="0.55"/>
+<text x="3856" y="3386" font-family="Arial, sans-serif" font-size="12" fill="#475569">specialization (CASCADE)</text>
+<text x="80" y="92" font-family="Arial, sans-serif" font-size="16" fill="#475569">Generado desde prisma/schema.prisma · PK: primaria · FK: foránea · UK: única · optional: nullable</text>
+<text x="80" y="120" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Autenticación y usuarios</text>
+<rect x="80" y="144" width="1000" height="538" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="144" width="1000" height="42" rx="8" fill="#DBEAFE"/>
+<rect x="80" y="178" width="1000" height="8" fill="#DBEAFE"/>
+<text x="94" y="172" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">user</text>
+<text x="94" y="208" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="232" font-family="monospace" font-size="15" fill="#334155">String name</text>
+<text x="94" y="256" font-family="monospace" font-size="15" fill="#334155">String email [UK]</text>
+<text x="94" y="280" font-family="monospace" font-size="15" fill="#334155">Boolean emailVerified</text>
+<text x="94" y="304" font-family="monospace" font-size="15" fill="#334155">String image [optional]</text>
+<text x="94" y="328" font-family="monospace" font-size="15" fill="#334155">DateTime birthDate [optional]</text>
+<text x="94" y="352" font-family="monospace" font-size="15" fill="#334155">Int ageDeclared [optional]</text>
+<text x="94" y="376" font-family="monospace" font-size="15" fill="#334155">DateTime termsAcceptedAt [optional]</text>
+<text x="94" y="400" font-family="monospace" font-size="15" fill="#334155">DateTime privacyAcceptedAt [optional]</text>
+<text x="94" y="424" font-family="monospace" font-size="15" fill="#334155">DateTime ageVerifiedAt [optional]</text>
+<text x="94" y="448" font-family="monospace" font-size="15" fill="#334155">Role role</text>
+<text x="94" y="472" font-family="monospace" font-size="15" fill="#334155">DateTime suspendedAt [optional]</text>
+<text x="94" y="496" font-family="monospace" font-size="15" fill="#334155">String suspensionReason [optional]</text>
+<text x="94" y="520" font-family="monospace" font-size="15" fill="#334155">DateTime suspensionExpiresAt [optional]</text>
+<text x="94" y="544" font-family="monospace" font-size="15" fill="#334155">DateTime adminCreatedAt [optional]</text>
+<text x="94" y="568" font-family="monospace" font-size="15" fill="#334155">Boolean passwordChangeRequired</text>
+<text x="94" y="592" font-family="monospace" font-size="15" fill="#334155">DateTime deletedAt [optional]</text>
+<text x="94" y="616" font-family="monospace" font-size="15" fill="#334155">String selectedLevelId [FK optional]</text>
+<text x="94" y="640" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="94" y="664" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="1170" y="144" width="1000" height="250" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="144" width="1000" height="42" rx="8" fill="#DBEAFE"/>
+<rect x="1170" y="178" width="1000" height="8" fill="#DBEAFE"/>
+<text x="1184" y="172" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">session</text>
+<text x="1184" y="208" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="232" font-family="monospace" font-size="15" fill="#334155">DateTime expiresAt</text>
+<text x="1184" y="256" font-family="monospace" font-size="15" fill="#334155">String token [UK]</text>
+<text x="1184" y="280" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="1184" y="304" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<text x="1184" y="328" font-family="monospace" font-size="15" fill="#334155">String ipAddress [optional]</text>
+<text x="1184" y="352" font-family="monospace" font-size="15" fill="#334155">String userAgent [optional]</text>
+<text x="1184" y="376" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<rect x="2260" y="144" width="1000" height="370" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="2260" y="144" width="1000" height="42" rx="8" fill="#DBEAFE"/>
+<rect x="2260" y="178" width="1000" height="8" fill="#DBEAFE"/>
+<text x="2274" y="172" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">account</text>
+<text x="2274" y="208" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="2274" y="232" font-family="monospace" font-size="15" fill="#334155">String accountId</text>
+<text x="2274" y="256" font-family="monospace" font-size="15" fill="#334155">String providerId</text>
+<text x="2274" y="280" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<text x="2274" y="304" font-family="monospace" font-size="15" fill="#334155">String accessToken [optional]</text>
+<text x="2274" y="328" font-family="monospace" font-size="15" fill="#334155">String refreshToken [optional]</text>
+<text x="2274" y="352" font-family="monospace" font-size="15" fill="#334155">String idToken [optional]</text>
+<text x="2274" y="376" font-family="monospace" font-size="15" fill="#334155">DateTime accessTokenExpiresAt [optional]</text>
+<text x="2274" y="400" font-family="monospace" font-size="15" fill="#334155">DateTime refreshTokenExpiresAt [optional]</text>
+<text x="2274" y="424" font-family="monospace" font-size="15" fill="#334155">String scope [optional]</text>
+<text x="2274" y="448" font-family="monospace" font-size="15" fill="#334155">String password [optional]</text>
+<text x="2274" y="472" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="2274" y="496" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="3350" y="144" width="1000" height="202" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="3350" y="144" width="1000" height="42" rx="8" fill="#DBEAFE"/>
+<rect x="3350" y="178" width="1000" height="8" fill="#DBEAFE"/>
+<text x="3364" y="172" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">verification</text>
+<text x="3364" y="208" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="3364" y="232" font-family="monospace" font-size="15" fill="#334155">String identifier</text>
+<text x="3364" y="256" font-family="monospace" font-size="15" fill="#334155">String value</text>
+<text x="3364" y="280" font-family="monospace" font-size="15" fill="#334155">DateTime expiresAt</text>
+<text x="3364" y="304" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt [optional]</text>
+<text x="3364" y="328" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt [optional]</text>
+<rect x="80" y="712" width="1000" height="154" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="712" width="1000" height="42" rx="8" fill="#DBEAFE"/>
+<rect x="80" y="746" width="1000" height="8" fill="#DBEAFE"/>
+<text x="94" y="740" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">rate_limit</text>
+<text x="94" y="776" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="800" font-family="monospace" font-size="15" fill="#334155">String key [UK]</text>
+<text x="94" y="824" font-family="monospace" font-size="15" fill="#334155">Int count</text>
+<text x="94" y="848" font-family="monospace" font-size="15" fill="#334155">BigInt lastRequest</text>
+<text x="80" y="986" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Administración</text>
+<rect x="80" y="1010" width="1000" height="226" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="1010" width="1000" height="42" rx="8" fill="#F3E8FF"/>
+<rect x="80" y="1044" width="1000" height="8" fill="#F3E8FF"/>
+<text x="94" y="1038" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">admin_audit_log</text>
+<text x="94" y="1074" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="1098" font-family="monospace" font-size="15" fill="#334155">String actorId [FK]</text>
+<text x="94" y="1122" font-family="monospace" font-size="15" fill="#334155">String targetUserId [FK]</text>
+<text x="94" y="1146" font-family="monospace" font-size="15" fill="#334155">String action</text>
+<text x="94" y="1170" font-family="monospace" font-size="15" fill="#334155">String reason [optional]</text>
+<text x="94" y="1194" font-family="monospace" font-size="15" fill="#334155">Json changes [optional]</text>
+<text x="94" y="1218" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<rect x="1170" y="1010" width="1000" height="394" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="1010" width="1000" height="42" rx="8" fill="#F3E8FF"/>
+<rect x="1170" y="1044" width="1000" height="8" fill="#F3E8FF"/>
+<text x="1184" y="1038" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">user_invitation</text>
+<text x="1184" y="1074" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="1098" font-family="monospace" font-size="15" fill="#334155">String email</text>
+<text x="1184" y="1122" font-family="monospace" font-size="15" fill="#334155">String activeEmail [UK optional]</text>
+<text x="1184" y="1146" font-family="monospace" font-size="15" fill="#334155">String name</text>
+<text x="1184" y="1170" font-family="monospace" font-size="15" fill="#334155">Role role</text>
+<text x="1184" y="1194" font-family="monospace" font-size="15" fill="#334155">String tokenHash [UK]</text>
+<text x="1184" y="1218" font-family="monospace" font-size="15" fill="#334155">String selectedLevelId [FK optional]</text>
+<text x="1184" y="1242" font-family="monospace" font-size="15" fill="#334155">String invitedById [FK]</text>
+<text x="1184" y="1266" font-family="monospace" font-size="15" fill="#334155">String acceptedUserId [FK UK optional]</text>
+<text x="1184" y="1290" font-family="monospace" font-size="15" fill="#334155">DateTime expiresAt</text>
+<text x="1184" y="1314" font-family="monospace" font-size="15" fill="#334155">DateTime acceptedAt [optional]</text>
+<text x="1184" y="1338" font-family="monospace" font-size="15" fill="#334155">DateTime canceledAt [optional]</text>
+<text x="1184" y="1362" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="1184" y="1386" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<text x="80" y="1524" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Suscripciones y pagos</text>
+<rect x="80" y="1548" width="1000" height="298" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="1548" width="1000" height="42" rx="8" fill="#DCFCE7"/>
+<rect x="80" y="1582" width="1000" height="8" fill="#DCFCE7"/>
+<text x="94" y="1576" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">subscription</text>
+<text x="94" y="1612" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="1636" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<text x="94" y="1660" font-family="monospace" font-size="15" fill="#334155">String levelId [FK]</text>
+<text x="94" y="1684" font-family="monospace" font-size="15" fill="#334155">SubscriptionProduct product</text>
+<text x="94" y="1708" font-family="monospace" font-size="15" fill="#334155">SubscriptionStatus status</text>
+<text x="94" y="1732" font-family="monospace" font-size="15" fill="#334155">DateTime currentPeriodStart</text>
+<text x="94" y="1756" font-family="monospace" font-size="15" fill="#334155">DateTime currentPeriodEnd</text>
+<text x="94" y="1780" font-family="monospace" font-size="15" fill="#334155">PlanCode lastPlanCode [optional]</text>
+<text x="94" y="1804" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="94" y="1828" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="1170" y="1548" width="1000" height="826" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="1548" width="1000" height="42" rx="8" fill="#DCFCE7"/>
+<rect x="1170" y="1582" width="1000" height="8" fill="#DCFCE7"/>
+<text x="1184" y="1576" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">payment</text>
+<text x="1184" y="1612" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="1636" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<text x="1184" y="1660" font-family="monospace" font-size="15" fill="#334155">String levelId [FK]</text>
+<text x="1184" y="1684" font-family="monospace" font-size="15" fill="#334155">String subscriptionId [FK optional]</text>
+<text x="1184" y="1708" font-family="monospace" font-size="15" fill="#334155">PlanCode planCode</text>
+<text x="1184" y="1732" font-family="monospace" font-size="15" fill="#334155">SubscriptionProduct product</text>
+<text x="1184" y="1756" font-family="monospace" font-size="15" fill="#334155">BillingInterval billingInterval</text>
+<text x="1184" y="1780" font-family="monospace" font-size="15" fill="#334155">Int durationMonths</text>
+<text x="1184" y="1804" font-family="monospace" font-size="15" fill="#334155">Role roleAtCheckout</text>
+<text x="1184" y="1828" font-family="monospace" font-size="15" fill="#334155">Int expectedAmountMinor</text>
+<text x="1184" y="1852" font-family="monospace" font-size="15" fill="#334155">Int receivedAmountMinor [optional]</text>
+<text x="1184" y="1876" font-family="monospace" font-size="15" fill="#334155">String currency</text>
+<text x="1184" y="1900" font-family="monospace" font-size="15" fill="#334155">PaymentProvider provider</text>
+<text x="1184" y="1924" font-family="monospace" font-size="15" fill="#334155">PaymentMethod method</text>
+<text x="1184" y="1948" font-family="monospace" font-size="15" fill="#334155">ProviderMode providerMode</text>
+<text x="1184" y="1972" font-family="monospace" font-size="15" fill="#334155">String providerStatus [optional]</text>
+<text x="1184" y="1996" font-family="monospace" font-size="15" fill="#334155">String providerPaymentIntentId [UK optional]</text>
+<text x="1184" y="2020" font-family="monospace" font-size="15" fill="#334155">String providerPaymentMethodId [optional]</text>
+<text x="1184" y="2044" font-family="monospace" font-size="15" fill="#334155">String providerChargeId [optional]</text>
+<text x="1184" y="2068" font-family="monospace" font-size="15" fill="#334155">String internalReference [UK]</text>
+<text x="1184" y="2092" font-family="monospace" font-size="15" fill="#334155">String checkoutRequestId [UK]</text>
+<text x="1184" y="2116" font-family="monospace" font-size="15" fill="#334155">PaymentStatus status</text>
+<text x="1184" y="2140" font-family="monospace" font-size="15" fill="#334155">DateTime confirmedAt [optional]</text>
+<text x="1184" y="2164" font-family="monospace" font-size="15" fill="#334155">DateTime appliedAt [optional]</text>
+<text x="1184" y="2188" font-family="monospace" font-size="15" fill="#334155">DateTime staleAt [optional]</text>
+<text x="1184" y="2212" font-family="monospace" font-size="15" fill="#334155">String payerPhoneLast4 [optional]</text>
+<text x="1184" y="2236" font-family="monospace" font-size="15" fill="#334155">String payerIdentificationLast4 [optional]</text>
+<text x="1184" y="2260" font-family="monospace" font-size="15" fill="#334155">Int payerIdentificationType [optional]</text>
+<text x="1184" y="2284" font-family="monospace" font-size="15" fill="#334155">String errorCode [optional]</text>
+<text x="1184" y="2308" font-family="monospace" font-size="15" fill="#334155">String errorMessage [optional]</text>
+<text x="1184" y="2332" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="1184" y="2356" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="2260" y="1548" width="1000" height="562" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="2260" y="1548" width="1000" height="42" rx="8" fill="#DCFCE7"/>
+<rect x="2260" y="1582" width="1000" height="8" fill="#DCFCE7"/>
+<text x="2274" y="1576" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">payment_refund</text>
+<text x="2274" y="1612" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="2274" y="1636" font-family="monospace" font-size="15" fill="#334155">String paymentId [FK]</text>
+<text x="2274" y="1660" font-family="monospace" font-size="15" fill="#334155">PaymentProvider provider</text>
+<text x="2274" y="1684" font-family="monospace" font-size="15" fill="#334155">ProviderMode providerMode</text>
+<text x="2274" y="1708" font-family="monospace" font-size="15" fill="#334155">String providerRefundId [UK optional]</text>
+<text x="2274" y="1732" font-family="monospace" font-size="15" fill="#334155">Int expectedAmountMinor</text>
+<text x="2274" y="1756" font-family="monospace" font-size="15" fill="#334155">Int providerAmountMinor [optional]</text>
+<text x="2274" y="1780" font-family="monospace" font-size="15" fill="#334155">String currency</text>
+<text x="2274" y="1804" font-family="monospace" font-size="15" fill="#334155">RefundStatus status</text>
+<text x="2274" y="1828" font-family="monospace" font-size="15" fill="#334155">String providerStatus [optional]</text>
+<text x="2274" y="1852" font-family="monospace" font-size="15" fill="#334155">String reason [optional]</text>
+<text x="2274" y="1876" font-family="monospace" font-size="15" fill="#334155">String requestedById [FK optional]</text>
+<text x="2274" y="1900" font-family="monospace" font-size="15" fill="#334155">DateTime requestedAt</text>
+<text x="2274" y="1924" font-family="monospace" font-size="15" fill="#334155">DateTime providerCreatedAt [optional]</text>
+<text x="2274" y="1948" font-family="monospace" font-size="15" fill="#334155">DateTime providerUpdatedAt [optional]</text>
+<text x="2274" y="1972" font-family="monospace" font-size="15" fill="#334155">DateTime lastCheckedAt [optional]</text>
+<text x="2274" y="1996" font-family="monospace" font-size="15" fill="#334155">DateTime appliedAt [optional]</text>
+<text x="2274" y="2020" font-family="monospace" font-size="15" fill="#334155">String errorCode [optional]</text>
+<text x="2274" y="2044" font-family="monospace" font-size="15" fill="#334155">String errorMessage [optional]</text>
+<text x="2274" y="2068" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="2274" y="2092" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="3350" y="1548" width="1000" height="322" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="3350" y="1548" width="1000" height="42" rx="8" fill="#DCFCE7"/>
+<rect x="3350" y="1582" width="1000" height="8" fill="#DCFCE7"/>
+<text x="3364" y="1576" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">webhook_receipt</text>
+<text x="3364" y="1612" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="3364" y="1636" font-family="monospace" font-size="15" fill="#334155">PaymentProvider provider</text>
+<text x="3364" y="1660" font-family="monospace" font-size="15" fill="#334155">String eventType</text>
+<text x="3364" y="1684" font-family="monospace" font-size="15" fill="#334155">String providerObjectId [optional]</text>
+<text x="3364" y="1708" font-family="monospace" font-size="15" fill="#334155">String payloadHash [optional]</text>
+<text x="3364" y="1732" font-family="monospace" font-size="15" fill="#334155">String deduplicationKey [UK optional]</text>
+<text x="3364" y="1756" font-family="monospace" font-size="15" fill="#334155">WebhookOutcome outcome</text>
+<text x="3364" y="1780" font-family="monospace" font-size="15" fill="#334155">DateTime receivedAt</text>
+<text x="3364" y="1804" font-family="monospace" font-size="15" fill="#334155">DateTime processingStartedAt [optional]</text>
+<text x="3364" y="1828" font-family="monospace" font-size="15" fill="#334155">DateTime processedAt [optional]</text>
+<text x="3364" y="1852" font-family="monospace" font-size="15" fill="#334155">String errorCode [optional]</text>
+<text x="80" y="2494" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Estructura educativa</text>
+<rect x="80" y="2518" width="1000" height="226" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="2518" width="1000" height="42" rx="8" fill="#FEF3C7"/>
+<rect x="80" y="2552" width="1000" height="8" fill="#FEF3C7"/>
+<text x="94" y="2546" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">level</text>
+<text x="94" y="2582" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="2606" font-family="monospace" font-size="15" fill="#334155">Int levelNumber [UK]</text>
+<text x="94" y="2630" font-family="monospace" font-size="15" fill="#334155">String description [optional]</text>
+<text x="94" y="2654" font-family="monospace" font-size="15" fill="#334155">Boolean requiresSubscription</text>
+<text x="94" y="2678" font-family="monospace" font-size="15" fill="#334155">Boolean isActive</text>
+<text x="94" y="2702" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="94" y="2726" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="1170" y="2518" width="1000" height="250" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="2518" width="1000" height="42" rx="8" fill="#FEF3C7"/>
+<rect x="1170" y="2552" width="1000" height="8" fill="#FEF3C7"/>
+<text x="1184" y="2546" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">subject</text>
+<text x="1184" y="2582" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="2606" font-family="monospace" font-size="15" fill="#334155">String name</text>
+<text x="1184" y="2630" font-family="monospace" font-size="15" fill="#334155">String description [optional]</text>
+<text x="1184" y="2654" font-family="monospace" font-size="15" fill="#334155">String levelId [FK]</text>
+<text x="1184" y="2678" font-family="monospace" font-size="15" fill="#334155">Int order</text>
+<text x="1184" y="2702" font-family="monospace" font-size="15" fill="#334155">Boolean isActive</text>
+<text x="1184" y="2726" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="1184" y="2750" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="2260" y="2518" width="1000" height="466" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="2260" y="2518" width="1000" height="42" rx="8" fill="#FEF3C7"/>
+<rect x="2260" y="2552" width="1000" height="8" fill="#FEF3C7"/>
+<text x="2274" y="2546" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">module</text>
+<text x="2274" y="2582" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="2274" y="2606" font-family="monospace" font-size="15" fill="#334155">String title</text>
+<text x="2274" y="2630" font-family="monospace" font-size="15" fill="#334155">String description [optional]</text>
+<text x="2274" y="2654" font-family="monospace" font-size="15" fill="#334155">String subjectId [FK]</text>
+<text x="2274" y="2678" font-family="monospace" font-size="15" fill="#334155">ContentAudience audience</text>
+<text x="2274" y="2702" font-family="monospace" font-size="15" fill="#334155">PublicationStatus publicationStatus</text>
+<text x="2274" y="2726" font-family="monospace" font-size="15" fill="#334155">String createdById [FK]</text>
+<text x="2274" y="2750" font-family="monospace" font-size="15" fill="#334155">DateTime submittedForReviewAt [optional]</text>
+<text x="2274" y="2774" font-family="monospace" font-size="15" fill="#334155">String reviewedById [FK optional]</text>
+<text x="2274" y="2798" font-family="monospace" font-size="15" fill="#334155">DateTime reviewedAt [optional]</text>
+<text x="2274" y="2822" font-family="monospace" font-size="15" fill="#334155">String reviewNote [optional]</text>
+<text x="2274" y="2846" font-family="monospace" font-size="15" fill="#334155">String publishedById [FK optional]</text>
+<text x="2274" y="2870" font-family="monospace" font-size="15" fill="#334155">DateTime publishedAt [optional]</text>
+<text x="2274" y="2894" font-family="monospace" font-size="15" fill="#334155">Int order</text>
+<text x="2274" y="2918" font-family="monospace" font-size="15" fill="#334155">Boolean isActive</text>
+<text x="2274" y="2942" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="2274" y="2966" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="3350" y="2518" width="1000" height="562" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="3350" y="2518" width="1000" height="42" rx="8" fill="#FEF3C7"/>
+<rect x="3350" y="2552" width="1000" height="8" fill="#FEF3C7"/>
+<text x="3364" y="2546" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">resource</text>
+<text x="3364" y="2582" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="3364" y="2606" font-family="monospace" font-size="15" fill="#334155">String moduleId [FK]</text>
+<text x="3364" y="2630" font-family="monospace" font-size="15" fill="#334155">ResourceType type</text>
+<text x="3364" y="2654" font-family="monospace" font-size="15" fill="#334155">String title</text>
+<text x="3364" y="2678" font-family="monospace" font-size="15" fill="#334155">String instructions [optional]</text>
+<text x="3364" y="2702" font-family="monospace" font-size="15" fill="#334155">String content [optional]</text>
+<text x="3364" y="2726" font-family="monospace" font-size="15" fill="#334155">Int estimatedMinutes [optional]</text>
+<text x="3364" y="2750" font-family="monospace" font-size="15" fill="#334155">PublicationStatus publicationStatus</text>
+<text x="3364" y="2774" font-family="monospace" font-size="15" fill="#334155">String createdById [FK]</text>
+<text x="3364" y="2798" font-family="monospace" font-size="15" fill="#334155">DateTime submittedForReviewAt [optional]</text>
+<text x="3364" y="2822" font-family="monospace" font-size="15" fill="#334155">String reviewedById [FK optional]</text>
+<text x="3364" y="2846" font-family="monospace" font-size="15" fill="#334155">DateTime reviewedAt [optional]</text>
+<text x="3364" y="2870" font-family="monospace" font-size="15" fill="#334155">String reviewNote [optional]</text>
+<text x="3364" y="2894" font-family="monospace" font-size="15" fill="#334155">String publishedById [FK optional]</text>
+<text x="3364" y="2918" font-family="monospace" font-size="15" fill="#334155">DateTime publishedAt [optional]</text>
+<text x="3364" y="2942" font-family="monospace" font-size="15" fill="#334155">String uploadIntentId [FK UK optional]</text>
+<text x="3364" y="2966" font-family="monospace" font-size="15" fill="#334155">Int order</text>
+<text x="3364" y="2990" font-family="monospace" font-size="15" fill="#334155">Boolean isActive</text>
+<text x="3364" y="3014" font-family="monospace" font-size="15" fill="#334155">Boolean isRequired</text>
+<text x="3364" y="3038" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="3364" y="3062" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<rect x="80" y="2774" width="1000" height="706" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="2774" width="1000" height="42" rx="8" fill="#FEF3C7"/>
+<rect x="80" y="2808" width="1000" height="8" fill="#FEF3C7"/>
+<text x="94" y="2802" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">upload_intent</text>
+<text x="94" y="2838" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="2862" font-family="monospace" font-size="15" fill="#334155">String createdById [FK]</text>
+<text x="94" y="2886" font-family="monospace" font-size="15" fill="#334155">String moduleId [FK]</text>
+<text x="94" y="2910" font-family="monospace" font-size="15" fill="#334155">String reservedResourceId [UK]</text>
+<text x="94" y="2934" font-family="monospace" font-size="15" fill="#334155">ResourceType resourceType</text>
+<text x="94" y="2958" font-family="monospace" font-size="15" fill="#334155">PublicationStatus targetPublicationStatus</text>
+<text x="94" y="2982" font-family="monospace" font-size="15" fill="#334155">String title</text>
+<text x="94" y="3006" font-family="monospace" font-size="15" fill="#334155">String instructions [optional]</text>
+<text x="94" y="3030" font-family="monospace" font-size="15" fill="#334155">String content [optional]</text>
+<text x="94" y="3054" font-family="monospace" font-size="15" fill="#334155">Int estimatedMinutes [optional]</text>
+<text x="94" y="3078" font-family="monospace" font-size="15" fill="#334155">String originalName</text>
+<text x="94" y="3102" font-family="monospace" font-size="15" fill="#334155">String altText [optional]</text>
+<text x="94" y="3126" font-family="monospace" font-size="15" fill="#334155">String temporaryStorageKey [UK]</text>
+<text x="94" y="3150" font-family="monospace" font-size="15" fill="#334155">String permanentStorageKey [UK]</text>
+<text x="94" y="3174" font-family="monospace" font-size="15" fill="#334155">String expectedMimeType</text>
+<text x="94" y="3198" font-family="monospace" font-size="15" fill="#334155">BigInt expectedSizeBytes</text>
+<text x="94" y="3222" font-family="monospace" font-size="15" fill="#334155">String temporaryObjectEtag [optional]</text>
+<text x="94" y="3246" font-family="monospace" font-size="15" fill="#334155">UploadStatus status</text>
+<text x="94" y="3270" font-family="monospace" font-size="15" fill="#334155">DateTime expiresAt</text>
+<text x="94" y="3294" font-family="monospace" font-size="15" fill="#334155">DateTime confirmedAt [optional]</text>
+<text x="94" y="3318" font-family="monospace" font-size="15" fill="#334155">DateTime processingStartedAt [optional]</text>
+<text x="94" y="3342" font-family="monospace" font-size="15" fill="#334155">DateTime cleanupLeaseUntil [optional]</text>
+<text x="94" y="3366" font-family="monospace" font-size="15" fill="#334155">Int attemptCount</text>
+<text x="94" y="3390" font-family="monospace" font-size="15" fill="#334155">DateTime lastAttemptAt [optional]</text>
+<text x="94" y="3414" font-family="monospace" font-size="15" fill="#334155">String failureCode [optional]</text>
+<text x="94" y="3438" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<text x="94" y="3462" font-family="monospace" font-size="15" fill="#334155">DateTime updatedAt</text>
+<text x="80" y="3600" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Recursos especializados</text>
+<rect x="80" y="3624" width="1000" height="202" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="3624" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="80" y="3658" width="1000" height="8" fill="#FCE7F3"/>
+<text x="94" y="3652" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">quiz</text>
+<text x="94" y="3688" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="3712" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="94" y="3736" font-family="monospace" font-size="15" fill="#334155">Int passingScore</text>
+<text x="94" y="3760" font-family="monospace" font-size="15" fill="#334155">Int maxAttempts [optional]</text>
+<text x="94" y="3784" font-family="monospace" font-size="15" fill="#334155">Boolean shuffleQuestions</text>
+<text x="94" y="3808" font-family="monospace" font-size="15" fill="#334155">Json questions</text>
+<rect x="1170" y="3624" width="1000" height="202" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="3624" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="1170" y="3658" width="1000" height="8" fill="#FCE7F3"/>
+<text x="1184" y="3652" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">youtube_video</text>
+<text x="1184" y="3688" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="3712" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="1184" y="3736" font-family="monospace" font-size="15" fill="#334155">String videoId</text>
+<text x="1184" y="3760" font-family="monospace" font-size="15" fill="#334155">Int duration [optional]</text>
+<text x="1184" y="3784" font-family="monospace" font-size="15" fill="#334155">Int startAt [optional]</text>
+<text x="1184" y="3808" font-family="monospace" font-size="15" fill="#334155">Int endAt [optional]</text>
+<rect x="2260" y="3624" width="1000" height="226" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="2260" y="3624" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="2260" y="3658" width="1000" height="8" fill="#FCE7F3"/>
+<text x="2274" y="3652" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">pdf_resource</text>
+<text x="2274" y="3688" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="2274" y="3712" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="2274" y="3736" font-family="monospace" font-size="15" fill="#334155">String storageKey</text>
+<text x="2274" y="3760" font-family="monospace" font-size="15" fill="#334155">String originalName</text>
+<text x="2274" y="3784" font-family="monospace" font-size="15" fill="#334155">String mimeType</text>
+<text x="2274" y="3808" font-family="monospace" font-size="15" fill="#334155">BigInt sizeBytes [optional]</text>
+<text x="2274" y="3832" font-family="monospace" font-size="15" fill="#334155">Int pageCount [optional]</text>
+<rect x="3350" y="3624" width="1000" height="202" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="3350" y="3624" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="3350" y="3658" width="1000" height="8" fill="#FCE7F3"/>
+<text x="3364" y="3652" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">file_resource</text>
+<text x="3364" y="3688" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="3364" y="3712" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="3364" y="3736" font-family="monospace" font-size="15" fill="#334155">String storageKey</text>
+<text x="3364" y="3760" font-family="monospace" font-size="15" fill="#334155">String originalName</text>
+<text x="3364" y="3784" font-family="monospace" font-size="15" fill="#334155">String mimeType</text>
+<text x="3364" y="3808" font-family="monospace" font-size="15" fill="#334155">BigInt sizeBytes [optional]</text>
+<rect x="80" y="3856" width="1000" height="154" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="3856" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="80" y="3890" width="1000" height="8" fill="#FCE7F3"/>
+<text x="94" y="3884" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">link_resource</text>
+<text x="94" y="3920" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="3944" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="94" y="3968" font-family="monospace" font-size="15" fill="#334155">String url</text>
+<text x="94" y="3992" font-family="monospace" font-size="15" fill="#334155">Boolean openInNewTab</text>
+<rect x="1170" y="3856" width="1000" height="154" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="3856" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="1170" y="3890" width="1000" height="8" fill="#FCE7F3"/>
+<text x="1184" y="3884" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">game_resource</text>
+<text x="1184" y="3920" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="3944" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="1184" y="3968" font-family="monospace" font-size="15" fill="#334155">String gameType</text>
+<text x="1184" y="3992" font-family="monospace" font-size="15" fill="#334155">Json config</text>
+<rect x="2260" y="3880" width="1000" height="298" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="2260" y="3880" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="2260" y="3914" width="1000" height="8" fill="#FCE7F3"/>
+<text x="2274" y="3908" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">image_resource</text>
+<text x="2274" y="3944" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="2274" y="3968" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="2274" y="3992" font-family="monospace" font-size="15" fill="#334155">String storageKey</text>
+<text x="2274" y="4016" font-family="monospace" font-size="15" fill="#334155">String originalName</text>
+<text x="2274" y="4040" font-family="monospace" font-size="15" fill="#334155">String mimeType</text>
+<text x="2274" y="4064" font-family="monospace" font-size="15" fill="#334155">BigInt sizeBytes [optional]</text>
+<text x="2274" y="4088" font-family="monospace" font-size="15" fill="#334155">Int width [optional]</text>
+<text x="2274" y="4112" font-family="monospace" font-size="15" fill="#334155">Int height [optional]</text>
+<text x="2274" y="4136" font-family="monospace" font-size="15" fill="#334155">String altText [optional]</text>
+<text x="2274" y="4160" font-family="monospace" font-size="15" fill="#334155">String caption [optional]</text>
+<rect x="3350" y="3856" width="1000" height="250" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="3350" y="3856" width="1000" height="42" rx="8" fill="#FCE7F3"/>
+<rect x="3350" y="3890" width="1000" height="8" fill="#FCE7F3"/>
+<text x="3364" y="3884" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">audio_resource</text>
+<text x="3364" y="3920" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="3364" y="3944" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK UK]</text>
+<text x="3364" y="3968" font-family="monospace" font-size="15" fill="#334155">String storageKey</text>
+<text x="3364" y="3992" font-family="monospace" font-size="15" fill="#334155">String originalName</text>
+<text x="3364" y="4016" font-family="monospace" font-size="15" fill="#334155">String mimeType</text>
+<text x="3364" y="4040" font-family="monospace" font-size="15" fill="#334155">BigInt sizeBytes [optional]</text>
+<text x="3364" y="4064" font-family="monospace" font-size="15" fill="#334155">Int duration [optional]</text>
+<text x="3364" y="4088" font-family="monospace" font-size="15" fill="#334155">String transcript [optional]</text>
+<text x="80" y="4298" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1E293B">Progreso del estudiante</text>
+<rect x="80" y="4322" width="1000" height="274" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="80" y="4322" width="1000" height="42" rx="8" fill="#E0E7FF"/>
+<rect x="80" y="4356" width="1000" height="8" fill="#E0E7FF"/>
+<text x="94" y="4350" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">resource_progress</text>
+<text x="94" y="4386" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="94" y="4410" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<text x="94" y="4434" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK]</text>
+<text x="94" y="4458" font-family="monospace" font-size="15" fill="#334155">Boolean completed</text>
+<text x="94" y="4482" font-family="monospace" font-size="15" fill="#334155">Float score [optional]</text>
+<text x="94" y="4506" font-family="monospace" font-size="15" fill="#334155">Int attempts</text>
+<text x="94" y="4530" font-family="monospace" font-size="15" fill="#334155">DateTime startedAt</text>
+<text x="94" y="4554" font-family="monospace" font-size="15" fill="#334155">DateTime lastViewedAt</text>
+<text x="94" y="4578" font-family="monospace" font-size="15" fill="#334155">DateTime completedAt [optional]</text>
+<rect x="1170" y="4322" width="1000" height="154" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+<rect x="1170" y="4322" width="1000" height="42" rx="8" fill="#E0E7FF"/>
+<rect x="1170" y="4356" width="1000" height="8" fill="#E0E7FF"/>
+<text x="1184" y="4350" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">saved_resource</text>
+<text x="1184" y="4386" font-family="monospace" font-size="15" fill="#334155">String id [PK]</text>
+<text x="1184" y="4410" font-family="monospace" font-size="15" fill="#334155">String userId [FK]</text>
+<text x="1184" y="4434" font-family="monospace" font-size="15" fill="#334155">String resourceId [FK]</text>
+<text x="1184" y="4458" font-family="monospace" font-size="15" fill="#334155">DateTime createdAt</text>
+<rect x="80" y="4666" width="6640" height="220" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+<text x="105" y="4698" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#1E293B">Enums (tipos enumerados, no tablas)</text>
+<text x="105" y="4726" font-family="Arial, sans-serif" font-size="13" fill="#475569">Role: STUDENT | TEACHER | COLLABORATOR | ADMIN</text>
+<text x="105" y="4746" font-family="Arial, sans-serif" font-size="13" fill="#475569">PlanCode: STUDENT_MONTHLY | STUDENT_YEARLY | TEACHER_MONTHLY | TEACHER_YEARLY</text>
+<text x="105" y="4766" font-family="Arial, sans-serif" font-size="13" fill="#475569">SubscriptionProduct: STUDENT_PREMIUM | TEACHER_PREMIUM · BillingInterval: MONTHLY | YEARLY</text>
+<text x="105" y="4786" font-family="Arial, sans-serif" font-size="13" fill="#475569">SubscriptionStatus: ACTIVE | CANCELED | EXPIRED | REFUNDED · PaymentStatus: INITIALIZING | PROCESSING | SUCCEEDED | FAILED | CANCELED | REFUNDED | REQUIRES_REVIEW</text>
+<text x="105" y="4806" font-family="Arial, sans-serif" font-size="13" fill="#475569">RefundStatus: REQUESTED | PENDING | SUCCEEDED | FAILED | REQUIRES_REVIEW | CANCELED · PaymentProvider: ONVO · PaymentMethod: SINPE_MOBILE</text>
+<text x="105" y="4826" font-family="Arial, sans-serif" font-size="13" fill="#475569">ProviderMode: TEST | LIVE · WebhookOutcome: PROCESSED | IGNORED | REQUIRES_REVIEW | FAILED | PROCESSING</text>
+<text x="105" y="4846" font-family="Arial, sans-serif" font-size="13" fill="#475569">ResourceType: NOTE | QUIZ | YOUTUBE | PDF | FILE | LINK | GAME | IMAGE | AUDIO · ContentAudience: STUDENT | TEACHER | BOTH</text>
+<text x="105" y="4866" font-family="Arial, sans-serif" font-size="13" fill="#475569">PublicationStatus: DRAFT | IN_REVIEW | CHANGES_REQUESTED | PUBLISHED | UNPUBLISHED · UploadStatus: PENDING | PROCESSING | CONFIRMED | CLEANUP_PENDING | FAILED | EXPIRED</text>
+</svg>

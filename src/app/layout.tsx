@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Fraunces } from "next/font/google";
+import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -7,12 +7,6 @@ import "./globals.css";
 
 const geist = Geist({
   variable: "--font-geist",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
   subsets: ["latin"],
   display: "swap",
 });
@@ -51,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geist.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geist.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >

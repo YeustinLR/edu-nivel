@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { enum as zodEnum, type infer as Infer } from "zod";
 
 export const PUBLIC_REGISTRATION_ROLES = ["STUDENT", "TEACHER"] as const;
 export const INVITABLE_REGISTRATION_ROLES = [
@@ -7,18 +7,18 @@ export const INVITABLE_REGISTRATION_ROLES = [
   "COLLABORATOR",
 ] as const;
 
-export const registrationRoleSchema = z.enum(PUBLIC_REGISTRATION_ROLES, {
+export const registrationRoleSchema = zodEnum(PUBLIC_REGISTRATION_ROLES, {
   error: "Selecciona si deseas registrarte como estudiante o docente.",
 });
 
 // Better Auth necesita reconocer COLLABORATOR para aceptar una invitación,
 // pero el hook server-side continúa rechazándolo cuando no existe un token válido.
-export const accountRegistrationRoleSchema = z.enum(
+export const accountRegistrationRoleSchema = zodEnum(
   INVITABLE_REGISTRATION_ROLES,
   { error: "Selecciona un tipo de cuenta válido." },
 );
 
-export type RegistrationRole = z.infer<typeof registrationRoleSchema>;
+export type RegistrationRole = Infer<typeof registrationRoleSchema>;
 
 export const REGISTRATION_ROLE_OPTIONS: ReadonlyArray<{
   value: RegistrationRole;

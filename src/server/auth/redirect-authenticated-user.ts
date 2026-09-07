@@ -10,8 +10,6 @@ import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/server/auth/auth";
-
 export async function redirectAuthenticatedUser(): Promise<void> {
   const requestHeaders = await headers();
 
@@ -19,6 +17,9 @@ export async function redirectAuthenticatedUser(): Promise<void> {
   if (!getSessionCookie(requestHeaders)) {
     return;
   }
+
+  // El visitante anonimo no necesita cargar ni inicializar el backend de autenticacion.
+  const { auth } = await import("@/server/auth/auth");
 
   // En login/registro comprobamos la fuente real para que una sesion revocada no produzca un
   // ciclo entre estas paginas y el dashboard mientras la cookie cacheada siga vigente.

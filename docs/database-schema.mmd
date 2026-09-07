@@ -1,0 +1,438 @@
+%% EduNivel — esquema generado desde prisma/schema.prisma
+%% PostgreSQL / Prisma
+%% PK = clave primaria, FK = clave foránea, UK = único, optional = nullable
+
+erDiagram
+    USER {
+        String id PK
+        String name
+        String email UK
+        Boolean emailVerified
+        String image optional
+        DateTime birthDate optional
+        Int ageDeclared optional
+        DateTime termsAcceptedAt optional
+        DateTime privacyAcceptedAt optional
+        DateTime ageVerifiedAt optional
+        Role role
+        DateTime suspendedAt optional
+        String suspensionReason optional
+        DateTime suspensionExpiresAt optional
+        DateTime adminCreatedAt optional
+        Boolean passwordChangeRequired
+        DateTime deletedAt optional
+        String selectedLevelId FK optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    SESSION {
+        String id PK
+        DateTime expiresAt
+        String token UK
+        DateTime createdAt
+        DateTime updatedAt
+        String ipAddress optional
+        String userAgent optional
+        String userId FK
+    }
+
+    ACCOUNT {
+        String id PK
+        String accountId
+        String providerId
+        String userId FK
+        String accessToken optional
+        String refreshToken optional
+        String idToken optional
+        DateTime accessTokenExpiresAt optional
+        DateTime refreshTokenExpiresAt optional
+        String scope optional
+        String password optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    VERIFICATION {
+        String id PK
+        String identifier
+        String value
+        DateTime expiresAt
+        DateTime createdAt optional
+        DateTime updatedAt optional
+    }
+
+    RATE_LIMIT {
+        String id PK
+        String key UK
+        Int count
+        BigInt lastRequest
+    }
+
+    ADMIN_AUDIT_LOG {
+        String id PK
+        String actorId FK
+        String targetUserId FK
+        String action
+        String reason optional
+        Json changes optional
+        DateTime createdAt
+    }
+
+    USER_INVITATION {
+        String id PK
+        String email
+        String activeEmail UK optional
+        String name
+        Role role
+        String tokenHash UK
+        String selectedLevelId FK optional
+        String invitedById FK
+        String acceptedUserId FK UK optional
+        DateTime expiresAt
+        DateTime acceptedAt optional
+        DateTime canceledAt optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    SUBSCRIPTION {
+        String id PK
+        String userId FK
+        String levelId FK
+        SubscriptionProduct product
+        SubscriptionStatus status
+        DateTime currentPeriodStart
+        DateTime currentPeriodEnd
+        PlanCode lastPlanCode optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    PAYMENT {
+        String id PK
+        String userId FK
+        String levelId FK
+        String subscriptionId FK optional
+        PlanCode planCode
+        SubscriptionProduct product
+        BillingInterval billingInterval
+        Int durationMonths
+        Role roleAtCheckout
+        Int expectedAmountMinor
+        Int receivedAmountMinor optional
+        String currency
+        PaymentProvider provider
+        PaymentMethod method
+        ProviderMode providerMode
+        String providerStatus optional
+        String providerPaymentIntentId UK optional
+        String providerPaymentMethodId optional
+        String providerChargeId optional
+        String internalReference UK
+        String checkoutRequestId UK
+        PaymentStatus status
+        DateTime confirmedAt optional
+        DateTime appliedAt optional
+        DateTime staleAt optional
+        String payerPhoneLast4 optional
+        String payerIdentificationLast4 optional
+        Int payerIdentificationType optional
+        String errorCode optional
+        String errorMessage optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    PAYMENT_REFUND {
+        String id PK
+        String paymentId FK
+        PaymentProvider provider
+        ProviderMode providerMode
+        String providerRefundId UK optional
+        Int expectedAmountMinor
+        Int providerAmountMinor optional
+        String currency
+        RefundStatus status
+        String providerStatus optional
+        String reason optional
+        String requestedById FK optional
+        DateTime requestedAt
+        DateTime providerCreatedAt optional
+        DateTime providerUpdatedAt optional
+        DateTime lastCheckedAt optional
+        DateTime appliedAt optional
+        String errorCode optional
+        String errorMessage optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    WEBHOOK_RECEIPT {
+        String id PK
+        PaymentProvider provider
+        String eventType
+        String providerObjectId optional
+        String payloadHash optional
+        String deduplicationKey UK optional
+        WebhookOutcome outcome
+        DateTime receivedAt
+        DateTime processingStartedAt optional
+        DateTime processedAt optional
+        String errorCode optional
+    }
+
+    LEVEL {
+        String id PK
+        Int levelNumber UK
+        String description optional
+        Boolean requiresSubscription
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    SUBJECT {
+        String id PK
+        String name
+        String description optional
+        String levelId FK
+        Int order
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    MODULE {
+        String id PK
+        String title
+        String description optional
+        String subjectId FK
+        ContentAudience audience
+        PublicationStatus publicationStatus
+        String createdById FK
+        DateTime submittedForReviewAt optional
+        String reviewedById FK optional
+        DateTime reviewedAt optional
+        String reviewNote optional
+        String publishedById FK optional
+        DateTime publishedAt optional
+        Int order
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    RESOURCE {
+        String id PK
+        String moduleId FK
+        ResourceType type
+        String title
+        String instructions optional
+        String content optional
+        Int estimatedMinutes optional
+        PublicationStatus publicationStatus
+        String createdById FK
+        DateTime submittedForReviewAt optional
+        String reviewedById FK optional
+        DateTime reviewedAt optional
+        String reviewNote optional
+        String publishedById FK optional
+        DateTime publishedAt optional
+        String uploadIntentId FK UK optional
+        Int order
+        Boolean isActive
+        Boolean isRequired
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    UPLOAD_INTENT {
+        String id PK
+        String createdById FK
+        String moduleId FK
+        String reservedResourceId UK
+        ResourceType resourceType
+        PublicationStatus targetPublicationStatus
+        String title
+        String instructions optional
+        String content optional
+        Int estimatedMinutes optional
+        String originalName
+        String altText optional
+        String temporaryStorageKey UK
+        String permanentStorageKey UK
+        String expectedMimeType
+        BigInt expectedSizeBytes
+        String temporaryObjectEtag optional
+        UploadStatus status
+        DateTime expiresAt
+        DateTime confirmedAt optional
+        DateTime processingStartedAt optional
+        DateTime cleanupLeaseUntil optional
+        Int attemptCount
+        DateTime lastAttemptAt optional
+        String failureCode optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    QUIZ {
+        String id PK
+        String resourceId FK UK
+        Int passingScore
+        Int maxAttempts optional
+        Boolean shuffleQuestions
+        Json questions
+    }
+
+    YOUTUBE_VIDEO {
+        String id PK
+        String resourceId FK UK
+        String videoId
+        Int duration optional
+        Int startAt optional
+        Int endAt optional
+    }
+
+    PDF_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String storageKey
+        String originalName
+        String mimeType
+        BigInt sizeBytes optional
+        Int pageCount optional
+    }
+
+    FILE_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String storageKey
+        String originalName
+        String mimeType
+        BigInt sizeBytes optional
+    }
+
+    LINK_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String url
+        Boolean openInNewTab
+    }
+
+    GAME_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String gameType
+        Json config
+    }
+
+    IMAGE_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String storageKey
+        String originalName
+        String mimeType
+        BigInt sizeBytes optional
+        Int width optional
+        Int height optional
+        String altText optional
+        String caption optional
+    }
+
+    AUDIO_RESOURCE {
+        String id PK
+        String resourceId FK UK
+        String storageKey
+        String originalName
+        String mimeType
+        BigInt sizeBytes optional
+        Int duration optional
+        String transcript optional
+    }
+
+    RESOURCE_PROGRESS {
+        String id PK
+        String userId FK
+        String resourceId FK
+        Boolean completed
+        Float score optional
+        Int attempts
+        DateTime startedAt
+        DateTime lastViewedAt
+        DateTime completedAt optional
+    }
+
+    SAVED_RESOURCE {
+        String id PK
+        String userId FK
+        String resourceId FK
+        DateTime createdAt
+    }
+
+    USER }o--o| LEVEL : "selectedLevelId (SET NULL)"
+    USER ||--o{ SESSION : "sessions (CASCADE)"
+    USER ||--o{ ACCOUNT : "accounts (CASCADE)"
+    USER ||--o{ SUBSCRIPTION : "subscriptions (CASCADE)"
+    USER ||--o{ PAYMENT : "payments (RESTRICT)"
+    USER ||--o{ PAYMENT_REFUND : "requested refunds (RESTRICT)"
+    USER ||--o{ RESOURCE_PROGRESS : "progress (CASCADE)"
+    USER ||--o{ SAVED_RESOURCE : "saved resources (CASCADE)"
+    USER ||--o{ MODULE : "created modules (RESTRICT)"
+    USER ||--o{ MODULE : "reviewed modules (SET NULL)"
+    USER ||--o{ MODULE : "published modules (SET NULL)"
+    USER ||--o{ RESOURCE : "created resources (RESTRICT)"
+    USER ||--o{ RESOURCE : "reviewed resources (SET NULL)"
+    USER ||--o{ RESOURCE : "published resources (SET NULL)"
+    USER ||--o{ UPLOAD_INTENT : "upload intents (RESTRICT)"
+    USER ||--o{ USER_INVITATION : "sent invitations (RESTRICT)"
+    USER o|--o| USER_INVITATION : "accepted invitation (SET NULL)"
+    USER ||--o{ ADMIN_AUDIT_LOG : "actor (RESTRICT)"
+    USER ||--o{ ADMIN_AUDIT_LOG : "target (RESTRICT)"
+
+    LEVEL ||--o{ SUBJECT : "subjects (CASCADE)"
+    LEVEL ||--o{ SUBSCRIPTION : "subscriptions (RESTRICT)"
+    LEVEL ||--o{ PAYMENT : "payments (RESTRICT)"
+    LEVEL ||--o{ USER_INVITATION : "selected level (SET NULL)"
+    SUBJECT ||--o{ MODULE : "modules (CASCADE)"
+    MODULE ||--o{ RESOURCE : "resources (CASCADE)"
+    MODULE ||--o{ UPLOAD_INTENT : "upload intents (RESTRICT)"
+
+    SUBSCRIPTION ||--o{ PAYMENT : "payments (SET NULL)"
+    PAYMENT ||--o{ PAYMENT_REFUND : "refunds (RESTRICT)"
+    RESOURCE ||--o{ RESOURCE_PROGRESS : "progress (CASCADE)"
+    RESOURCE ||--o{ SAVED_RESOURCE : "saved by users (CASCADE)"
+    UPLOAD_INTENT o|--o| RESOURCE : "confirmed resource (SET NULL)"
+
+    RESOURCE ||--o| QUIZ : "specialization (CASCADE)"
+    RESOURCE ||--o| YOUTUBE_VIDEO : "specialization (CASCADE)"
+    RESOURCE ||--o| PDF_RESOURCE : "specialization (CASCADE)"
+    RESOURCE ||--o| FILE_RESOURCE : "specialization (CASCADE)"
+    RESOURCE ||--o| LINK_RESOURCE : "specialization (CASCADE)"
+    RESOURCE ||--o| GAME_RESOURCE : "specialization (CASCADE)"
+    RESOURCE ||--o| IMAGE_RESOURCE : "specialization (CASCADE)"
+    RESOURCE ||--o| AUDIO_RESOURCE : "specialization (CASCADE)"
+
+    %% Composite uniques:
+    %% SUBSCRIPTION: (userId, levelId)
+    %% SUBJECT: (levelId, name)
+    %% RESOURCE_PROGRESS: (userId, resourceId)
+    %% SAVED_RESOURCE: (userId, resourceId)
+
+    %% Enums (not tables):
+    %% Role = STUDENT | TEACHER | COLLABORATOR | ADMIN
+    %% PlanCode = STUDENT_MONTHLY | STUDENT_YEARLY | TEACHER_MONTHLY | TEACHER_YEARLY
+    %% SubscriptionProduct = STUDENT_PREMIUM | TEACHER_PREMIUM
+    %% BillingInterval = MONTHLY | YEARLY
+    %% SubscriptionStatus = ACTIVE | CANCELED | EXPIRED | REFUNDED
+    %% PaymentStatus = INITIALIZING | PROCESSING | SUCCEEDED | FAILED | CANCELED | REFUNDED | REQUIRES_REVIEW
+    %% RefundStatus = REQUESTED | PENDING | SUCCEEDED | FAILED | REQUIRES_REVIEW | CANCELED
+    %% PaymentProvider = ONVO
+    %% PaymentMethod = SINPE_MOBILE
+    %% ProviderMode = TEST | LIVE
+    %% WebhookOutcome = PROCESSED | IGNORED | REQUIRES_REVIEW | FAILED | PROCESSING
+    %% ResourceType = NOTE | QUIZ | YOUTUBE | PDF | FILE | LINK | GAME | IMAGE | AUDIO
+    %% ContentAudience = STUDENT | TEACHER | BOTH
+    %% PublicationStatus = DRAFT | IN_REVIEW | CHANGES_REQUESTED | PUBLISHED | UNPUBLISHED
+    %% UploadStatus = PENDING | PROCESSING | CONFIRMED | CLEANUP_PENDING | FAILED | EXPIRED

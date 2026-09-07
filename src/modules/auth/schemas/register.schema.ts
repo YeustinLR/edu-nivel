@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { coerce, literal, object, string, type infer as Infer } from "zod";
 
 import { isAllowedDeclaredAge, parseDeclaredAge } from "@/modules/auth/lib/age";
 import { AUTH_VALIDATION_MESSAGES } from "@/modules/auth/lib/messages";
@@ -12,24 +12,23 @@ import { registrationRoleSchema } from "@/modules/auth/lib/registration-role";
 import { emailSchema } from "@/modules/auth/schemas/email.schema";
 import { strongPasswordSchema } from "@/modules/auth/schemas/password.schema";
 
-export const registerSchema = z
-  .object({
+export const registerSchema = object({
     role: registrationRoleSchema,
-    name: z.string().trim().min(2, AUTH_VALIDATION_MESSAGES.nameRequired),
+    name: string().trim().min(2, AUTH_VALIDATION_MESSAGES.nameRequired),
     email: emailSchema,
-    ageDeclared: z.coerce
+    ageDeclared: coerce
       .number({ error: "Selecciona tu edad." })
       .int("Selecciona una edad válida.")
       .refine(isAllowedDeclaredAge, "Debes tener 18 años o más para crear una cuenta."),
     password: strongPasswordSchema,
-    confirmPassword: z.string().min(1, PASSWORD_CONFIRM_REQUIRED_MESSAGE),
-    acceptTerms: z.literal(true, {
+    confirmPassword: string().min(1, PASSWORD_CONFIRM_REQUIRED_MESSAGE),
+    acceptTerms: literal(true, {
       error: "Debes aceptar los términos legales.",
     }),
-    acceptPrivacy: z.literal(true, {
+    acceptPrivacy: literal(true, {
       error: "Debes aceptar la política de privacidad.",
     }),
-    adultDeclaration: z.literal(true, {
+    adultDeclaration: literal(true, {
       error: "Debes declarar que tienes 18 años o más.",
     }),
   })
@@ -61,4 +60,4 @@ export const registerSchema = z
     }
   });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterInput = Infer<typeof registerSchema>;
