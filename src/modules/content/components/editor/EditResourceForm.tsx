@@ -48,6 +48,7 @@ export function EditResourceForm({
 }: {
   resource: {
     id: string;
+    moduleId: string;
     type: ResourceType;
     title: string;
     instructions: string | null;
@@ -159,6 +160,10 @@ export function EditResourceForm({
           <textarea name="content" value={content} readOnly hidden />
           <ResourceDocumentField
             initialValue={content}
+            imageUploadContext={{
+              editorSessionId: resource.id,
+              resourceId: resource.id,
+            }}
             disabled={isPending}
             invalid={Boolean(errors?.content) || Boolean(contentValidationError)}
             describedBy={contentErrorId}

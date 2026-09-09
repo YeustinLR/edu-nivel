@@ -22,6 +22,19 @@ enum Role {
   ADMIN
 }
 
+enum NotificationType {
+  GENERAL_ALERT
+  IMPORTANT_NOTICE
+  SUBSCRIPTION_RENEWAL
+}
+
+enum NotificationAudienceMode {
+  SELECTED_USERS
+  ALL_USERS
+  ROLES
+  SUBSCRIPTIONS
+}
+
 enum PlanCode {
   STUDENT_MONTHLY
   STUDENT_YEARLY
@@ -163,10 +176,13 @@ model User {
   reviewedResources    Resource[]         @relation("ResourceReviewer")
   publishedResources   Resource[]         @relation("ResourcePublisher")
   uploadIntents        UploadIntent[]
+  contentImages        ContentImage[]      @relation("ContentImageCreator")
   invitationsSent      UserInvitation[]   @relation("InvitationSender")
   acceptedInvitation   UserInvitation?    @relation("InvitationAcceptedUser")
   adminActionsTaken    AdminAuditLog[]    @relation("AuditActor")
   adminActionsTargeted AdminAuditLog[]    @relation("AuditTarget")
+  notificationsSent    Notification[]    @relation("NotificationSender")
+  notificationsReceived NotificationRecipient[]
 
   @@index([deletedAt])
   @@map("user")
@@ -225,6 +241,20 @@ model RateLimit {
   lastRequest BigInt
 
   @@map("rateLimit")
+}
+
+model OtpRateLimitEvent {
+  id        String   @id @default(cuid())
+  operation String
+  category  String
+  emailHash String?
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([operation, emailHash, createdAt])
+  @@index([category, ipHash, createdAt])
+  @@index([createdAt])
+  @@map("otp_rate_limit_event")
 }
 
 model AdminAuditLog {
@@ -286,6 +316,7 @@ model Subscription {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   level    Level     @relation(fields: [levelId], references: [id], onDelete: Restrict)
   payments Payment[]
+  notificationRecipients NotificationRecipient[]
 
   @@unique([userId, levelId])
   @@index([userId])
@@ -293,6 +324,53 @@ model Subscription {
   @@index([status])
   @@index([currentPeriodEnd])
   @@map("subscription")
+}
+
+model Notification {
+  id                  String                   @id @default(cuid())
+  type                NotificationType
+  title               String                   @db.VarChar(150)
+  body                String                   @db.VarChar(5000)
+  sentById            String
+  sentAt              DateTime                 @default(now())
+  audienceMode        NotificationAudienceMode
+  audienceRoles       Role[]                   @default([])
+  requestId           String                   @unique @db.Uuid
+  payloadHash         String                   @db.Char(64)
+  resendOfRecipientId String?                  @unique
+
+  sentBy              User                     @relation("NotificationSender", fields: [sentById], references: [id], onDelete: Restrict)
+  recipients          NotificationRecipient[]   @relation("NotificationDeliveries")
+  resendOfRecipient   NotificationRecipient?    @relation("NotificationResend", fields: [resendOfRecipientId], references: [id], onDelete: Restrict)
+
+  @@index([sentAt, id])
+  @@index([sentById, sentAt])
+  @@index([type, sentAt])
+  @@map("notification")
+}
+
+model NotificationRecipient {
+  id                  String        @id @default(cuid())
+  notificationId      String
+  userId              String
+  targetKey           String
+  receivedAt          DateTime       @default(now())
+  readAt              DateTime?
+  subscriptionId      String?
+  periodEndSnapshot   DateTime?
+  levelNumberSnapshot Int?
+  initialReminderKey  String?       @unique
+
+  notification        Notification  @relation("NotificationDeliveries", fields: [notificationId], references: [id], onDelete: Restrict)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  subscription        Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  resend              Notification? @relation("NotificationResend")
+
+  @@unique([notificationId, targetKey])
+  @@index([userId, receivedAt, id])
+  @@index([userId, readAt, receivedAt, id])
+  @@index([subscriptionId, periodEndSnapshot])
+  @@map("notification_recipient")
 }
 
 model Payment {
@@ -503,6 +581,7 @@ model Resource {
   gameResource  GameResource?
   imageResource ImageResource?
   audioResource AudioResource?
+  contentImages ResourceContentImage[]
 
   progress ResourceProgress[]
   savedBy  SavedResource[]
@@ -521,6 +600,7 @@ model UploadIntent {
   moduleId                String
   module                  Module            @relation(fields: [moduleId], references: [id], onDelete: Restrict)
   reservedResourceId      String            @unique
+  editorSessionId         String
   resourceType            ResourceType
   targetPublicationStatus PublicationStatus @default(DRAFT)
   title                   String
@@ -552,6 +632,50 @@ model UploadIntent {
   @@index([status, expiresAt])
   @@index([cleanupLeaseUntil])
   @@map("upload_intent")
+}
+
+model ContentImage {
+  id                    String       @id
+  createdById           String
+  createdBy             User         @relation("ContentImageCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  editorSessionId       String
+  temporaryStorageKey   String       @unique
+  storageKey            String       @unique
+  originalName          String
+  mimeType              String
+  sizeBytes             BigInt
+  temporaryObjectEtag   String?
+  status                UploadStatus @default(PENDING)
+  uploadExpiresAt       DateTime
+  orphanExpiresAt       DateTime?
+  confirmedAt           DateTime?
+  processingStartedAt   DateTime?
+  cleanupLeaseUntil     DateTime?
+  attemptCount          Int          @default(0)
+  lastAttemptAt         DateTime?
+  failureCode           String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  resources ResourceContentImage[]
+
+  @@index([createdById, editorSessionId])
+  @@index([status, uploadExpiresAt])
+  @@index([orphanExpiresAt])
+  @@index([cleanupLeaseUntil])
+  @@map("content_image")
+}
+
+model ResourceContentImage {
+  resourceId     String
+  resource       Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  contentImageId String
+  contentImage   ContentImage @relation(fields: [contentImageId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@id([resourceId, contentImageId])
+  @@index([contentImageId])
+  @@map("resource_content_image")
 }
 
 // ============================================================

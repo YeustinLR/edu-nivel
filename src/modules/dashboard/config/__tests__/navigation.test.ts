@@ -24,7 +24,7 @@ describe("learner dashboard navigation", () => {
     ]);
   });
 
-  it("does not change the existing student navigation", () => {
+  it("keeps the student destinations without duplicating the header inbox", () => {
     expect(linksFor("STUDENT").map((item) => item.label)).toEqual([
       "Inicio",
       "Materias",
@@ -68,5 +68,17 @@ describe("learner dashboard navigation", () => {
       "Mi suscripción",
       "Configuración",
     ]);
+  });
+
+  it("uses the header inbox as the only personal notification entry point", () => {
+    for (const role of ["STUDENT", "TEACHER", "COLLABORATOR", "ADMIN"] as const) {
+      expect(linksFor(role)).not.toContainEqual(
+        expect.objectContaining({ href: "/dashboard/notifications" }),
+      );
+    }
+    expect(linksFor("ADMIN")).toContainEqual({
+      label: "Gestionar notificaciones",
+      href: "/dashboard/admin/notifications",
+    });
   });
 });

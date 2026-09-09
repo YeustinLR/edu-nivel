@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ResourceImageUploadContext } from "./ResourceDocumentEditor";
 
 const DynamicResourceDocumentEditor = dynamic(
   () => import("./ResourceDocumentEditor"),
@@ -16,6 +17,7 @@ const DynamicResourceDocumentEditor = dynamic(
 
 export function ResourceDocumentField(props: {
   initialValue: string | null | undefined;
+  imageUploadContext?: ResourceImageUploadContext;
   disabled?: boolean;
   describedBy?: string;
   invalid?: boolean;

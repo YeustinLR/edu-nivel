@@ -16,6 +16,10 @@ import type {
 } from "@/modules/content/schemas/content-edit.schema";
 import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import { prisma } from "@/server/db/prisma";
+import {
+  ContentImageReferenceError,
+  syncResourceContentImages,
+} from "@/server/content/content-image-references";
 
 export type ContentUpdateErrorCode =
   | "NOT_FOUND"
@@ -365,6 +369,20 @@ export async function updateCatalogResource(
         where: { resourceId: input.id },
         data: { altText: input.altText?.trim() || null },
       });
+    }
+
+    try {
+      await syncResourceContentImages(transaction, {
+        resourceId: input.id,
+        editorSessionId: input.id,
+        actorId: actor.id,
+        content: input.content,
+      });
+    } catch (error) {
+      if (error instanceof ContentImageReferenceError) {
+        throw new ContentUpdateError("INVALID_RESOURCE_DATA", error.message);
+      }
+      throw error;
     }
   });
 

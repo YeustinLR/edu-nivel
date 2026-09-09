@@ -138,26 +138,18 @@ export const auth = betterAuth({
     window: 60,
     max: 100,
     customRules: {
-      "/sign-up/email": {
-        window: 60,
-        max: 5,
-      },
-      "/email-otp/send-verification-otp": {
-        window: 60,
-        max: 3,
-      },
-      "/email-otp/verify-email": {
-        window: 60,
-        max: 5,
-      },
-      "/email-otp/request-password-reset": {
-        window: 60,
-        max: 3,
-      },
-      "/email-otp/reset-password": {
-        window: 60,
-        max: 5,
-      },
+      // Estas rutas usan ventanas moviles exactas por correo e IP en el handler HTTP.
+      // `false` evita sumar el contador agregado incorporado de Better Auth.
+      "/sign-up/email": false,
+      "/email-otp/send-verification-otp": false,
+      "/email-otp/verify-email": false,
+      "/email-otp/request-password-reset": false,
+      "/email-otp/reset-password": false,
+    },
+  },
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
   session: {

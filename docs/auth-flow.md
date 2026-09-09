@@ -105,16 +105,27 @@ y almacenamiento con hash.
 
 ### `RateLimit`
 
-Better Auth persiste aquí los contadores de limitación de solicitudes. Existe
-un límite general de 100 solicitudes por minuto y límites específicos:
+Better Auth persiste aquí su límite general de 100 solicitudes por minuto para
+las rutas que no tienen una política específica de OTP o registro.
 
-| Operación | Máximo por minuto |
-| --- | ---: |
-| Registro | 5 |
-| Envío de OTP | 3 |
-| Verificación de OTP | 5 |
-| Solicitud de recuperación | 3 |
-| Restablecimiento de contraseña | 5 |
+### `OtpRateLimitEvent`
+
+Las rutas sensibles de OTP y registro usan eventos con ventanas móviles
+exactas. El correo y la IP se almacenan solamente como HMAC-SHA256 derivados de
+`BETTER_AUTH_SECRET`; no se guardan identificadores en claro.
+
+| Operación | Correo/cuenta | IP |
+| --- | ---: | ---: |
+| Enviar OTP de verificación | 1/60 s y 5/15 min | 30/min y 100/15 min |
+| Solicitar OTP de recuperación | 1/60 s y 5/15 min | 30/min y 100/15 min |
+| Verificar OTP de email | 5/15 min | 30/min |
+| Restablecer contraseña | 5/15 min | 30/min |
+| Registro | — | 30/min y 100/15 min |
+
+Los límites IP se comparten entre los dos tipos de envío y, por separado,
+entre los dos tipos de intento. El registro tiene su propio bucket. Las
+solicitudes bloqueadas responden `429` con `Retry-After`, `X-Retry-After` y un
+cuerpo neutral que no revela cuál identidad alcanzó el límite.
 
 Estos límites son una defensa adicional; no sustituyen monitoreo, controles del
 proveedor de correo ni protecciones de infraestructura.

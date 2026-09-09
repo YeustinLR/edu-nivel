@@ -4,10 +4,14 @@ import {
   MAX_RESOURCE_CONTENT_CHARACTERS,
   MAX_RESOURCE_DOCUMENT_BLOCKS,
   MAX_RESOURCE_DOCUMENT_DEPTH,
+  MAX_RESOURCE_DOCUMENT_FORMULAS,
+  MAX_RESOURCE_DOCUMENT_IMAGES,
+  MAX_RESOURCE_FORMULA_CHARACTERS,
   MAX_SERIALIZED_RESOURCE_DOCUMENT_BYTES,
   countResourceDocumentText,
   eduCalloutVariants,
   getResourceDocumentByteLength,
+  getResourceDocumentImageIds,
   legacyTextToResourceDocument,
   normalizeResourceContentForStorage,
   normalizeResourceDocument,
@@ -165,6 +169,158 @@ describe("resource document", () => {
       { id: "fallback", type: "eduCallout", props: { variant: "danger" }, content: "Nota", children: [] },
     ]);
     expect(fallback.blocks[0].props).toEqual({ variant: "note" });
+  });
+
+  it("normalizes accessible embedded images and collects their identifiers", () => {
+    const imageId = "550e8400-e29b-41d4-a716-446655440000";
+    const document = normalizeResourceDocument([
+      {
+        id: "image-block",
+        type: "image",
+        props: {
+          imageId,
+          altText: "  Diagrama del sistema solar  ",
+          decorative: false,
+          caption: "  Órbitas principales  ",
+          textAlignment: "center",
+          previewWidth: 720,
+          externalUrl: "https://example.com/not-allowed.png",
+        },
+        children: [],
+      },
+    ]);
+    expect(document.blocks[0].props).toEqual({
+      imageId,
+      altText: "Diagrama del sistema solar",
+      decorative: false,
+      caption: "Órbitas principales",
+      textAlignment: "center",
+      previewWidth: 720,
+    });
+    expect(getResourceDocumentImageIds(document)).toEqual([imageId]);
+    expect(countResourceDocumentText(document)).toBe(45);
+  });
+
+  it("requires alt text or an explicit decorative choice and limits images", () => {
+    const makeImage = (index: number) => ({
+      id: `image-${index}`,
+      type: "image" as const,
+      props: {
+        imageId: `550e8400-e29b-41d4-a716-${String(index).padStart(12, "0")}`,
+        altText: "",
+        decorative: true,
+      },
+      children: [],
+    });
+    expectCode(
+      () =>
+        normalizeResourceDocument([
+          {
+            ...makeImage(1),
+            props: { ...makeImage(1).props, decorative: false },
+          },
+        ]),
+      "IMAGE_ACCESSIBILITY",
+    );
+    expect(() =>
+      normalizeResourceDocument(
+        Array.from({ length: MAX_RESOURCE_DOCUMENT_IMAGES }, (_, index) =>
+          makeImage(index),
+        ),
+      ),
+    ).not.toThrow();
+    expectCode(
+      () =>
+        normalizeResourceDocument(
+          Array.from(
+            { length: MAX_RESOURCE_DOCUMENT_IMAGES + 1 },
+            (_, index) => makeImage(index),
+          ),
+        ),
+      "IMAGE_LIMIT",
+    );
+  });
+
+  it("normalizes block and inline LaTeX formulas and counts their source", () => {
+    const document = normalizeResourceDocument([
+      {
+        id: "formula-block",
+        type: "mathBlock",
+        props: { unsafe: "removed" },
+        content: "  \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}  ",
+        children: [],
+      },
+      {
+        id: "formula-inline",
+        type: "paragraph",
+        props: {},
+        content: [
+          { type: "text", text: "Einstein: ", styles: {} },
+          { type: "math", content: "  E = mc^2  ", ignored: true },
+        ],
+        children: [],
+      },
+    ]);
+
+    expect(document.blocks[0]).toMatchObject({
+      type: "mathBlock",
+      props: {},
+      content: "\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}",
+    });
+    expect(document.blocks[1].content).toEqual([
+      { type: "text", text: "Einstein: ", styles: {} },
+      { type: "math", content: "E = mc^2" },
+    ]);
+    expect(countResourceDocumentText(document)).toBe(
+      Array.from("\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}Einstein: E = mc^2").length,
+    );
+    expect(normalizeResourceContentForStorage(serializeResourceDocument(document))).not.toBeNull();
+  });
+
+  it("limits formula length and quantity without rejecting an empty draft formula", () => {
+    expect(() =>
+      normalizeResourceDocument([
+        { id: "empty-math", type: "mathBlock", props: {}, content: "", children: [] },
+      ]),
+    ).not.toThrow();
+    expect(
+      normalizeResourceContentForStorage(
+        serializeResourceDocument(
+          normalizeResourceDocument([
+            { id: "empty-math", type: "mathBlock", props: {}, content: "", children: [] },
+          ]),
+        ),
+      ),
+    ).toBeNull();
+    expectCode(
+      () =>
+        normalizeResourceDocument([
+          {
+            id: "long-math",
+            type: "mathBlock",
+            props: {},
+            content: "x".repeat(MAX_RESOURCE_FORMULA_CHARACTERS + 1),
+            children: [],
+          },
+        ]),
+      "INVALID_FORMULA",
+    );
+    expectCode(
+      () =>
+        normalizeResourceDocument([
+          {
+            id: "many-math",
+            type: "paragraph",
+            props: {},
+            content: Array.from(
+              { length: MAX_RESOURCE_DOCUMENT_FORMULAS + 1 },
+              () => ({ type: "math", content: "x" }),
+            ),
+            children: [],
+          },
+        ]),
+      "FORMULA_LIMIT",
+    );
   });
 
   it("preserves stable IDs through canonical round trips", () => {

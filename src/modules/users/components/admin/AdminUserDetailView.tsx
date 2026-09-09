@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   BookOpen,
   CheckCircle2,
@@ -125,6 +126,7 @@ export function AdminUserDetailView({ user }: { user: AdminUserDetail }) {
                 {user.name}
               </h2>
               <p className="truncate text-sm text-muted">{user.email}</p>
+              <Link href={`/dashboard/admin/notifications/new?userId=${encodeURIComponent(user.id)}`} className="inline-flex min-h-11 items-center text-sm font-semibold underline">Enviar notificación</Link>
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary">
                   {userRoleLabels[user.role]}
@@ -250,6 +252,7 @@ export function AdminUserDetailView({ user }: { user: AdminUserDetail }) {
                     <p className="mt-1 text-xs text-muted">
                       Nivel {subscription.levelNumber} · Hasta {dateFormatter.format(subscription.currentPeriodEnd)}
                     </p>
+                    <Link href={`/dashboard/admin/notifications/renewals?subscriptionId=${encodeURIComponent(subscription.id)}`} className="inline-flex min-h-11 items-center text-sm underline">Recordatorio de renovación</Link>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(subscription.status)}`}>
                     {subscriptionStatusLabels[subscription.status]}

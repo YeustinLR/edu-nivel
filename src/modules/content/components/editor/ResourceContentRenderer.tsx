@@ -1,4 +1,5 @@
 import { BookOpen, Lightbulb, NotebookPen, TriangleAlert } from "lucide-react";
+import katex from "katex";
 import { Fragment, type ReactNode } from "react";
 
 import {
@@ -52,6 +53,41 @@ function inlineClassName(textStyles: EduTextStyles) {
   );
 }
 
+function MathFormula({ source, displayMode }: { source: string; displayMode: boolean }) {
+  if (!source) return null;
+  let html: string | null = null;
+  try {
+    html = katex.renderToString(source, {
+      displayMode,
+      output: "htmlAndMathml",
+      throwOnError: true,
+      trust: false,
+      strict: "warn",
+      maxExpand: 1_000,
+      maxSize: 20,
+    });
+  } catch {
+    html = null;
+  }
+  if (html) {
+    return (
+      <span
+        className={displayMode ? styles.mathDisplay : styles.mathInline}
+        // KaTeX creates the HTML and MathML; raw document HTML is never passed here.
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }
+  return (
+    <code
+      className={displayMode ? styles.mathInvalidDisplay : styles.mathInvalidInline}
+      title="Fórmula LaTeX no válida"
+    >
+      {source}
+    </code>
+  );
+}
+
 function InlineContent({ content }: { content: EduInlineContent[] }) {
   return content.map((item, index) => {
     if (item.type === "text") {
@@ -60,6 +96,9 @@ function InlineContent({ content }: { content: EduInlineContent[] }) {
           {item.text}
         </span>
       );
+    }
+    if (item.type === "math") {
+      return <MathFormula key={index} source={item.content} displayMode={false} />;
     }
     return (
       <a
@@ -140,6 +179,17 @@ function RenderBlock({ block }: { block: EduNivelBlock }) {
     );
   }
   if (block.type === "divider") return <hr className={styles.divider} />;
+  if (block.type === "mathBlock") {
+    return (
+      <div className={styles.mathBlock}>
+        <MathFormula
+          source={typeof block.content === "string" ? block.content : ""}
+          displayMode
+        />
+        <BlockChildren block={block} />
+      </div>
+    );
+  }
   if (block.type === "eduCallout") {
     const variant = block.props.variant === "keyIdea" || block.props.variant === "example" || block.props.variant === "warning"
       ? block.props.variant
@@ -156,15 +206,52 @@ function RenderBlock({ block }: { block: EduNivelBlock }) {
       </aside>
     );
   }
-  if (block.type === "table" && block.content && !Array.isArray(block.content)) {
+  if (block.type === "image") {
+    const imageId = String(block.props.imageId ?? "");
+    const altText = block.props.decorative
+      ? ""
+      : String(block.props.altText ?? "");
+    const caption = String(block.props.caption ?? "");
+    const width = Number(block.props.previewWidth) || 720;
+    return (
+      <figure
+        className={classNames(
+          styles.imageFigure,
+          alignmentClasses[
+            String(block.props.textAlignment) as ResourceTextAlignment
+          ],
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/content-images/${encodeURIComponent(imageId)}/file`}
+          alt={altText}
+          width={width}
+          loading="lazy"
+          decoding="async"
+          className={styles.image}
+        />
+        {caption ? <figcaption>{caption}</figcaption> : null}
+      </figure>
+    );
+  }
+  if (
+    block.type === "table" &&
+    block.content &&
+    typeof block.content === "object" &&
+    !Array.isArray(block.content)
+  ) {
+    const table = block.content;
     return (
       <div className={styles.tableScroller}>
         <table className={styles.table}>
           <tbody>
-            {block.content.rows.map((row, rowIndex) => (
+            {table.rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 {row.cells.map((cell, cellIndex) => {
-                  const isHeader = rowIndex < (block.content && !Array.isArray(block.content) ? block.content.headerRows ?? 0 : 0) || cellIndex < (block.content && !Array.isArray(block.content) ? block.content.headerCols ?? 0 : 0);
+                  const isHeader =
+                    rowIndex < (table.headerRows ?? 0) ||
+                    cellIndex < (table.headerCols ?? 0);
                   const Cell = isHeader ? "th" : "td";
                   return (
                     <Cell

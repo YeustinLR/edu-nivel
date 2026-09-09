@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, Sparkles, X } from "lucide-react";
+import { Search, Sparkles, X } from "lucide-react";
+import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import { Role } from "@/generated/prisma/enums";
@@ -127,15 +128,7 @@ export function LearnerDashboardHeader({
             >
               <Search aria-hidden="true" className="size-5" />
             </button>
-            <button
-              type="button"
-              aria-label="Notificaciones"
-              title="No hay notificaciones disponibles"
-              className="relative flex size-11 items-center justify-center rounded-full text-gold hover:bg-gold-100 focus-visible:outline-2 focus-visible:outline-[var(--student-blue)] dark:hover:bg-gold/10"
-            >
-              <Bell aria-hidden="true" className="size-[21px]" fill="currentColor" />
-              <span aria-hidden="true" className="absolute right-2 top-2 size-2 rounded-full border-2 border-[var(--student-bg)] bg-coral" />
-            </button>
+            <NotificationBell tone="learner" />
           </div>
         </div>
       </header>

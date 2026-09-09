@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Bell, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
+import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 
 import { DashboardSidebar } from "@/modules/dashboard/components/layout/DashboardSidebar";
 import { BottomNavigation } from "@/modules/dashboard/components/layout/BottomNavigation";
@@ -79,13 +80,7 @@ export function DashboardShell({
             </h1>
           ) : null}
 
-          <button
-            type="button"
-            aria-label="Notificaciones"
-            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-elevated hover:text-foreground"
-          >
-            <Bell aria-hidden="true" className="h-5 w-5" />
-          </button>
+          <NotificationBell />
         </div>
 
         <a

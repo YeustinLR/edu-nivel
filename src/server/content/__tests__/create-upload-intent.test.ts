@@ -33,6 +33,7 @@ vi.mock("@/server/db/prisma", () => ({
 import { createContentUploadIntent } from "@/server/content/create-upload-intent";
 
 const input = {
+  editorSessionId: "editor-session-1",
   moduleId: "module-1",
   resourceType: "PDF" as const,
   title: "Guía",

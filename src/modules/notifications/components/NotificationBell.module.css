@@ -1,0 +1,43 @@
+.desktopPanel {
+  animation: notificationPopoverIn 160ms ease-out;
+  transform-origin: top right;
+}
+
+.mobileDialog[open] {
+  animation: notificationSheetIn 200ms ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileDialog::backdrop {
+  animation: notificationBackdropIn 180ms ease-out;
+}
+
+@keyframes notificationPopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes notificationSheetIn {
+  from { transform: translateY(1.5rem); }
+  to { transform: translateY(0); }
+}
+
+@keyframes notificationBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktopPanel,
+  .mobileDialog[open],
+  .mobileDialog::backdrop {
+    animation: none;
+  }
+}

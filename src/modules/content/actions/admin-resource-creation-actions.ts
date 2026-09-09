@@ -76,6 +76,8 @@ export async function createAdminStructuredResourceAction(
         message: error.message,
         fieldErrors: moduleError
           ? { moduleId: [error.message] }
+          : error.code === "INVALID_CONTENT_IMAGE"
+            ? { content: [error.message] }
           : error.code === "INVALID_DISPOSITION"
             ? { disposition: [error.message] }
             : undefined,

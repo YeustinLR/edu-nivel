@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import AuthFormMessage from "@/modules/auth/components/AuthFormMessage";
 import OtpInput from "@/modules/auth/components/OtpInput";
-import { getAuthErrorMessage } from "@/modules/auth/lib/auth-error-messages";
+import { getAuthErrorMessage, getAuthRetryAfter } from "@/modules/auth/lib/auth-error-messages";
 import { getSafeRedirect } from "@/modules/auth/lib/get-safe-redirect";
 import { AUTH_VALIDATION_MESSAGES } from "@/modules/auth/lib/messages";
 import {
@@ -42,7 +42,8 @@ export default function VerifyEmailForm() {
     ) ?? "";
   });
   const [formState, setFormState] = useState<AuthFormState>(initialState);
-  const resendCooldown = useCountdown();
+  const resendCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.emailVerificationResend);
+  const attemptCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.emailVerificationAttempts);
   const otpInput = useOtpInput();
 
   const isBusy = formState.status === "loading" || formState.status === "success";
@@ -84,6 +85,8 @@ export default function VerifyEmailForm() {
     });
 
     if (error) {
+      const retryAfter = getAuthRetryAfter(error);
+      if (retryAfter) attemptCooldown.start(retryAfter);
       setFormState({
         status: "error",
         message: getAuthErrorMessage(error, "No se pudo verificar el codigo."),
@@ -109,6 +112,8 @@ export default function VerifyEmailForm() {
     });
 
     if (error) {
+      const retryAfter = getAuthRetryAfter(error);
+      if (retryAfter) resendCooldown.start(retryAfter);
       setFormState({
         status: "error",
         message: getAuthErrorMessage(error, "No se pudo reenviar el codigo."),
@@ -176,10 +181,14 @@ export default function VerifyEmailForm() {
 
       <button
         type="submit"
-        disabled={isBusy}
+        disabled={isBusy || attemptCooldown.isActive}
         className="btn-primary w-full rounded-lg px-5 py-3 text-small disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {formState.status === "loading" ? "Verificando..." : "Verificar correo"}
+        {formState.status === "loading"
+          ? "Verificando..."
+          : attemptCooldown.isActive
+            ? `Intentar de nuevo en ${attemptCooldown.secondsLeft}s`
+            : "Verificar correo"}
       </button>
 
       <button

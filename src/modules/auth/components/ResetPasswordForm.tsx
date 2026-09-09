@@ -7,7 +7,7 @@ import AuthFormMessage from "@/modules/auth/components/AuthFormMessage";
 import OtpInput from "@/modules/auth/components/OtpInput";
 import PasswordField from "@/modules/auth/components/PasswordField";
 import PasswordStrengthMeter from "@/modules/auth/components/PasswordStrengthMeter";
-import { getAuthErrorMessage } from "@/modules/auth/lib/auth-error-messages";
+import { getAuthErrorMessage, getAuthRetryAfter } from "@/modules/auth/lib/auth-error-messages";
 import { AUTH_VALIDATION_MESSAGES } from "@/modules/auth/lib/messages";
 import {
   AUTH_OTP_RESEND_COOLDOWN_SECONDS,
@@ -45,7 +45,8 @@ export default function ResetPasswordForm() {
   const [formState, setFormState] = useState<AuthFormState>(initialState);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const resendCooldown = useCountdown();
+  const resendCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.passwordResetResend);
+  const attemptCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.passwordResetAttempts);
   const otpInput = useOtpInput();
 
   const isBusy = formState.status === "loading" || formState.status === "success";
@@ -90,6 +91,8 @@ export default function ResetPasswordForm() {
     });
 
     if (error) {
+      const retryAfter = getAuthRetryAfter(error);
+      if (retryAfter) attemptCooldown.start(retryAfter);
       setFormState({
         status: "error",
         message: getAuthErrorMessage(error, "No se pudo restablecer la contrasena."),
@@ -114,6 +117,8 @@ export default function ResetPasswordForm() {
     });
 
     if (error) {
+      const retryAfter = getAuthRetryAfter(error);
+      if (retryAfter) resendCooldown.start(retryAfter);
       setFormState({
         status: "error",
         message: getAuthErrorMessage(error, "No se pudo reenviar el codigo."),
@@ -184,7 +189,7 @@ export default function ResetPasswordForm() {
         autoComplete="new-password"
         minLength={MIN_PASSWORD_LENGTH}
         value={password}
-        disabled={isBusy}
+        disabled={isBusy || attemptCooldown.isActive}
         onChange={setPassword}
         placeholder={PASSWORD_MIN_LENGTH_PLACEHOLDER}
       />
@@ -196,7 +201,7 @@ export default function ResetPasswordForm() {
         autoComplete="new-password"
         minLength={MIN_PASSWORD_LENGTH}
         value={confirmPassword}
-        disabled={isBusy}
+        disabled={isBusy || attemptCooldown.isActive}
         onChange={setConfirmPassword}
         placeholder="Repite la nueva contrasena"
         toggleLabels={{
@@ -211,10 +216,14 @@ export default function ResetPasswordForm() {
 
       <button
         type="submit"
-        disabled={isBusy}
+        disabled={isBusy || attemptCooldown.isActive}
         className="btn-primary w-full rounded-lg px-5 py-3 text-small disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {formState.status === "loading" ? "Actualizando..." : "Actualizar contrasena"}
+        {formState.status === "loading"
+          ? "Actualizando..."
+          : attemptCooldown.isActive
+            ? `Intentar de nuevo en ${attemptCooldown.secondsLeft}s`
+            : "Actualizar contrasena"}
       </button>
 
       <button

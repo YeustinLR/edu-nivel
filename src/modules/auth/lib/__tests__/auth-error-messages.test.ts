@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getAuthErrorMessage } from "@/modules/auth/lib/auth-error-messages";
+import {
+  getAuthErrorMessage,
+  getAuthRetryAfter,
+} from "@/modules/auth/lib/auth-error-messages";
 import {
   PASSWORD_CONTAINS_EMAIL_MESSAGE,
   PASSWORD_WEAK_MESSAGE,
@@ -29,6 +32,9 @@ describe("getAuthErrorMessage", () => {
     expect(getAuthErrorMessage({ status: 429 }, "fallback")).toBe(
       "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
     );
+    expect(getAuthRetryAfter({ status: 429, retryAfter: 37.2 })).toBe(38);
+    expect(getAuthRetryAfter({ status: 429 })).toBe(60);
+    expect(getAuthRetryAfter({ status: 400, retryAfter: 37 })).toBe(0);
   });
 
   it("falls back for unknown, absent, or intentionally unmapped errors", () => {

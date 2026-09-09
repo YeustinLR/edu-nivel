@@ -7,8 +7,12 @@ import {
   PublicationStatus,
   ResourceType,
   Role,
+  UploadStatus,
 } from "@/generated/prisma/enums";
-import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
+import {
+  normalizeResourceDocument,
+  serializeResourceDocument,
+} from "@/modules/content/domain/resource-document";
 
 vi.mock("server-only", () => ({}));
 
@@ -34,6 +38,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           1_600_000_000 + Number.parseInt(unique.slice(0, 7), 16);
         const actor = { id: userId, role: Role.ADMIN };
         let levelId: string | undefined;
+        let contentImageId: string | undefined;
 
         try {
           await prisma.user.create({
@@ -61,13 +66,52 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             },
           });
 
+          const requestId = randomUUID();
+          contentImageId = randomUUID();
+          await prisma.contentImage.create({
+            data: {
+              id: contentImageId,
+              createdById: userId,
+              editorSessionId: requestId,
+              temporaryStorageKey: `pending/${contentImageId}.png`,
+              storageKey: `content-images/${contentImageId}.png`,
+              originalName: "diagrama.png",
+              mimeType: "image/png",
+              sizeBytes: BigInt(1_024),
+              status: UploadStatus.CONFIRMED,
+              uploadExpiresAt: new Date(Date.now() + 60_000),
+              orphanExpiresAt: new Date(Date.now() + 60_000),
+              confirmedAt: new Date(),
+            },
+          });
+          const writtenContent = serializeResourceDocument(
+            normalizeResourceDocument([
+              {
+                id: "paragraph",
+                type: "paragraph",
+                props: {},
+                content: "Contenido de prueba",
+                children: [],
+              },
+              {
+                id: "image",
+                type: "image",
+                props: {
+                  imageId: contentImageId,
+                  altText: "Diagrama de prueba",
+                  decorative: false,
+                },
+                children: [],
+              },
+            ]),
+          );
           const contentRequest = {
-            requestId: randomUUID(),
+            requestId,
             moduleId: moduleRecord.id,
             resourceType: ResourceType.NOTE,
             title: `Contenido ${marker}`,
             instructions: "Lee el contenido con atención",
-            content: "Contenido de prueba",
+            content: writtenContent,
             estimatedMinutes: 12,
             disposition: "DRAFT",
           } as const;
@@ -131,6 +175,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               publicationStatus: true,
               youtubeVideo: { select: { videoId: true, startAt: true } },
               linkResource: { select: { url: true, openInNewTab: true } },
+              contentImages: { select: { contentImageId: true } },
             },
           });
           expect(persisted).toHaveLength(3);
@@ -143,8 +188,9 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           expect(persisted.find((item) => item.type === ResourceType.NOTE))
             .toMatchObject({
               instructions: "Lee el contenido con atención",
-              content: normalizeResourceContentForStorage("Contenido de prueba"),
+              content: writtenContent,
               estimatedMinutes: 12,
+              contentImages: [{ contentImageId }],
             });
           expect(persisted.find((item) => item.type === ResourceType.YOUTUBE))
             .toMatchObject({
@@ -204,6 +250,9 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
         } finally {
           if (levelId) {
             await prisma.level.deleteMany({ where: { id: levelId } });
+          }
+          if (contentImageId) {
+            await prisma.contentImage.deleteMany({ where: { id: contentImageId } });
           }
           await prisma.user.deleteMany({ where: { id: userId } });
         }

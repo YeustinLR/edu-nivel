@@ -30,6 +30,7 @@ function largeTableContent(padding: number, validate = true) {
 
 function uploadBody(content: string) {
   return {
+    editorSessionId: "editor-session-1",
     moduleId: "module-1",
     resourceType: "PDF",
     title: "Guía extensa",

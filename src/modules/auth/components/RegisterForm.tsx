@@ -28,6 +28,7 @@ import {
   type RegistrationRole,
 } from "@/modules/auth/lib/registration-role";
 import { AUTH_SESSION_STORAGE_KEYS } from "@/modules/auth/lib/session-storage-keys";
+import { storeCountdownDeadline } from "@/modules/auth/lib/use-countdown";
 import AuthFormMessage from "@/modules/auth/components/AuthFormMessage";
 import PasswordField from "@/modules/auth/components/PasswordField";
 import PasswordStrengthMeter from "@/modules/auth/components/PasswordStrengthMeter";
@@ -166,6 +167,7 @@ export default function RegisterForm() {
       AUTH_SESSION_STORAGE_KEYS.emailVerification,
       parsed.data.email,
     );
+    storeCountdownDeadline(AUTH_SESSION_STORAGE_KEYS.emailVerificationResend, 60);
 
     const verifyUrl = redirectUrl === "/dashboard"
       ? "/verify-email"

@@ -3,6 +3,7 @@ import { contentCreationDispositions } from "@/modules/content/domain/content-cr
 import { optionalResourceDocumentContentSchema } from "@/modules/content/schemas/resource-content.schema";
 
 export const createUploadIntentSchema = z.object({
+  editorSessionId: z.string().trim().min(1).max(128),
   moduleId: z.string().trim().min(1),
   expectedSubjectId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["PDF", "IMAGE"]),

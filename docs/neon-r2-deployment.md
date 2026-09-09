@@ -256,6 +256,27 @@ Formatos actuales:
 SVG, audio, documentos Office, ZIP y recursos genéricos no forman parte del
 flujo R2 actual.
 
+## Imágenes dentro del contenido escrito
+
+El editor BlockNote también permite imágenes intercaladas entre párrafos,
+encabezados, tablas y otros bloques. Este flujo es independiente del adjunto
+principal del recurso:
+
+1. El navegador solicita `POST /api/content-images/intents` y sube JPEG, PNG o
+   WebP mediante la URL PUT prefirmada.
+2. `POST /api/content-images/{imageId}/confirm` verifica tamaño, MIME y ETag y
+   copia el objeto a `content-images/`.
+3. El documento guarda solamente el `imageId`; nunca persiste una clave R2 ni
+   una URL prefirmada.
+4. Al crear o editar el recurso, el servidor sincroniza sus referencias en
+   `resource_content_image` dentro de la misma transacción.
+5. `GET /api/content-images/{imageId}/file` comprueba el acceso a alguno de los
+   recursos vinculados antes de redirigir a R2.
+
+Cada recurso admite hasta 50 imágenes embebidas, con un máximo de 10 MiB por
+archivo. Las cargas abandonadas y las imágenes retiradas del documento se
+conservan durante 24 horas y luego son eliminadas por el cron de limpieza.
+
 La confirmación valida metadatos declarados y ETag, pero no inspecciona magic
 bytes ni la estructura interna del archivo. Por tanto, no debe describirse como
 un análisis antivirus ni como validación profunda del contenido.

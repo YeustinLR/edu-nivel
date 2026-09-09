@@ -10,6 +10,7 @@ import { requireRole } from "@/server/auth/guards";
 import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import { ContentUploadError } from "@/server/content/upload-errors";
 import { prisma } from "@/server/db/prisma";
+import { syncResourceContentImages } from "@/server/content/content-image-references";
 import {
   copyR2Object,
   deleteR2Object,
@@ -237,6 +238,14 @@ export async function confirmContentUpload(uploadId: string) {
                 }
               : undefined,
         },
+      });
+
+      await syncResourceContentImages(tx, {
+        resourceId: created.id,
+        editorSessionId: intent.editorSessionId,
+        actorId: intent.createdById,
+        content: intent.content,
+        isNewResource: true,
       });
 
       await tx.uploadIntent.update({

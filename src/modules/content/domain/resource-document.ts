@@ -5,6 +5,9 @@ export const MAX_RESOURCE_CONTENT_CHARACTERS = 50_000;
 export const MAX_SERIALIZED_RESOURCE_DOCUMENT_BYTES = 524_288;
 export const MAX_RESOURCE_DOCUMENT_BLOCKS = 1_000;
 export const MAX_RESOURCE_DOCUMENT_DEPTH = 8;
+export const MAX_RESOURCE_DOCUMENT_IMAGES = 50;
+export const MAX_RESOURCE_DOCUMENT_FORMULAS = 200;
+export const MAX_RESOURCE_FORMULA_CHARACTERS = 2_000;
 
 export const eduCalloutVariants = [
   "keyIdea",
@@ -59,7 +62,12 @@ export type EduLink = {
   content: EduStyledText[];
 };
 
-export type EduInlineContent = EduStyledText | EduLink;
+export type EduMath = {
+  type: "math";
+  content: string;
+};
+
+export type EduInlineContent = EduStyledText | EduLink | EduMath;
 
 export type EduTableCell = {
   type: "tableCell";
@@ -91,9 +99,11 @@ export type EduNivelBlock = {
     | "quote"
     | "divider"
     | "table"
+    | "image"
+    | "mathBlock"
     | "eduCallout";
   props: Record<string, unknown>;
-  content?: EduInlineContent[] | EduTableContent;
+  content?: EduInlineContent[] | EduTableContent | string;
   children: EduNivelBlock[];
 };
 
@@ -124,7 +134,12 @@ export type ResourceDocumentErrorCode =
   | "TEXT_LIMIT"
   | "BYTE_LIMIT"
   | "BLOCK_LIMIT"
-  | "DEPTH_LIMIT";
+  | "DEPTH_LIMIT"
+  | "IMAGE_LIMIT"
+  | "INVALID_IMAGE"
+  | "IMAGE_ACCESSIBILITY"
+  | "FORMULA_LIMIT"
+  | "INVALID_FORMULA";
 
 const errorMessages: Record<ResourceDocumentErrorCode, string> = {
   INVALID_DOCUMENT: "El documento educativo no tiene un formato válido.",
@@ -133,6 +148,13 @@ const errorMessages: Record<ResourceDocumentErrorCode, string> = {
   BYTE_LIMIT: "El documento no puede superar 512 KiB.",
   BLOCK_LIMIT: "El documento no puede superar 1 000 bloques.",
   DEPTH_LIMIT: "El documento no puede superar 8 niveles de anidación.",
+  IMAGE_LIMIT: "El contenido no puede incluir más de 50 imágenes.",
+  INVALID_IMAGE: "Una imagen del contenido no tiene un formato válido.",
+  IMAGE_ACCESSIBILITY:
+    "Cada imagen debe tener texto alternativo o marcarse como decorativa.",
+  FORMULA_LIMIT: "El contenido no puede incluir más de 200 fórmulas.",
+  INVALID_FORMULA:
+    "Una fórmula del contenido no tiene un formato válido o supera 2 000 caracteres.",
 };
 
 export class ResourceDocumentValidationError extends Error {
@@ -150,6 +172,8 @@ const supportedBlockTypes = new Set<EduNivelBlock["type"]>([
   "quote",
   "divider",
   "table",
+  "image",
+  "mathBlock",
   "eduCallout",
 ]);
 const alignments = new Set<ResourceTextAlignment>([
@@ -208,13 +232,44 @@ function normalizeStyledText(value: unknown): EduStyledText | null {
   return { type: "text", text: value.text, styles: normalizeStyles(value.styles) };
 }
 
-function normalizeInlineContent(value: unknown): EduInlineContent[] {
+type NormalizationState = {
+  blockCount: number;
+  imageCount: number;
+  formulaCount: number;
+  ids: Set<string>;
+};
+
+function normalizeMathSource(value: unknown, state: NormalizationState) {
+  if (
+    typeof value !== "string" ||
+    Array.from(value).length > MAX_RESOURCE_FORMULA_CHARACTERS
+  ) {
+    throw new ResourceDocumentValidationError("INVALID_FORMULA");
+  }
+  state.formulaCount += 1;
+  if (state.formulaCount > MAX_RESOURCE_DOCUMENT_FORMULAS) {
+    throw new ResourceDocumentValidationError("FORMULA_LIMIT");
+  }
+  return value.trim();
+}
+
+function normalizeInlineContent(
+  value: unknown,
+  state: NormalizationState,
+): EduInlineContent[] {
   const items = typeof value === "string" ? [
     { type: "text", text: value, styles: {} },
   ] : Array.isArray(value) ? value : [];
   const normalized: EduInlineContent[] = [];
 
   for (const item of items) {
+    if (isRecord(item) && item.type === "math") {
+      normalized.push({
+        type: "math",
+        content: normalizeMathSource(item.content, state),
+      });
+      continue;
+    }
     const text = normalizeStyledText(item);
     if (text) {
       normalized.push(text);
@@ -242,7 +297,10 @@ function normalizePositiveSpan(value: unknown): number | undefined {
     : undefined;
 }
 
-function normalizeTableCell(value: unknown): EduTableCell {
+function normalizeTableCell(
+  value: unknown,
+  state: NormalizationState,
+): EduTableCell {
   const cell = isRecord(value) && value.type === "tableCell" ? value : null;
   const props = cell && isRecord(cell.props) ? cell.props : {};
   return {
@@ -254,16 +312,19 @@ function normalizeTableCell(value: unknown): EduTableCell {
       ...(normalizePositiveSpan(props.colspan) ? { colspan: normalizePositiveSpan(props.colspan) } : {}),
       ...(normalizePositiveSpan(props.rowspan) ? { rowspan: normalizePositiveSpan(props.rowspan) } : {}),
     },
-    content: normalizeInlineContent(cell?.content ?? value),
+    content: normalizeInlineContent(cell?.content ?? value, state),
   };
 }
 
-function normalizeTableContent(value: unknown): EduTableContent {
+function normalizeTableContent(
+  value: unknown,
+  state: NormalizationState,
+): EduTableContent {
   const table = isRecord(value) && value.type === "tableContent" ? value : {};
   const rows = Array.isArray(table.rows) ? table.rows.slice(0, 100) : [];
   const normalizedRows = rows.map((row) => {
     const cells = isRecord(row) && Array.isArray(row.cells) ? row.cells.slice(0, 50) : [];
-    return { cells: cells.map(normalizeTableCell) };
+    return { cells: cells.map((cell) => normalizeTableCell(cell, state)) };
   });
   const widestRow = normalizedRows.reduce((maximum, row) => Math.max(maximum, row.cells.length), 0);
   const widths = Array.isArray(table.columnWidths)
@@ -291,7 +352,44 @@ function normalizeTableContent(value: unknown): EduTableContent {
   };
 }
 
-type NormalizationState = { blockCount: number; ids: Set<string> };
+function normalizeImageProps(value: Record<string, unknown>) {
+  if (
+    typeof value.imageId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value.imageId,
+    )
+  ) {
+    throw new ResourceDocumentValidationError("INVALID_IMAGE");
+  }
+
+  const decorative = value.decorative === true;
+  const altText = typeof value.altText === "string" ? value.altText.trim() : "";
+  const caption = typeof value.caption === "string" ? value.caption.trim() : "";
+  if (altText.length > 300 || caption.length > 500) {
+    throw new ResourceDocumentValidationError("INVALID_IMAGE");
+  }
+  if (!decorative && !altText) {
+    throw new ResourceDocumentValidationError("IMAGE_ACCESSIBILITY");
+  }
+
+  const previewWidth =
+    typeof value.previewWidth === "number" &&
+    Number.isFinite(value.previewWidth) &&
+    value.previewWidth >= 160 &&
+    value.previewWidth <= 1_600
+      ? Math.round(value.previewWidth)
+      : 720;
+  const alignment = normalizeAlignment(value.textAlignment);
+
+  return {
+    imageId: value.imageId,
+    altText: decorative ? "" : altText,
+    decorative,
+    caption,
+    textAlignment: alignment === "justify" ? "center" : alignment,
+    previewWidth,
+  };
+}
 
 function normalizeBlock(
   value: unknown,
@@ -317,17 +415,26 @@ function normalizeBlock(
   let props: Record<string, unknown>;
   let content: EduNivelBlock["content"];
 
-  if (type === "eduCallout") {
+  if (type === "image") {
+    state.imageCount += 1;
+    if (state.imageCount > MAX_RESOURCE_DOCUMENT_IMAGES) {
+      throw new ResourceDocumentValidationError("IMAGE_LIMIT");
+    }
+    props = normalizeImageProps(sourceProps);
+  } else if (type === "mathBlock") {
+    props = {};
+    content = normalizeMathSource(value.content ?? "", state);
+  } else if (type === "eduCallout") {
     const variant = calloutVariants.has(sourceProps.variant as EduCalloutVariant)
       ? (sourceProps.variant as EduCalloutVariant)
       : "note";
     props = { variant };
-    content = normalizeInlineContent(value.content);
+    content = normalizeInlineContent(value.content, state);
   } else if (type === "divider") {
     props = {};
   } else if (type === "table") {
     props = { textColor: normalizeColor(sourceProps.textColor) };
-    content = normalizeTableContent(value.content);
+    content = normalizeTableContent(value.content, state);
   } else {
     props = {
       backgroundColor: normalizeColor(sourceProps.backgroundColor),
@@ -343,7 +450,7 @@ function normalizeBlock(
     if (type === "numberedListItem" && typeof sourceProps.start === "number" && Number.isInteger(sourceProps.start) && sourceProps.start > 0) {
       props.start = sourceProps.start;
     }
-    content = normalizeInlineContent(value.content);
+    content = normalizeInlineContent(value.content, state);
   }
 
   const children = Array.isArray(value.children)
@@ -354,7 +461,7 @@ function normalizeBlock(
     id: value.id,
     type,
     props,
-    ...(content ? { content } : {}),
+    ...(content !== undefined ? { content } : {}),
     children,
   };
 }
@@ -369,23 +476,39 @@ function normalizeDocumentValue(value: unknown): ResourceDocumentV1 {
   if (!Array.isArray(value.blocks)) {
     throw new ResourceDocumentValidationError("INVALID_DOCUMENT");
   }
-  const state: NormalizationState = { blockCount: 0, ids: new Set() };
+  const state: NormalizationState = {
+    blockCount: 0,
+    imageCount: 0,
+    formulaCount: 0,
+    ids: new Set(),
+  };
   const blocks = value.blocks.map((block) => normalizeBlock(block, 1, state));
   return { format: RESOURCE_DOCUMENT_FORMAT, version: RESOURCE_DOCUMENT_VERSION, blocks };
 }
 
 function inlineText(content: EduInlineContent[]) {
   return content
-    .map((item) => item.type === "text" ? item.text : item.content.map((text) => text.text).join(""))
+    .map((item) =>
+      item.type === "text"
+        ? item.text
+        : item.type === "math"
+          ? item.content
+          : item.content.map((text) => text.text).join(""),
+    )
     .join("");
 }
 
 function blockText(block: EduNivelBlock): string {
-  const ownText = Array.isArray(block.content)
-    ? inlineText(block.content)
-    : block.content?.type === "tableContent"
-      ? block.content.rows.flatMap((row) => row.cells).map((cell) => inlineText(cell.content)).join("")
-      : "";
+  const ownText =
+    block.type === "image"
+      ? `${String(block.props.altText ?? "")}${String(block.props.caption ?? "")}`
+      : block.type === "mathBlock"
+        ? typeof block.content === "string" ? block.content : ""
+      : Array.isArray(block.content)
+        ? inlineText(block.content)
+        : typeof block.content === "object" && block.content?.type === "tableContent"
+          ? block.content.rows.flatMap((row) => row.cells).map((cell) => inlineText(cell.content)).join("")
+          : "";
   return ownText + block.children.map(blockText).join("");
 }
 
@@ -402,6 +525,7 @@ export function isResourceDocumentSemanticallyEmpty(document: ResourceDocumentV1
     blocks.some((block) =>
       block.type === "divider" ||
       block.type === "table" ||
+      block.type === "image" ||
       blockText(block).length > 0 ||
       hasStructuralContent(block.children),
     );
@@ -486,6 +610,28 @@ export function normalizeResourceContentForStorage(value: string | null | undefi
 
   if (isResourceDocumentSemanticallyEmpty(document)) return null;
   return serializeResourceDocument(document);
+}
+
+export function getResourceDocumentImageIds(
+  value: string | ResourceDocumentV1 | null | undefined,
+) {
+  const document =
+    typeof value === "string" || value == null
+      ? parseResourceContent(value).document
+      : normalizeDocumentValue(value);
+  if (!document) return [];
+
+  const imageIds = new Set<string>();
+  const visit = (blocks: EduNivelBlock[]) => {
+    for (const block of blocks) {
+      if (block.type === "image" && typeof block.props.imageId === "string") {
+        imageIds.add(block.props.imageId);
+      }
+      visit(block.children);
+    }
+  };
+  visit(document.blocks);
+  return [...imageIds];
 }
 
 export function getResourceContentValidationMessage(value: string | null | undefined) {

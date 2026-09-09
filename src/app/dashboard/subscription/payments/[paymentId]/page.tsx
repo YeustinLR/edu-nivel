@@ -108,9 +108,9 @@ export default async function PaymentStatusPage({
     : payment.expectedAmountMinor;
   const amount = formatCRC(amountMinorToCRC(amountMinor));
   const destinationNumber = env.ONVO_SINPE_DESTINATION_NUMBER;
+  const isTestMode = payment.providerMode === ProviderMode.TEST;
   const canShowTransfer = Boolean(
     isPending &&
-      payment.providerMode === ProviderMode.LIVE &&
       payment.providerPaymentIntentId &&
       payment.providerPaymentMethodId &&
       destinationNumber,
@@ -207,9 +207,14 @@ export default async function PaymentStatusPage({
             <div className="space-y-4">
               {canShowTransfer && destinationNumber ? (
                 <section className="overflow-hidden rounded-[1.25rem] border border-blue-200 bg-[var(--subscription-panel)] shadow-[0_6px_24px_rgba(23,104,229,0.07)] dark:border-blue-400/20">
+                  {isTestMode ? (
+                    <div role="status" className="border-b border-amber-300/60 bg-amber-50 px-5 py-3 text-center text-sm font-bold text-amber-900 dark:border-amber-400/15 dark:bg-amber-500/10 dark:text-amber-100">
+                      <AlertTriangle aria-hidden="true" className="mr-2 inline h-4 w-4" />Modo de prueba — no envíes dinero real.
+                    </div>
+                  ) : null}
                   <div className="grid gap-px bg-[var(--subscription-border)] sm:grid-cols-2">
                     <div className="bg-[var(--subscription-panel)] p-5 text-center">
-                      <p className="text-sm font-bold text-[var(--subscription-muted)]">Envía exactamente</p>
+                      <p className="text-sm font-bold text-[var(--subscription-muted)]">{isTestMode ? "Monto de prueba" : "Envía exactamente"}</p>
                       <p className="mt-1.5 select-all text-3xl font-extrabold tracking-[-0.035em] text-[var(--subscription-text)] sm:text-4xl">{amount}</p>
                       <div className="mt-3"><CopyValueButton value={String(amountMinorToCRC(payment.expectedAmountMinor))} label="Copiar monto" /></div>
                     </div>
@@ -220,36 +225,43 @@ export default async function PaymentStatusPage({
                     </div>
                   </div>
                   <div className="p-5">
-                    <h2 className="font-bold text-[var(--subscription-text)]">Cómo realizar el pago</h2>
+                    <h2 className="font-bold text-[var(--subscription-text)]">{isTestMode ? "Cómo simular el pago" : "Cómo realizar el pago"}</h2>
                     <ol className="mt-3 space-y-2.5">
-                      {["Abre la aplicación de tu banco.", "Selecciona SINPE Móvil.", `Envía exactamente ${amount} al número mostrado.`, "Regresa a EduNivel y espera la confirmación."].map((instruction, index) => (
+                      {(isTestMode
+                        ? [
+                            "Revisa el monto que se usaría en el pago.",
+                            "Comprueba el número SINPE destino mostrado.",
+                            "No realices una transferencia bancaria real.",
+                            "Espera la confirmación simulada de ONVO Sandbox.",
+                          ]
+                        : [
+                            "Abre la aplicación de tu banco.",
+                            "Selecciona SINPE Móvil.",
+                            `Envía exactamente ${amount} al número mostrado.`,
+                            "Regresa a EduNivel y espera la confirmación.",
+                          ]).map((instruction, index) => (
                         <li key={instruction} className="flex gap-2.5 text-sm text-[var(--subscription-text)]">
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--subscription-accent)] text-xs font-bold text-white">{index + 1}</span>{instruction}
                         </li>
                       ))}
                     </ol>
                     <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:border-amber-400/15 dark:bg-amber-500/10 dark:text-amber-100">
-                      <AlertTriangle aria-hidden="true" className="mr-2 inline h-4 w-4" />No envíes el dinero antes de llegar a este paso.
+                      <AlertTriangle aria-hidden="true" className="mr-2 inline h-4 w-4" />{isTestMode
+                        ? "Esta operación usa ONVO Sandbox y no mueve dinero real."
+                        : "No envíes el dinero antes de llegar a este paso."}
                     </div>
                   </div>
                 </section>
               ) : null}
 
-              {isPending && payment.providerMode === ProviderMode.TEST ? (
-                <section className="rounded-[1.25rem] border border-blue-200 bg-[var(--subscription-panel)] p-5 dark:border-blue-400/20">
-                  <h2 className="font-bold text-[var(--subscription-text)]">Pago en proceso</h2>
-                  <p className="mt-1.5 text-sm leading-5 text-[var(--subscription-muted)]">No necesitas realizar otra acción. Mantén esta operación abierta y espera la confirmación.</p>
-                </section>
-              ) : null}
-
-              {isPending && payment.providerMode === ProviderMode.LIVE && !canShowTransfer && destinationNumber ? (
+              {isPending && !canShowTransfer && destinationNumber ? (
                 <section className="rounded-[1.25rem] border border-blue-200 bg-[var(--subscription-panel)] p-5 dark:border-blue-400/20">
                   <h2 className="font-bold text-[var(--subscription-text)]">Preparando las instrucciones</h2>
                   <p className="mt-1.5 text-sm leading-5 text-[var(--subscription-muted)]">No transfieras todavía. El monto y el número aparecerán cuando la solicitud esté lista.</p>
                 </section>
               ) : null}
 
-              {isPending && payment.providerMode === ProviderMode.LIVE && !destinationNumber ? (
+              {isPending && !destinationNumber ? (
                 <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-100">
                   <strong>No realices ninguna transferencia.</strong> El destino no está disponible. Conservaremos esta operación para revisarla de forma segura.
                 </div>

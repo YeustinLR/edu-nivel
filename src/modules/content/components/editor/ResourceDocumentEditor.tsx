@@ -2,9 +2,19 @@
 
 import {
   BlockNoteSchema,
+  combineByGroup,
   defaultBlockSpecs,
+  defaultInlineContentSpecs,
+  SourceBlockWithPreviewExtension,
   type PartialBlock,
 } from "@blocknote/core";
+import { syntaxHighlighter } from "@blocknote/code-block";
+import {
+  createReactInlineMathSpec,
+  createReactMathBlockSpec,
+  getMathSlashMenuItems,
+  locales as mathLocales,
+} from "@blocknote/math-block";
 import { es } from "@blocknote/core/locales";
 import {
   filterSuggestionItems,
@@ -40,6 +50,7 @@ import {
   CornerDownRight,
   GripVertical,
   Heading2,
+  ImageIcon,
   Italic,
   Lightbulb,
   Link as LinkIcon,
@@ -52,12 +63,14 @@ import {
   Redo2,
   Smile,
   Strikethrough,
+  Sigma,
   Table2,
   TriangleAlert,
   Underline,
   Undo2,
+  UploadCloud,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 
 import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
@@ -109,6 +122,130 @@ const createEduCallout = createReactBlockSpec(
   },
 );
 
+function EmbeddedImageEditorView({
+  imageId,
+  altText,
+  decorative,
+  caption,
+  textAlignment,
+  previewWidth,
+  disabled,
+  onFile,
+}: {
+  imageId: string;
+  altText: string;
+  decorative: boolean;
+  caption: string;
+  textAlignment: "left" | "center" | "right";
+  previewWidth: number;
+  disabled: boolean;
+  onFile: (file: File) => Promise<void>;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!imageId) {
+    return (
+      <div className={styles.imagePlaceholder} contentEditable={false}>
+        <ImageIcon aria-hidden="true" size={28} />
+        <label className={styles.imageUploadButton}>
+          <UploadCloud aria-hidden="true" size={16} />
+          {uploading ? "Subiendo imagen…" : "Seleccionar imagen"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={disabled || uploading}
+            hidden
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              setUploading(true);
+              setError(null);
+              try {
+                await onFile(file);
+              } catch (uploadError) {
+                setError(
+                  uploadError instanceof Error
+                    ? uploadError.message
+                    : "No se pudo subir la imagen.",
+                );
+              } finally {
+                setUploading(false);
+                event.target.value = "";
+              }
+            }}
+          />
+        </label>
+        <span>JPEG, PNG o WebP · máximo 10 MiB</span>
+        {error ? <span className={styles.imageUploadError}>{error}</span> : null}
+      </div>
+    );
+  }
+
+  return (
+    <figure
+      className={`${styles.imageFigure} ${styles[`imageAlign${textAlignment[0].toUpperCase()}${textAlignment.slice(1)}`]}`}
+      contentEditable={false}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/content-images/${encodeURIComponent(imageId)}/file`}
+        alt={decorative ? "" : altText}
+        width={previewWidth}
+        className={styles.embeddedImage}
+        draggable={false}
+      />
+      {caption ? <figcaption>{caption}</figcaption> : null}
+    </figure>
+  );
+}
+
+const createEmbeddedImage = createReactBlockSpec(
+  {
+    type: "image",
+    propSchema: {
+      imageId: { default: "", type: "string" },
+      altText: { default: "", type: "string" },
+      decorative: { default: false },
+      caption: { default: "", type: "string" },
+      textAlignment: {
+        default: "center",
+        values: ["left", "center", "right"],
+      },
+      previewWidth: { default: 720, type: "number" },
+    },
+    content: "none",
+  },
+  {
+    meta: {
+      fileBlockAccept: ["image/jpeg", "image/png", "image/webp"],
+    },
+    render: ({ block, editor }) => (
+      <EmbeddedImageEditorView
+        imageId={block.props.imageId}
+        altText={block.props.altText}
+        decorative={block.props.decorative}
+        caption={block.props.caption}
+        textAlignment={block.props.textAlignment}
+        previewWidth={block.props.previewWidth}
+        disabled={!editor.isEditable}
+        onFile={async (file) => {
+          if (!editor.uploadFile) {
+            throw new Error("La carga de imágenes no está disponible.");
+          }
+          const update = await editor.uploadFile(file, block.id);
+          editor.updateBlock(
+            block,
+            typeof update === "string"
+              ? { props: { imageId: update } }
+              : update,
+          );
+        }}
+      />
+    ),
+  },
+);
+
 const resourceEditorSchema = BlockNoteSchema.create({
   blockSpecs: {
     paragraph: defaultBlockSpecs.paragraph,
@@ -118,7 +255,13 @@ const resourceEditorSchema = BlockNoteSchema.create({
     quote: defaultBlockSpecs.quote,
     divider: defaultBlockSpecs.divider,
     table: defaultBlockSpecs.table,
+    image: createEmbeddedImage(),
+    mathBlock: createReactMathBlockSpec(),
     eduCallout: createEduCallout(),
+  },
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    math: createReactInlineMathSpec(),
   },
 });
 
@@ -126,6 +269,7 @@ type ResourceEditor = typeof resourceEditorSchema.BlockNoteEditor;
 
 const dictionary = {
   ...es,
+  math: mathLocales.es,
   placeholders: {
     ...es.placeholders,
     default: "Escribe ‘/’ para insertar contenido",
@@ -189,6 +333,7 @@ function getSlashMenuItems(editor: ResourceEditor): DefaultReactSuggestionItem[]
     insertBlockItem(editor, { title: "Cita", aliases: ["cita", "quote"], group: "Básicos", icon: <Quote size={18} />, block: { type: "quote" } }),
     insertBlockItem(editor, { title: "Separador", aliases: ["linea", "divisor"], group: "Básicos", icon: <Minus size={18} />, block: { type: "divider" } }),
     insertBlockItem(editor, { title: "Tabla", subtext: "Tabla de 2 × 2", aliases: ["tabla", "cuadricula"], group: "Básicos", icon: <Table2 size={18} />, block: { type: "table", content: { type: "tableContent", rows: [{ cells: ["", ""] }, { cells: ["", ""] }] } } }),
+    insertBlockItem(editor, { title: "Imagen", subtext: "Imagen dentro del contenido", aliases: ["imagen", "foto", "ilustracion"], group: "Básicos", icon: <ImageIcon size={18} />, block: { type: "image" } }),
   ];
   const callouts = eduCalloutVariants.map((variant): DefaultReactSuggestionItem => {
     const Icon = calloutIcons[variant];
@@ -201,7 +346,24 @@ function getSlashMenuItems(editor: ResourceEditor): DefaultReactSuggestionItem[]
       block: { type: "eduCallout", props: { variant } },
     });
   });
-  return [...basics, ...callouts];
+  return combineByGroup(
+    [...basics, ...callouts],
+    getMathSlashMenuItems(editor) as DefaultReactSuggestionItem[],
+  );
+}
+
+function insertMathBlock(editor: ResourceEditor) {
+  const block = insertOrUpdateBlockForSlashMenu(
+    editor as unknown as Parameters<typeof insertOrUpdateBlockForSlashMenu>[0],
+    { type: "mathBlock" } as Parameters<typeof insertOrUpdateBlockForSlashMenu>[1],
+  );
+  editor
+    .getExtension(SourceBlockWithPreviewExtension)
+    ?.store.setState((state) => ({ ...state, popupOpen: block.id }));
+  window.requestAnimationFrame(() => {
+    editor.setTextCursorPosition(block.id, "end");
+    editor.focus();
+  });
 }
 
 function ToolButton({
@@ -291,7 +453,7 @@ function StaticToolbar({ editor, disabled }: { editor: ResourceEditor; disabled:
     if (type.startsWith("heading-")) {
       editor.updateBlock(currentBlock, { type: "heading", props: { level: Number(type.at(-1)) as 1 | 2 | 3 } });
     } else {
-      editor.updateBlock(currentBlock, { type: type as "paragraph" | "bulletListItem" | "numberedListItem" | "quote" });
+      editor.updateBlock(currentBlock, { type: type as "paragraph" | "bulletListItem" | "numberedListItem" | "quote" | "mathBlock" });
     }
     updateUi();
   };
@@ -333,6 +495,7 @@ function StaticToolbar({ editor, disabled }: { editor: ResourceEditor; disabled:
             <option value="bulletListItem">Lista con viñetas</option>
             <option value="numberedListItem">Lista numerada</option>
             <option value="quote">Cita</option>
+            <option value="mathBlock">Fórmula</option>
           </select>
         </div>
         <div className={styles.toolbarGroup}>
@@ -377,6 +540,29 @@ function StaticToolbar({ editor, disabled }: { editor: ResourceEditor; disabled:
         </div>
         <div className={styles.toolbarGroup}>
           <ToolButton
+            label="Insertar imagen"
+            disabled={disabled}
+            onClick={() => {
+              insertOrUpdateBlockForSlashMenu(
+                editor as unknown as Parameters<typeof insertOrUpdateBlockForSlashMenu>[0],
+                { type: "image" } as Parameters<typeof insertOrUpdateBlockForSlashMenu>[1],
+              );
+              updateUi();
+            }}
+          >
+            <ImageIcon size={16} />
+          </ToolButton>
+          <ToolButton
+            label="Insertar fórmula"
+            disabled={disabled}
+            onClick={() => {
+              insertMathBlock(editor);
+              updateUi();
+            }}
+          >
+            <Sigma size={16} />
+          </ToolButton>
+          <ToolButton
             label="Insertar emoji"
             disabled={disabled}
             onClick={() => editor.getExtension(SuggestionMenu)?.openSuggestionMenu(":", { ignoreQueryLength: true })}
@@ -411,14 +597,123 @@ function StaticToolbar({ editor, disabled }: { editor: ResourceEditor; disabled:
   );
 }
 
+function ImageSettings({
+  editor,
+  disabled,
+  revision,
+}: {
+  editor: ResourceEditor;
+  disabled: boolean;
+  revision: number;
+}) {
+  let block: ReturnType<ResourceEditor["getBlock"]>;
+  try {
+    block = editor.getSelection()?.blocks[0] ?? editor.getTextCursorPosition().block;
+  } catch {
+    return null;
+  }
+  if (!block || block.type !== "image" || !block.props.imageId) return null;
+
+  const updateProps = (props: Partial<typeof block.props>) => {
+    editor.updateBlock(block, { props });
+  };
+  const needsAccessibilityChoice =
+    !block.props.decorative && !block.props.altText.trim();
+
+  return (
+    <fieldset
+      className={styles.imageSettings}
+      disabled={disabled}
+      data-selection-revision={revision}
+    >
+      <legend>Opciones de la imagen</legend>
+      <label>
+        Texto alternativo
+        <input
+          type="text"
+          maxLength={300}
+          value={block.props.altText}
+          disabled={disabled || block.props.decorative}
+          aria-invalid={needsAccessibilityChoice}
+          placeholder="Describe lo importante de la imagen"
+          onChange={(event) =>
+            updateProps({ altText: event.target.value, decorative: false })
+          }
+        />
+      </label>
+      <label className={styles.decorativeChoice}>
+        <input
+          type="checkbox"
+          checked={block.props.decorative}
+          onChange={(event) =>
+            updateProps({
+              decorative: event.target.checked,
+              altText: event.target.checked ? "" : block.props.altText,
+            })
+          }
+        />
+        Es decorativa
+      </label>
+      <label>
+        Leyenda <span>(opcional)</span>
+        <input
+          type="text"
+          maxLength={500}
+          value={block.props.caption}
+          placeholder="Texto visible debajo de la imagen"
+          onChange={(event) => updateProps({ caption: event.target.value })}
+        />
+      </label>
+      <label>
+        Alineación
+        <select
+          value={block.props.textAlignment}
+          onChange={(event) =>
+            updateProps({
+              textAlignment: event.target.value as "left" | "center" | "right",
+            })
+          }
+        >
+          <option value="left">Izquierda</option>
+          <option value="center">Centro</option>
+          <option value="right">Derecha</option>
+        </select>
+      </label>
+      <label>
+        Ancho
+        <select
+          value={block.props.previewWidth}
+          onChange={(event) => updateProps({ previewWidth: Number(event.target.value) })}
+        >
+          <option value={360}>Pequeño</option>
+          <option value={560}>Mediano</option>
+          <option value={720}>Grande</option>
+          <option value={1200}>Ancho completo</option>
+        </select>
+      </label>
+      {needsAccessibilityChoice ? (
+        <p role="alert">Describe la imagen o márcala como decorativa.</p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+export type ResourceImageUploadContext = {
+  editorSessionId: string;
+  moduleId?: string;
+  resourceId?: string;
+};
+
 export default function ResourceDocumentEditor({
   initialValue,
+  imageUploadContext,
   disabled = false,
   describedBy,
   invalid = false,
   onChange,
 }: {
   initialValue: string | null | undefined;
+  imageUploadContext?: ResourceImageUploadContext;
   disabled?: boolean;
   describedBy?: string;
   invalid?: boolean;
@@ -433,10 +728,15 @@ export default function ResourceDocumentEditor({
   );
   const normalizingPaste = useRef(false);
   const { resolvedTheme } = useTheme();
-  const [, setSelectionRevision] = useState(0);
+  const [selectionRevision, setSelectionRevision] = useState(0);
   const [stableInitialBlocks] = useState(() => initialBlocks(initialValue));
+  const imageUploadContextRef = useRef(imageUploadContext);
+  useEffect(() => {
+    imageUploadContextRef.current = imageUploadContext;
+  }, [imageUploadContext]);
   const editor = useCreateBlockNote({
     schema: resourceEditorSchema,
+    extensions: [syntaxHighlighter],
     initialContent: stableInitialBlocks,
     dictionary,
     tabBehavior: "prefer-navigate-ui",
@@ -444,6 +744,78 @@ export default function ResourceDocumentEditor({
     pasteHandler: ({ defaultPasteHandler }) =>
       defaultPasteHandler({ prioritizeMarkdownOverHTML: false, plainTextAsMarkdown: false }),
     tables: { headers: true, splitCells: true },
+    uploadFile: async (file) => {
+      const context = imageUploadContextRef.current;
+      if (!context) {
+        throw new Error("La carga de imágenes no está disponible aquí.");
+      }
+      if (!context.resourceId && !context.moduleId) {
+        throw new Error("Selecciona primero el módulo del contenido.");
+      }
+      if (
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+        file.size <= 0 ||
+        file.size > 10 * 1024 * 1024
+      ) {
+        throw new Error("Solo se admiten imágenes JPEG, PNG o WebP de hasta 10 MiB.");
+      }
+
+      const intentResponse = await fetch("/api/content-images/intents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...context,
+          originalName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        }),
+      });
+      const intent = (await intentResponse.json()) as {
+        imageId?: string;
+        uploadUrl?: string;
+        message?: string;
+      };
+      if (!intentResponse.ok || !intent.imageId || !intent.uploadUrl) {
+        throw new Error(intent.message ?? "No se pudo preparar la imagen.");
+      }
+
+      const uploadResponse = await fetch(intent.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error("No se pudo subir la imagen a R2.");
+      }
+
+      const confirmationResponse = await fetch(
+        `/api/content-images/${encodeURIComponent(intent.imageId)}/confirm`,
+        { method: "POST" },
+      );
+      const confirmation = (await confirmationResponse.json()) as {
+        state?: string;
+        imageId?: string;
+        message?: string;
+      };
+      if (
+        !confirmationResponse.ok ||
+        confirmation.state !== "CONFIRMED" ||
+        !confirmation.imageId
+      ) {
+        throw new Error(confirmation.message ?? "No se pudo confirmar la imagen.");
+      }
+
+      return {
+        props: {
+          imageId: confirmation.imageId,
+          altText: "",
+          decorative: false,
+          caption: "",
+          textAlignment: "center",
+          previewWidth: 720,
+        },
+      };
+    },
   });
 
   const publishDocument = useCallback(() => {
@@ -494,6 +866,11 @@ export default function ResourceDocumentEditor({
       </div>
       <div className={mode === "edit" ? undefined : styles.hidden} aria-hidden={mode !== "edit"}>
         <StaticToolbar editor={editor} disabled={disabled} />
+        <ImageSettings
+          editor={editor}
+          disabled={disabled}
+          revision={selectionRevision}
+        />
         <div className={styles.editorPane} onPaste={normalizePaste}>
           <BlockNoteView
             editor={editor}

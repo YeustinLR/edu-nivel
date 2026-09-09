@@ -108,6 +108,7 @@ export async function createContentUploadIntent(
     data: {
       id: uploadId,
       createdById: user.id,
+      editorSessionId: input.editorSessionId,
       moduleId: moduleRecord.id,
       reservedResourceId,
       resourceType,

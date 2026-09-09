@@ -49,6 +49,7 @@ export async function duplicateCatalogModule(
         resources: {
           orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
           select: {
+            id: true,
             type: true,
             title: true,
             instructions: true,
@@ -108,6 +109,7 @@ export async function duplicateCatalogModule(
                 transcript: true,
               },
             },
+            contentImages: { select: { contentImageId: true } },
           },
         },
       },
@@ -185,6 +187,13 @@ export async function duplicateCatalogModule(
               : undefined,
             audioResource: resource.audioResource
               ? { create: resource.audioResource }
+              : undefined,
+            contentImages: resource.contentImages.length
+              ? {
+                  create: resource.contentImages.map(({ contentImageId }) => ({
+                    contentImage: { connect: { id: contentImageId } },
+                  })),
+                }
               : undefined,
           })),
         },

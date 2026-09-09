@@ -13,8 +13,10 @@ const mocks = vi.hoisted(() => ({
   lockModule: vi.fn(),
   targetFindUnique: vi.fn(),
   sharedResourceFindMany: vi.fn(),
+  sharedContentImageFindMany: vi.fn(),
   deleteUploadIntents: vi.fn(),
   deleteModule: vi.fn(),
+  deleteContentImages: vi.fn(),
   isR2UploadEnabled: vi.fn(),
   deleteR2Object: vi.fn(),
 }));
@@ -31,6 +33,7 @@ vi.mock("@/server/db/prisma", () => ({
       updateMany: mocks.archiveModule,
     },
     resource: { findMany: mocks.sharedResourceFindMany },
+    contentImage: { findMany: mocks.sharedContentImageFindMany },
     $transaction: mocks.transaction,
   },
 }));
@@ -68,6 +71,7 @@ function createTarget(
         fileResource: null,
         imageResource: { storageKey: "modules/module-1/image.png" },
         audioResource: null,
+        contentImages: [],
       },
     ],
     ...overrides,
@@ -85,8 +89,10 @@ describe("deleteCatalogModule", () => {
     mocks.lockModule.mockResolvedValue([{ id: "module-1" }]);
     mocks.targetFindUnique.mockResolvedValue(createTarget());
     mocks.sharedResourceFindMany.mockResolvedValue([]);
+    mocks.sharedContentImageFindMany.mockResolvedValue([]);
     mocks.deleteUploadIntents.mockResolvedValue({ count: 1 });
     mocks.deleteModule.mockResolvedValue({ count: 1 });
+    mocks.deleteContentImages.mockResolvedValue({ count: 0 });
     mocks.isR2UploadEnabled.mockReturnValue(true);
     mocks.deleteR2Object.mockResolvedValue(undefined);
     mocks.transaction.mockImplementation(
@@ -98,6 +104,7 @@ describe("deleteCatalogModule", () => {
             deleteMany: mocks.deleteModule,
           },
           uploadIntent: { deleteMany: mocks.deleteUploadIntents },
+          contentImage: { deleteMany: mocks.deleteContentImages },
         }),
     );
   });

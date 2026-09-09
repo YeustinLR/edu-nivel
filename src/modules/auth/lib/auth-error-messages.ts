@@ -42,7 +42,14 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 type AuthClientError = {
   code?: string;
   status?: number;
+  retryAfter?: number;
 };
+
+export function getAuthRetryAfter(error: AuthClientError | null | undefined) {
+  if (error?.status !== 429) return 0;
+  const retryAfter = Number(error.retryAfter);
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 60;
+}
 
 export function getAuthErrorMessage(
   error: AuthClientError | null | undefined,

@@ -243,6 +243,7 @@ export function ResourceAttachmentForm({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            editorSessionId: requestId,
             moduleId,
             expectedSubjectId,
             resourceType: fileValidation.data.resourceType,
@@ -534,6 +535,10 @@ export function ResourceAttachmentForm({
           <textarea name="content" value={content} readOnly hidden />
           <ResourceDocumentField
             initialValue={content}
+            imageUploadContext={{
+              editorSessionId: requestId,
+              moduleId: moduleId || undefined,
+            }}
             disabled={isPending}
             invalid={Boolean(errors?.content) || Boolean(contentValidationError)}
             describedBy={contentErrorId}

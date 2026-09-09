@@ -2,6 +2,7 @@ import "server-only";
 
 import { getEmailFrom, getResendClient } from "@/server/mail/resend";
 import { OtpEmail } from "@/server/mail/templates/otp-email";
+import { otpRateLimitRequestContext } from "@/server/auth/otp-rate-limit-request-context";
 
 type EmailOtpType =
   | "sign-in"
@@ -39,6 +40,11 @@ export async function sendVerificationOTP(data: SendVerificationOtpData) {
 
   if (error) {
     throw new Error(error.message || "No se pudo enviar el correo OTP.");
+  }
+
+  const requestState = otpRateLimitRequestContext.getStore();
+  if (requestState?.isSignUp && type === "email-verification") {
+    requestState.initialOtpSent = true;
   }
 }
 

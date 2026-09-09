@@ -82,8 +82,9 @@ enviado por el navegador.
 8. El servidor confirma la intención con ese método.
 9. El usuario llega a
    `/dashboard/subscription/payments/{paymentId}`.
-10. En modo Live, la página muestra el monto exacto y el número destino al que
-    debe hacer el SINPE. En Sandbox indica que no debe enviar dinero real.
+10. En Live y Sandbox, la página muestra el monto exacto y el número destino.
+    Sandbox conserva la misma estructura visual, pero identifica claramente la
+    simulación e indica que no debe enviarse dinero real.
 11. El acceso solo se activa después de volver a consultar ONVO y verificar una
     intención exitosa.
 

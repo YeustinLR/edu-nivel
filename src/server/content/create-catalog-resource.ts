@@ -11,12 +11,17 @@ import {
 import { getResourceCreationStatus } from "@/modules/content/domain/content-creation";
 import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
 import type { CreateAdminStructuredResourceInput } from "@/modules/content/schemas/admin-resource-creation.schema";
+import {
+  ContentImageReferenceError,
+  syncResourceContentImages,
+} from "@/server/content/content-image-references";
 import { prisma } from "@/server/db/prisma";
 
 export type ResourceCreationErrorCode =
   | "MODULE_NOT_FOUND"
   | "MODULE_NOT_AVAILABLE"
   | "MODULE_NOT_EDITABLE"
+  | "INVALID_CONTENT_IMAGE"
   | "INVALID_DISPOSITION"
   | "REQUEST_CONFLICT";
 
@@ -245,13 +250,24 @@ export async function createCatalogStructuredResource(
   if (existing) return assertMatchingRequest(existing, input, actor.id);
 
   try {
-    return await prisma.$transaction(async (transaction) =>
-      transaction.resource.create({
+    return await prisma.$transaction(async (transaction) => {
+      const resource = await transaction.resource.create({
         data: buildResourceData(input, actor.id, publicationStatus),
         select: { id: true, title: true, type: true },
-      }),
-    );
+      });
+      await syncResourceContentImages(transaction, {
+        resourceId: resource.id,
+        editorSessionId: input.requestId,
+        actorId: actor.id,
+        content: input.content,
+        isNewResource: true,
+      });
+      return resource;
+    });
   } catch (error) {
+    if (error instanceof ContentImageReferenceError) {
+      throw new ResourceCreationError("INVALID_CONTENT_IMAGE", error.message);
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

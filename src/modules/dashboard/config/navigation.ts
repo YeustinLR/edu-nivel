@@ -1,4 +1,5 @@
 import {
+  Bell,
   Bookmark,
   BookOpen,
   Clock3,
@@ -79,6 +80,7 @@ export const navigationByRole: Record<string, NavGroup[]> = {
       title: "Administración",
       items: [
         { label: "Panel", href: "/dashboard/admin", icon: LayoutDashboard },
+        { label: "Gestionar notificaciones", href: "/dashboard/admin/notifications", icon: Bell },
         {
           label: "Contenido",
           href: "/dashboard/admin/content",

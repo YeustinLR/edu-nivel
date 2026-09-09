@@ -60,6 +60,7 @@ const intent = {
   createdById: "collaborator_1",
   moduleId: "module_1",
   reservedResourceId: "resource_1",
+  editorSessionId: "editor-session-1",
   resourceType: ResourceType.PDF,
   targetPublicationStatus: PublicationStatus.DRAFT,
   title: "Guía",

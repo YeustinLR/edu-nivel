@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { env } from "@/config/env";
 import { cleanupExpiredUploads } from "@/server/content/cleanup-uploads";
+import { cleanupExpiredContentImages } from "@/server/content/cleanup-content-images";
 import { isR2UploadEnabled } from "@/server/storage/r2";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const summary = await cleanupExpiredUploads();
-  return NextResponse.json({ ok: true, ...summary });
+  const [resourceUploads, contentImages] = await Promise.all([
+    cleanupExpiredUploads(),
+    cleanupExpiredContentImages(),
+  ]);
+  return NextResponse.json({ ok: true, resourceUploads, contentImages });
 }
-

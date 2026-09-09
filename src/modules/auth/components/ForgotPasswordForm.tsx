@@ -4,9 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AuthFormMessage from "@/modules/auth/components/AuthFormMessage";
-import { getAuthErrorMessage } from "@/modules/auth/lib/auth-error-messages";
+import { getAuthErrorMessage, getAuthRetryAfter } from "@/modules/auth/lib/auth-error-messages";
 import { AUTH_VALIDATION_MESSAGES } from "@/modules/auth/lib/messages";
 import { AUTH_SESSION_STORAGE_KEYS } from "@/modules/auth/lib/session-storage-keys";
+import { useCountdown } from "@/modules/auth/lib/use-countdown";
 import { forgotPasswordSchema } from "@/modules/auth/schemas/forgot-password.schema";
 import { authClient } from "@/modules/auth/services/auth-client";
 import type { AuthFormState } from "@/modules/auth/types/auth-form-state";
@@ -16,6 +17,7 @@ const initialState: AuthFormState = { status: "idle" };
 export default function ForgotPasswordForm() {
   const router = useRouter();
   const [formState, setFormState] = useState<AuthFormState>(initialState);
+  const sendCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.passwordResetResend);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +41,8 @@ export default function ForgotPasswordForm() {
     });
 
     if (error) {
+      const retryAfter = getAuthRetryAfter(error);
+      if (retryAfter) sendCooldown.start(retryAfter);
       setFormState({
         status: "error",
         message: getAuthErrorMessage(error, "No se pudo enviar el codigo."),
@@ -50,6 +54,7 @@ export default function ForgotPasswordForm() {
       AUTH_SESSION_STORAGE_KEYS.passwordReset,
       parsed.data.email,
     );
+    sendCooldown.start(60);
     router.replace("/restablecer-contrasena");
   }
 
@@ -75,10 +80,14 @@ export default function ForgotPasswordForm() {
 
       <button
         type="submit"
-        disabled={formState.status === "loading"}
+        disabled={formState.status === "loading" || sendCooldown.isActive}
         className="btn-primary w-full rounded-lg px-5 py-3 text-small disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {formState.status === "loading" ? "Enviando codigo..." : "Enviar codigo"}
+        {formState.status === "loading"
+          ? "Enviando codigo..."
+          : sendCooldown.isActive
+            ? `Enviar de nuevo en ${sendCooldown.secondsLeft}s`
+            : "Enviar codigo"}
       </button>
     </form>
   );

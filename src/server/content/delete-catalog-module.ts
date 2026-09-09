@@ -47,6 +47,17 @@ const moduleDeletionSelect = {
       fileResource: { select: { storageKey: true } },
       imageResource: { select: { storageKey: true } },
       audioResource: { select: { storageKey: true } },
+      contentImages: {
+        select: {
+          contentImage: {
+            select: {
+              id: true,
+              temporaryStorageKey: true,
+              storageKey: true,
+            },
+          },
+        },
+      },
     },
   },
 } satisfies Prisma.ModuleSelect;
@@ -86,6 +97,10 @@ function getStorageKeys(target: DeletionTarget) {
     for (const stored of storedResources) {
       if (stored?.storageKey) keys.add(stored.storageKey);
     }
+    for (const reference of resource.contentImages) {
+      keys.add(reference.contentImage.temporaryStorageKey);
+      keys.add(reference.contentImage.storageKey);
+    }
   }
 
   return [...keys];
@@ -112,15 +127,31 @@ async function deleteStoredObjects(target: DeletionTarget) {
       audioResource: { select: { storageKey: true } },
     },
   });
+  const sharedContentImages = await prisma.contentImage.findMany({
+    where: {
+      OR: [
+        { storageKey: { in: candidateKeys } },
+        { temporaryStorageKey: { in: candidateKeys } },
+      ],
+      resources: { some: { resource: { moduleId: { not: target.id } } } },
+    },
+    select: { storageKey: true, temporaryStorageKey: true },
+  });
   const sharedKeys = new Set(
-    sharedResources.flatMap((resource) =>
-      [
+    [
+      ...sharedResources.flatMap((resource) =>
+        [
         resource.pdfResource?.storageKey,
         resource.fileResource?.storageKey,
         resource.imageResource?.storageKey,
         resource.audioResource?.storageKey,
-      ].filter((key): key is string => Boolean(key)),
-    ),
+        ].filter((key): key is string => Boolean(key)),
+      ),
+      ...sharedContentImages.flatMap((image) => [
+        image.storageKey,
+        image.temporaryStorageKey,
+      ]),
+    ],
   );
   const keys = candidateKeys.filter((key) => !sharedKeys.has(key));
   const results = await Promise.allSettled(
@@ -237,6 +268,18 @@ export async function deleteCatalogModule(
             "CONCURRENT_OPERATION",
             "El módulo cambió durante la eliminación. Inténtalo nuevamente.",
           );
+        }
+
+        const contentImageIds = target.resources.flatMap((resource) =>
+          resource.contentImages.map((reference) => reference.contentImage.id),
+        );
+        if (contentImageIds.length) {
+          await tx.contentImage.deleteMany({
+            where: {
+              id: { in: contentImageIds },
+              resources: { none: {} },
+            },
+          });
         }
 
         return {
