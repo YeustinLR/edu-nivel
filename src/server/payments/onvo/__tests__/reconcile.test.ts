@@ -16,6 +16,7 @@ const {
   getIntentMock,
   outerPaymentFindUniqueMock,
   paymentUpdateMock,
+  paymentUpdateManyMock,
   transactionMock,
   txPaymentFindUniqueMock,
   txPaymentUpdateManyMock,
@@ -24,12 +25,12 @@ const {
   txSubscriptionFindUniqueMock,
   txSubscriptionUpsertMock,
   txSubscriptionUpdateMock,
-  flagRefundMock,
   logPaymentEventMock,
 } = vi.hoisted(() => ({
   getIntentMock: vi.fn(),
   outerPaymentFindUniqueMock: vi.fn(),
   paymentUpdateMock: vi.fn(),
+  paymentUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
   txPaymentFindUniqueMock: vi.fn(),
   txPaymentUpdateManyMock: vi.fn(),
@@ -38,7 +39,6 @@ const {
   txSubscriptionFindUniqueMock: vi.fn(),
   txSubscriptionUpsertMock: vi.fn(),
   txSubscriptionUpdateMock: vi.fn(),
-  flagRefundMock: vi.fn(),
   logPaymentEventMock: vi.fn(),
 }));
 
@@ -46,10 +46,6 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/server/payments/onvo/client", () => ({
   getOnvoPaymentIntent: getIntentMock,
-}));
-
-vi.mock("@/server/payments/onvo/refunds", () => ({
-  flagProviderRefundWithoutId: flagRefundMock,
 }));
 
 vi.mock("@/server/payments/onvo/payment-log", () => ({
@@ -61,6 +57,7 @@ vi.mock("@/server/db/prisma", () => ({
     payment: {
       findUnique: outerPaymentFindUniqueMock,
       update: paymentUpdateMock,
+      updateMany: paymentUpdateManyMock,
     },
     $transaction: transactionMock,
   },
@@ -207,6 +204,7 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     txPaymentUpdateMock.mockResolvedValue(payment);
     txSubscriptionUpdateMock.mockResolvedValue({ id: "subscription_1" });
     paymentUpdateMock.mockResolvedValue(payment);
+    paymentUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionMock.mockImplementation(async (callback) => callback(tx));
   });
 
@@ -482,6 +480,38 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     expect(txPaymentUpdateManyMock).not.toHaveBeenCalled();
   });
 
+  it("does not replace a concurrently applied payment with a stale processing state", async () => {
+    const payment = makePayment();
+    getIntentMock.mockResolvedValue({
+      ...makeSucceededIntent(payment),
+      status: "processing",
+      receivedAmount: 0,
+      charges: [],
+    });
+    paymentUpdateManyMock.mockResolvedValue({ count: 0 });
+    outerPaymentFindUniqueMock
+      .mockResolvedValueOnce(payment)
+      .mockResolvedValueOnce({
+        appliedAt: new Date("2026-09-12T12:00:00.000Z"),
+        status: PaymentStatus.SUCCEEDED,
+      });
+
+    await expect(reconcileOnvoPaymentIntent("intent_monthly")).resolves.toEqual({
+      paymentId: payment.id,
+      outcome: "ALREADY_APPLIED",
+    });
+    expect(paymentUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: payment.id,
+        appliedAt: null,
+        status: {
+          in: [PaymentStatus.INITIALIZING, PaymentStatus.PROCESSING],
+        },
+      },
+      data: expect.objectContaining({ status: PaymentStatus.PROCESSING }),
+    });
+  });
+
   it("holds a confirmed payment for review if the level changed before application", async () => {
     const payment = makePayment();
     txPaymentFindUniqueMock.mockResolvedValue({
@@ -509,7 +539,9 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     expect(txSubscriptionUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("requires the refundId before recalculating a refunded payment", async () => {
+  it.each(["refunded", "partially_refunded"] as const)(
+    "turns the unexpected provider state %s into review without changing access",
+    async (providerStatus) => {
     const payment = makePayment({
       subscriptionId: "subscription_1",
       appliedAt: new Date("2026-07-23T18:00:01.000Z"),
@@ -518,19 +550,24 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     outerPaymentFindUniqueMock.mockResolvedValue(payment);
     getIntentMock.mockResolvedValue({
       ...makeSucceededIntent(payment),
-      status: "refunded",
+      status: providerStatus,
       updatedAt: "2026-07-24T18:00:00.000Z",
     });
-    flagRefundMock.mockResolvedValue(undefined);
 
     await expect(reconcileOnvoPaymentIntent("intent_monthly")).resolves.toEqual({
       paymentId: payment.id,
       outcome: "REQUIRES_REVIEW",
     });
-    expect(flagRefundMock).toHaveBeenCalledWith({
-      paymentId: payment.id,
-      providerStatus: "refunded",
+    expect(paymentUpdateMock).toHaveBeenCalledWith({
+      where: { id: payment.id },
+      data: expect.objectContaining({
+        status: PaymentStatus.REQUIRES_REVIEW,
+        providerStatus,
+        errorCode: "UNSUPPORTED_PROVIDER_REVERSAL",
+      }),
     });
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(txSubscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(txSubscriptionUpsertMock).not.toHaveBeenCalled();
   });
 });

@@ -35,16 +35,15 @@ export function getPaymentMethodLabel(method: PaymentMethod) {
   return method === PaymentMethod.SINPE_MOBILE ? "SINPE Móvil" : method;
 }
 
-export const paymentStatusPresentation: Record<
+export const paymentStatusPresentation: Partial<Record<
   PaymentStatus,
   { label: string; tone: "success" | "pending" | "danger" | "neutral" }
-> = {
+>> = {
   [PaymentStatus.INITIALIZING]: { label: "Inicializando", tone: "pending" },
   [PaymentStatus.PROCESSING]: { label: "Pendiente", tone: "pending" },
   [PaymentStatus.SUCCEEDED]: { label: "Pagado", tone: "success" },
   [PaymentStatus.FAILED]: { label: "Fallido", tone: "danger" },
   [PaymentStatus.CANCELED]: { label: "Cancelado", tone: "neutral" },
-  [PaymentStatus.REFUNDED]: { label: "Reembolsado", tone: "neutral" },
   [PaymentStatus.REQUIRES_REVIEW]: {
     label: "En revisión",
     tone: "pending",

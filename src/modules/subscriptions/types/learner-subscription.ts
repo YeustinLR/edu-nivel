@@ -12,7 +12,6 @@ export type LearnerSubscriptionEffectiveStatus =
   | "ACTIVE"
   | "EXPIRED"
   | "CANCELED"
-  | "REFUNDED"
   | "INACTIVE";
 
 export type LearnerSubscriptionItem = {

@@ -9,6 +9,7 @@ import {
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
 import {
+  APPLIED_ACCESS_PAYMENT_STATUSES,
   evaluatePremiumAccess,
   getRequiredSubscriptionProduct,
 } from "@/modules/subscriptions/domain/premium-access";
@@ -58,7 +59,6 @@ function effectiveStatus(
   isLevelActive: boolean,
   now: Date,
 ): LearnerSubscriptionEffectiveStatus {
-  if (subscription.status === SubscriptionStatus.REFUNDED) return "REFUNDED";
   if (subscription.status === SubscriptionStatus.CANCELED) return "CANCELED";
   if (
     subscription.status === SubscriptionStatus.EXPIRED ||
@@ -112,7 +112,7 @@ export const getLearnerSubscriptionOverview = cache(
             },
             payments: {
               where: {
-                status: PaymentStatus.SUCCEEDED,
+                status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
                 appliedAt: { not: null },
               },
               orderBy: { appliedAt: "desc" },

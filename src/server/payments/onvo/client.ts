@@ -8,11 +8,9 @@ import {
   onvoPaymentIntentListSchema,
   onvoPaymentIntentSchema,
   onvoPaymentMethodSchema,
-  onvoRefundSchema,
   type OnvoPaymentIntent,
   type OnvoPaymentIntentList,
   type OnvoPaymentMethod,
-  type OnvoRefund,
 } from "@/server/payments/onvo/schemas";
 
 const ONVO_API_BASE_URL = "https://api.onvopay.com/v1";
@@ -39,7 +37,7 @@ type CreateSinpeMobilePaymentMethodInput = {
 
 export class OnvoConfigurationError extends Error {
   constructor() {
-    super("La integracion de ONVO no esta configurada.");
+    super("La integración de ONVO no está configurada.");
     this.name = "OnvoConfigurationError";
   }
 }
@@ -193,12 +191,5 @@ export function listOnvoPaymentIntents(input: {
   return onvoRequest(
     `/payment-intents/account?${params.toString()}`,
     onvoPaymentIntentListSchema,
-  );
-}
-
-export function getOnvoRefund(refundId: string): Promise<OnvoRefund> {
-  return onvoRequest(
-    `/refunds/${encodeURIComponent(refundId)}`,
-    onvoRefundSchema,
   );
 }

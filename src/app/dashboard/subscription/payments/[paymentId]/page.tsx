@@ -36,10 +36,10 @@ import {
 import { requireUser } from "@/server/auth/guards";
 import { prisma } from "@/server/db/prisma";
 
-const statusCopy: Record<
+const statusCopy: Partial<Record<
   PaymentStatus,
   { title: string; description: string }
-> = {
+>> = {
   INITIALIZING: {
     title: "Estamos preparando tu pago",
     description: "La solicitud está guardada. No realices una transferencia hasta que aparezcan el monto y el número.",
@@ -59,10 +59,6 @@ const statusCopy: Record<
   CANCELED: {
     title: "Intento cancelado",
     description: "Esta solicitud ya no puede recibir una transferencia.",
-  },
-  REFUNDED: {
-    title: "Pago reembolsado",
-    description: "El pago fue devuelto y el acceso asociado fue actualizado.",
   },
   REQUIRES_REVIEW: {
     title: "Estamos revisando tu pago",
@@ -115,7 +111,11 @@ export default async function PaymentStatusPage({
       payment.providerPaymentMethodId &&
       destinationNumber,
   );
-  const status = statusCopy[payment.status];
+  const status = statusCopy[payment.status] ?? {
+    title: "Esta operación requiere atención",
+    description:
+      "El estado histórico de este pago no forma parte del flujo actual. Contacta al soporte de EduNivel.",
+  };
   const visibleStatus =
     isPending && payment.providerMode === ProviderMode.TEST
       ? {
@@ -273,7 +273,7 @@ export default async function PaymentStatusPage({
                 </div>
               ) : null}
 
-              {(payment.status === PaymentStatus.FAILED || payment.status === PaymentStatus.CANCELED || payment.status === PaymentStatus.REFUNDED) ? (
+              {(payment.status === PaymentStatus.FAILED || payment.status === PaymentStatus.CANCELED) ? (
                 <div className="rounded-xl border border-rose-300/60 bg-rose-50 p-4 dark:border-rose-400/15 dark:bg-rose-500/10">
                   <h2 className="font-bold text-[var(--subscription-text)]">Esta operación finalizó</h2>
                   <p className="mt-1.5 text-sm leading-5 text-[var(--subscription-muted)]">Puedes iniciar una nueva solicitud; esta operación ya no bloquea otro pago para el nivel.</p>

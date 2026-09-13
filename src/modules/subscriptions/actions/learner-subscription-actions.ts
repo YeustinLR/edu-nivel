@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
-  PaymentStatus,
   Role,
 } from "@/generated/prisma/enums";
 import {
@@ -14,6 +13,7 @@ import {
   startLearnerRenewalPaymentSchema,
 } from "@/modules/payments/schemas/start-sinpe-payment.schema";
 import {
+  APPLIED_ACCESS_PAYMENT_STATUSES,
   evaluatePremiumAccess,
   getRequiredSubscriptionProduct,
 } from "@/modules/subscriptions/domain/premium-access";
@@ -239,7 +239,10 @@ async function selectSubscriptionLevel(
     include: {
       level: { select: { id: true, isActive: true } },
       payments: {
-        where: { status: PaymentStatus.SUCCEEDED, appliedAt: { not: null } },
+        where: {
+          status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
+          appliedAt: { not: null },
+        },
         take: 1,
         select: { id: true },
       },

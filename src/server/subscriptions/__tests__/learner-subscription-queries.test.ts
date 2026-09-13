@@ -242,8 +242,8 @@ describe("getLearnerSubscriptionOverview", () => {
     expect(result.activeCount).toBe(0);
   });
 
-  it("shows a refunded subscription without study access", async () => {
-    const refunded = {
+  it("treats a legacy subscription status as inactive without presenting a refund capability", async () => {
+    const legacy = {
       ...subscription({
         id: "sub-7",
         levelId: "level-7",
@@ -253,12 +253,12 @@ describe("getLearnerSubscriptionOverview", () => {
       status: SubscriptionStatus.REFUNDED,
       payments: [],
     };
-    mocks.subscriptionFindMany.mockResolvedValue([refunded]);
+    mocks.subscriptionFindMany.mockResolvedValue([legacy]);
 
     const result = await getLearnerSubscriptionOverview(Role.STUDENT);
 
     expect(result.subscriptions[0]).toMatchObject({
-      effectiveStatus: "REFUNDED",
+      effectiveStatus: "INACTIVE",
       canStudy: false,
     });
   });

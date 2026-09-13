@@ -17,7 +17,6 @@ import { prisma } from "@/server/db/prisma";
 import { getOnvoPaymentIntent } from "@/server/payments/onvo/client";
 import type { OnvoPaymentIntent } from "@/server/payments/onvo/schemas";
 import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
-import { flagProviderRefundWithoutId } from "@/server/payments/onvo/refunds";
 import {
   isRetryableSerializableConflict,
   MAX_SERIALIZABLE_ATTEMPTS,
@@ -45,6 +44,42 @@ export class OnvoPaymentNotFoundError extends Error {
 }
 
 class PaymentAlreadyAppliedError extends Error {}
+
+async function updateUnappliedPayment(
+  paymentId: string,
+  statuses: PaymentStatus[],
+  data: Prisma.PaymentUpdateManyMutationInput,
+): Promise<OnvoReconciliationResult | null> {
+  const updated = await prisma.payment.updateMany({
+    where: {
+      id: paymentId,
+      appliedAt: null,
+      status: { in: statuses },
+    },
+    data,
+  });
+
+  if (updated.count === 1) return null;
+
+  const current = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    select: { appliedAt: true, status: true },
+  });
+  if (!current) throw new OnvoPaymentNotFoundError();
+  if (current.appliedAt || current.status === PaymentStatus.SUCCEEDED) {
+    return { paymentId, outcome: "ALREADY_APPLIED" };
+  }
+  if (current.status === PaymentStatus.REQUIRES_REVIEW) {
+    return { paymentId, outcome: "REQUIRES_REVIEW" };
+  }
+  if (current.status === PaymentStatus.FAILED) {
+    return { paymentId, outcome: "FAILED" };
+  }
+  if (current.status === PaymentStatus.CANCELED) {
+    return { paymentId, outcome: "CANCELED" };
+  }
+  return { paymentId, outcome: "PROCESSING" };
+}
 
 function getConfirmedAt(intent: OnvoPaymentIntent): Date {
   if (intent.updatedAt) {
@@ -91,6 +126,7 @@ async function markForReview(
   paymentId: string,
   intent: OnvoPaymentIntent,
   errorCode: string,
+  errorMessage = "El pago requiere revision antes de aplicar el acceso.",
 ): Promise<OnvoReconciliationResult> {
   await prisma.payment.update({
     where: { id: paymentId },
@@ -101,7 +137,7 @@ async function markForReview(
       confirmedAt:
         intent.status === "succeeded" ? getConfirmedAt(intent) : undefined,
       errorCode,
-      errorMessage: "El pago requiere revision antes de aplicar el acceso.",
+      errorMessage,
     },
   });
 
@@ -277,26 +313,22 @@ export async function reconcileOnvoPaymentIntent(
     paymentId: payment.id,
     paymentIntentId: providerPaymentIntentId,
   });
+  if (
+    intent.status === "refunded" ||
+    intent.status === "partially_refunded"
+  ) {
+    return markForReview(
+      payment.id,
+      intent,
+      "UNSUPPORTED_PROVIDER_REVERSAL",
+      "ONVO reporto un estado financiero no admitido por EduNivel. El acceso concedido no fue modificado y el cobro requiere investigacion administrativa.",
+    );
+  }
+
   const verificationIssues = verifyOnvoPaymentIntent(payment, intent);
 
   if (verificationIssues.length > 0) {
     return markForReview(payment.id, intent, verificationIssues.join(","));
-  }
-
-  if (intent.status === "refunded") {
-    await flagProviderRefundWithoutId({
-      paymentId: payment.id,
-      providerStatus: intent.status,
-    });
-    return { paymentId: payment.id, outcome: "REQUIRES_REVIEW" };
-  }
-
-  if (intent.status === "partially_refunded") {
-    await flagProviderRefundWithoutId({
-      paymentId: payment.id,
-      providerStatus: intent.status,
-    });
-    return { paymentId: payment.id, outcome: "REQUIRES_REVIEW" };
   }
 
   if (payment.appliedAt) {
@@ -304,14 +336,16 @@ export async function reconcileOnvoPaymentIntent(
   }
 
   if (intent.status === "processing") {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    const concurrentOutcome = await updateUnappliedPayment(
+      payment.id,
+      [PaymentStatus.INITIALIZING, PaymentStatus.PROCESSING],
+      {
         status: PaymentStatus.PROCESSING,
         providerStatus: intent.status,
         receivedAmountMinor: intent.receivedAmount ?? null,
       },
-    });
+    );
+    if (concurrentOutcome) return concurrentOutcome;
     return { paymentId: payment.id, outcome: "PROCESSING" };
   }
 
@@ -320,42 +354,60 @@ export async function reconcileOnvoPaymentIntent(
   }
 
   if (intent.status === "canceled") {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    const concurrentOutcome = await updateUnappliedPayment(
+      payment.id,
+      [
+        PaymentStatus.INITIALIZING,
+        PaymentStatus.PROCESSING,
+        PaymentStatus.REQUIRES_REVIEW,
+      ],
+      {
         status: PaymentStatus.CANCELED,
         providerStatus: intent.status,
         staleAt: null,
       },
-    });
+    );
+    if (concurrentOutcome) return concurrentOutcome;
     return { paymentId: payment.id, outcome: "CANCELED" };
   }
 
   if (intent.status === "requires_payment_method") {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    const concurrentOutcome = await updateUnappliedPayment(
+      payment.id,
+      [
+        PaymentStatus.INITIALIZING,
+        PaymentStatus.PROCESSING,
+        PaymentStatus.REQUIRES_REVIEW,
+      ],
+      {
         status: PaymentStatus.FAILED,
         providerStatus: intent.status,
         staleAt: null,
         errorCode: "PAYMENT_METHOD_REQUIRED",
         errorMessage: "ONVO requiere un nuevo metodo de pago.",
       },
-    });
+    );
+    if (concurrentOutcome) return concurrentOutcome;
     return { paymentId: payment.id, outcome: "FAILED" };
   }
 
   if (intent.status === "failed") {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    const concurrentOutcome = await updateUnappliedPayment(
+      payment.id,
+      [
+        PaymentStatus.INITIALIZING,
+        PaymentStatus.PROCESSING,
+        PaymentStatus.REQUIRES_REVIEW,
+      ],
+      {
         status: PaymentStatus.FAILED,
         providerStatus: intent.status,
         staleAt: null,
         errorCode: "PAYMENT_FAILED",
         errorMessage: "ONVO confirmo que el pago fallo.",
       },
-    });
+    );
+    if (concurrentOutcome) return concurrentOutcome;
     return { paymentId: payment.id, outcome: "FAILED" };
   }
 

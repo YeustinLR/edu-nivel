@@ -45,7 +45,7 @@ function getProviderMode(): ProviderMode {
   if (mode !== "test" && mode !== "live") {
     throw new SinpeCheckoutError(
       "ONVO_NOT_CONFIGURED",
-      "ONVO no esta configurado en este entorno.",
+      "ONVO no está configurado en este entorno.",
     );
   }
 
@@ -59,6 +59,27 @@ function toPaymentStatus(providerStatus: string): PaymentStatus {
   if (providerStatus === "failed") return PaymentStatus.FAILED;
   if (providerStatus === "requires_payment_method") return PaymentStatus.FAILED;
   return PaymentStatus.REQUIRES_REVIEW;
+}
+
+const CHECKOUT_MUTABLE_STATUSES = [
+  PaymentStatus.INITIALIZING,
+  PaymentStatus.PROCESSING,
+] as const;
+
+async function updateMutableCheckout(
+  paymentId: string,
+  data: Prisma.PaymentUpdateManyMutationInput,
+) {
+  await prisma.payment.updateMany({
+    where: {
+      id: paymentId,
+      appliedAt: null,
+      status: { in: [...CHECKOUT_MUTABLE_STATUSES] },
+    },
+    data,
+  });
+
+  return prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
 }
 
 async function findExistingCheckout(checkoutRequestId: string, userId: string) {
@@ -101,7 +122,7 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
   if (user.role !== Role.STUDENT && user.role !== Role.TEACHER) {
     throw new SinpeCheckoutError(
       "ROLE_NOT_ALLOWED",
-      "Tu rol no puede comprar una suscripcion.",
+      "Tu rol no puede comprar una suscripción.",
     );
   }
 
@@ -127,14 +148,14 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
   if (!level || !level.isActive) {
     throw new SinpeCheckoutError(
       "LEVEL_NOT_AVAILABLE",
-      "El nivel seleccionado no esta disponible.",
+      "El nivel seleccionado no está disponible.",
     );
   }
 
   if (!level.requiresSubscription) {
     throw new SinpeCheckoutError(
       "LEVEL_IS_FREE",
-      "Este nivel no requiere una suscripcion.",
+      "Este nivel no requiere una suscripción.",
     );
   }
 
@@ -221,13 +242,11 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
       },
     });
 
-    payment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    payment = await updateMutableCheckout(payment.id, {
         providerPaymentIntentId: intent.id,
         providerStatus: intent.status,
-      },
     });
+    if (payment.appliedAt) return payment;
     logOnvoPaymentEvent({
       event: "intent.created",
       outcome: intent.status,
@@ -247,22 +266,19 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
       },
     });
 
-    payment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: { providerPaymentMethodId: paymentMethod.id },
+    payment = await updateMutableCheckout(payment.id, {
+      providerPaymentMethodId: paymentMethod.id,
     });
+    if (payment.appliedAt) return payment;
     const confirmedIntent = await confirmOnvoPaymentIntent(
       intent.id,
       paymentMethod.id,
     );
 
-    payment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    payment = await updateMutableCheckout(payment.id, {
         status: toPaymentStatus(confirmedIntent.status),
         providerStatus: confirmedIntent.status,
         receivedAmountMinor: confirmedIntent.receivedAmount ?? null,
-      },
     });
     logOnvoPaymentEvent({
       event: "intent.confirmed",
@@ -282,9 +298,7 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
   } catch (error) {
     const isKnownProviderRejection =
       error instanceof OnvoApiError && isDefinitiveOnvoApiRejection(error);
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    await updateMutableCheckout(payment.id, {
         status: isKnownProviderRejection
           ? PaymentStatus.FAILED
           : PaymentStatus.REQUIRES_REVIEW,
@@ -294,7 +308,6 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
         errorMessage: isKnownProviderRejection
           ? "ONVO rechazo la inicializacion del pago."
           : "No se pudo confirmar con certeza el estado de la operacion.",
-      },
     });
     logOnvoPaymentEvent({
       event: "checkout.initialization",

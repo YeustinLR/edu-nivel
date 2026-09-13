@@ -92,24 +92,8 @@ export const onvoApiErrorSchema = z
   })
   .passthrough();
 
-export const onvoRefundSchema = z
-  .object({
-    id: z.string().min(1),
-    paymentIntentId: z.string().min(1),
-    amount: z.number().int().positive(),
-    currency: z.string().min(3),
-    mode: onvoModeSchema,
-    status: z.enum(["pending", "succeeded", "failed"]),
-    reason: z.string().optional(),
-    failureReason: nullableStringSchema,
-    createdAt: z.string().optional(),
-    updatedAt: z.string().optional(),
-  })
-  .passthrough();
-
 export type OnvoPaymentIntent = z.infer<typeof onvoPaymentIntentSchema>;
 export type OnvoPaymentIntentList = z.infer<
   typeof onvoPaymentIntentListSchema
 >;
 export type OnvoPaymentMethod = z.infer<typeof onvoPaymentMethodSchema>;
-export type OnvoRefund = z.infer<typeof onvoRefundSchema>;

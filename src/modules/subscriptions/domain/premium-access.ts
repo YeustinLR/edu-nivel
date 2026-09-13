@@ -1,8 +1,19 @@
 import {
+  PaymentStatus,
   Role,
   SubscriptionProduct,
   SubscriptionStatus,
 } from "@/generated/prisma/client";
+
+/**
+ * Estados que pueden respaldar un periodo que ya fue aplicado. Un pago en
+ * revision solo cuenta cuando conserva `appliedAt`; nunca habilita una nueva
+ * extension de la suscripcion.
+ */
+export const APPLIED_ACCESS_PAYMENT_STATUSES = [
+  PaymentStatus.SUCCEEDED,
+  PaymentStatus.REQUIRES_REVIEW,
+] as const;
 
 export type PremiumAccessDenialCode =
   | "ROLE_NOT_ELIGIBLE"

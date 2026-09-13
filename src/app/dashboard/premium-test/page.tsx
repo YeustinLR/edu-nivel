@@ -5,14 +5,14 @@ import { getPremiumAccessDecision } from "@/server/auth/guards";
 const denialMessages: Record<string, string> = {
   ROLE_NOT_ELIGIBLE: "Tu rol no participa en los planes premium.",
   EMAIL_NOT_VERIFIED: "Debes verificar tu correo antes de acceder.",
-  SUBSCRIPTION_REQUIRED: "Necesitas una suscripcion para abrir esta pagina.",
-  SUBSCRIPTION_INACTIVE: "Tu suscripcion no esta activa.",
-  SUBSCRIPTION_NOT_STARTED: "La vigencia de tu suscripcion aun no inicia.",
-  SUBSCRIPTION_EXPIRED: "Tu suscripcion ya vencio.",
+  SUBSCRIPTION_REQUIRED: "Necesitas una suscripción para abrir esta página.",
+  SUBSCRIPTION_INACTIVE: "Tu suscripción no está activa.",
+  SUBSCRIPTION_NOT_STARTED: "La vigencia de tu suscripción aún no inicia.",
+  SUBSCRIPTION_EXPIRED: "Tu suscripción ya venció.",
   SUBSCRIPTION_PRODUCT_MISMATCH:
-    "La suscripcion no corresponde al producto requerido por tu rol.",
+    "La suscripción no corresponde al producto requerido por tu rol.",
   SUBSCRIPTION_PAYMENT_UNCONFIRMED:
-    "No existe un pago confirmado y aplicado para esta suscripcion.",
+    "No existe un pago confirmado y aplicado para esta suscripción.",
 };
 
 export default async function PremiumTestPage() {
@@ -47,7 +47,7 @@ export default async function PremiumTestPage() {
         Pagina premium de prueba
       </h1>
       <p className="mt-3 text-sm text-muted">
-        La validacion server-side encontro una suscripcion vigente, compatible con
+        La validación del servidor encontró una suscripción vigente, compatible con
         tu rol y respaldada por un pago confirmado.
       </p>
       <p className="mt-4 text-sm font-medium text-foreground">

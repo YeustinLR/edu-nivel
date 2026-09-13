@@ -2,7 +2,7 @@ import { SubscriptionStatus } from "@/generated/prisma/client";
 
 export function addUtcCalendarMonths(date: Date, months: number): Date {
   if (!Number.isInteger(months) || months <= 0) {
-    throw new RangeError("La duracion debe ser un numero positivo de meses.");
+    throw new RangeError("La duración debe ser un número positivo de meses.");
   }
 
   const year = date.getUTCFullYear();

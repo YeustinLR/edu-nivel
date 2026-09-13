@@ -5,15 +5,11 @@ const {
   paymentUpdateManyMock,
   reconcileMock,
   recoverMock,
-  refundFindManyMock,
-  reconcileRefundMock,
 } = vi.hoisted(() => ({
   findManyMock: vi.fn(),
   paymentUpdateManyMock: vi.fn(),
   reconcileMock: vi.fn(),
   recoverMock: vi.fn(),
-  refundFindManyMock: vi.fn(),
-  reconcileRefundMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -23,9 +19,6 @@ vi.mock("@/server/db/prisma", () => ({
       findMany: findManyMock,
       updateMany: paymentUpdateManyMock,
     },
-    paymentRefund: {
-      findMany: refundFindManyMock,
-    },
   },
 }));
 vi.mock("@/server/payments/onvo/reconcile", () => ({
@@ -34,10 +27,6 @@ vi.mock("@/server/payments/onvo/reconcile", () => ({
 vi.mock("@/server/payments/onvo/recover-payment-intent", () => ({
   recoverOnvoPaymentIntent: recoverMock,
 }));
-vi.mock("@/server/payments/onvo/refunds", () => ({
-  reconcileOnvoRefund: reconcileRefundMock,
-}));
-
 import { reconcilePendingOnvoPayments } from "@/server/payments/onvo/reconcile-pending";
 
 const now = new Date("2026-07-23T18:00:00.000Z");
@@ -46,7 +35,6 @@ describe("reconcilePendingOnvoPayments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     paymentUpdateManyMock.mockResolvedValue({ count: 1 });
-    refundFindManyMock.mockResolvedValue([]);
   });
 
   it("reconciles a bounded eligible batch and marks only old processing attempts", async () => {
@@ -83,6 +71,18 @@ describe("reconcilePendingOnvoPayments", () => {
         take: 20,
         where: expect.objectContaining({
           providerPaymentIntentId: { not: null },
+          appliedAt: null,
+          OR: [
+            {
+              status: {
+                in: ["INITIALIZING", "PROCESSING"],
+              },
+            },
+            {
+              status: "REQUIRES_REVIEW",
+              errorCode: "ONVO_INITIALIZATION_UNCERTAIN",
+            },
+          ],
           updatedAt: { lte: new Date("2026-07-23T17:55:00.000Z") },
         }),
       }),
@@ -98,12 +98,6 @@ describe("reconcilePendingOnvoPayments", () => {
       orphanSelected: 0,
       recovered: 0,
       abandoned: 0,
-      refundSelected: 0,
-      refundSucceeded: 0,
-      refundPending: 0,
-      refundReview: 0,
-      refundAlreadyApplied: 0,
-      refundFailed: 0,
     });
     expect(paymentUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(paymentUpdateManyMock).toHaveBeenCalledWith({

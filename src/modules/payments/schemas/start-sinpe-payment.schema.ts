@@ -8,7 +8,7 @@ const costaRicanPhoneSchema = z
   .transform((value) => value.replace(/[\s-]/g, ""))
   .refine(
     (value) => /^(?:\+?506)?\d{8}$/.test(value),
-    "Ingresa un numero de Costa Rica de 8 digitos.",
+    "Ingresa un número de Costa Rica de 8 dígitos.",
   )
   .transform((value) => `+506${value.replace(/^\+?506/, "")}`);
 
@@ -65,7 +65,7 @@ export const startLearnerRenewalPaymentSchema = z
     subscriptionId: z
       .string()
       .trim()
-      .min(1, "Selecciona la suscripcion que deseas renovar."),
+      .min(1, "Selecciona la suscripción que deseas renovar."),
     checkoutRequestId: z.uuid(),
     ...payerFields,
   })

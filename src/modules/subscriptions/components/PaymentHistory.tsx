@@ -10,6 +10,7 @@ import {
   getPlanIntervalLabel,
   paymentStatusPresentation,
 } from "@/modules/subscriptions/lib/learner-subscription-presentation";
+import type { PaymentStatus } from "@/generated/prisma/enums";
 import type { LearnerPaymentHistory } from "@/modules/subscriptions/types/learner-subscription";
 
 const toneClass = {
@@ -19,8 +20,11 @@ const toneClass = {
   neutral: "bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300",
 } as const;
 
-function PaymentBadge({ status }: { status: keyof typeof paymentStatusPresentation }) {
-  const item = paymentStatusPresentation[status];
+function PaymentBadge({ status }: { status: PaymentStatus }) {
+  const item = paymentStatusPresentation[status] ?? {
+    label: "Estado legado",
+    tone: "neutral" as const,
+  };
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${toneClass[item.tone]}`}>{item.label}</span>;
 }
 

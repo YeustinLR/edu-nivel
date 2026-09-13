@@ -10,8 +10,7 @@ function timelineStates(status: PaymentStatus): TimelineState[] {
   }
   if (
     status === PaymentStatus.FAILED ||
-    status === PaymentStatus.CANCELED ||
-    status === PaymentStatus.REFUNDED
+    status === PaymentStatus.CANCELED
   ) {
     return ["complete", "pending", "error", "pending"];
   }
@@ -21,7 +20,10 @@ function timelineStates(status: PaymentStatus): TimelineState[] {
   if (status === PaymentStatus.PROCESSING) {
     return ["complete", "active", "pending", "pending"];
   }
-  return ["complete", "active", "pending", "pending"];
+  if (status === PaymentStatus.INITIALIZING) {
+    return ["complete", "active", "pending", "pending"];
+  }
+  return ["complete", "pending", "error", "pending"];
 }
 
 const labels = [

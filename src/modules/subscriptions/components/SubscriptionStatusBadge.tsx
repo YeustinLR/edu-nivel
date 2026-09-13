@@ -19,11 +19,6 @@ const presentation: Record<
     className:
       "border-slate-200 bg-slate-50 text-slate-700 before:bg-slate-400 dark:border-slate-400/20 dark:bg-slate-500/10 dark:text-slate-300",
   },
-  REFUNDED: {
-    label: "Reembolsada",
-    className:
-      "border-rose-200 bg-rose-50 text-rose-700 before:bg-rose-500 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-300",
-  },
   INACTIVE: {
     label: "Inactiva",
     className:

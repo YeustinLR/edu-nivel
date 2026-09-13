@@ -4,7 +4,6 @@ import {
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
-  RefundStatus,
 } from "@/generated/prisma/client";
 import {
   SINPE_RECONCILIATION_MIN_AGE_MS,
@@ -14,7 +13,6 @@ import { prisma } from "@/server/db/prisma";
 import { reconcileOnvoPaymentIntent } from "@/server/payments/onvo/reconcile";
 import { recoverOnvoPaymentIntent } from "@/server/payments/onvo/recover-payment-intent";
 import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
-import { reconcileOnvoRefund } from "@/server/payments/onvo/refunds";
 
 const RECONCILIATION_BATCH_SIZE = 20;
 
@@ -29,12 +27,6 @@ export type PendingReconciliationSummary = {
   orphanSelected: number;
   recovered: number;
   abandoned: number;
-  refundSelected: number;
-  refundSucceeded: number;
-  refundPending: number;
-  refundReview: number;
-  refundAlreadyApplied: number;
-  refundFailed: number;
 };
 
 export async function reconcilePendingOnvoPayments(
@@ -65,10 +57,19 @@ export async function reconcilePendingOnvoPayments(
           where: {
             provider: PaymentProvider.ONVO,
             method: PaymentMethod.SINPE_MOBILE,
-            status: {
-              in: [PaymentStatus.INITIALIZING, PaymentStatus.PROCESSING],
-            },
+            OR: [
+              {
+                status: {
+                  in: [PaymentStatus.INITIALIZING, PaymentStatus.PROCESSING],
+                },
+              },
+              {
+                status: PaymentStatus.REQUIRES_REVIEW,
+                errorCode: "ONVO_INITIALIZATION_UNCERTAIN",
+              },
+            ],
             providerPaymentIntentId: { not: null },
+            appliedAt: null,
             updatedAt: { lte: retryBefore },
           },
           orderBy: { updatedAt: "asc" },
@@ -86,12 +87,6 @@ export async function reconcilePendingOnvoPayments(
     orphanSelected: orphanPayments.length,
     recovered: 0,
     abandoned: 0,
-    refundSelected: 0,
-    refundSucceeded: 0,
-    refundPending: 0,
-    refundReview: 0,
-    refundAlreadyApplied: 0,
-    refundFailed: 0,
   };
 
   for (const payment of orphanPayments) {
@@ -147,38 +142,6 @@ export async function reconcilePendingOnvoPayments(
         outcome: "error",
         paymentId: payment.id,
         paymentIntentId: payment.providerPaymentIntentId,
-      });
-    }
-  }
-
-  const refunds = await prisma.paymentRefund.findMany({
-    where: {
-      provider: PaymentProvider.ONVO,
-      status: RefundStatus.PENDING,
-      providerRefundId: { not: null },
-      updatedAt: { lte: retryBefore },
-    },
-    orderBy: { updatedAt: "asc" },
-    take: RECONCILIATION_BATCH_SIZE,
-  });
-  summary.refundSelected = refunds.length;
-
-  for (const refund of refunds) {
-    try {
-      const result = await reconcileOnvoRefund(refund.providerRefundId!);
-      if (result.outcome === "SUCCEEDED") summary.refundSucceeded += 1;
-      else if (result.outcome === "PENDING") summary.refundPending += 1;
-      else if (result.outcome === "REQUIRES_REVIEW") summary.refundReview += 1;
-      else if (result.outcome === "ALREADY_APPLIED") {
-        summary.refundAlreadyApplied += 1;
-      } else summary.refundFailed += 1;
-    } catch {
-      summary.refundFailed += 1;
-      logOnvoPaymentEvent({
-        event: "refund.reconciliation.failed",
-        outcome: "error",
-        paymentId: refund.paymentId,
-        refundId: refund.providerRefundId,
       });
     }
   }

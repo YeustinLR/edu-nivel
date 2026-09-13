@@ -145,8 +145,8 @@ Resultados locales:
 | `canceled` | `CANCELED` |
 | `requires_payment_method` | `FAILED` |
 | `failed` | `FAILED` |
-| `refunded` | crea alerta administrativa hasta registrar el `refundId` |
-| `partially_refunded` | conserva acceso y exige seguimiento administrativo |
+| `refunded` | `REQUIRES_REVIEW` con `UNSUPPORTED_PROVIDER_REVERSAL`; conserva el período ya aplicado |
+| `partially_refunded` | `REQUIRES_REVIEW` con `UNSUPPORTED_PROVIDER_REVERSAL`; conserva el período ya aplicado |
 | estado o datos inesperados | `REQUIRES_REVIEW` |
 
 `Payment.levelId`, no `User.selectedLevelId`, determina el nivel desbloqueado.
@@ -246,26 +246,19 @@ La ruta:
 - espera al menos cinco minutos desde su última actualización;
 - marca `staleAt` después de 30 minutos, sin cerrar el pago;
 - continúa procesando el lote aunque una conciliación individual falle;
-- vuelve a consultar reembolsos registrados que continúan `PENDING`;
+- no consulta ni concilia operaciones de devolución;
 - responde 500 cuando el resumen contiene fallos.
 
-## Reembolsos manuales
+## Devoluciones externas no admitidas
 
-EduNivel no invoca `POST /v1/refunds`. El administrador abre **Cobros**,
-prepara el caso local, ejecuta un reembolso total en el Dashboard de ONVO y
-registra el `refundId`. El servidor consulta `GET /v1/refunds/{id}` y verifica
-PaymentIntent, modo, moneda y monto completo.
-
-- `pending`: no modifica el acceso y queda disponible para cron/consulta.
-- `failed`: conserva el acceso y registra el fallo.
-- `succeeded` total: marca el Payment `REFUNDED` y reconstruye el periodo con
-  los demás pagos válidos.
-- parcial o inconsistente: `REQUIRES_REVIEW`, sin ajuste automático.
-
-Cada aplicación usa una transacción serializable y `PaymentRefund.appliedAt`.
-Repetir la consulta no resta meses nuevamente. La API pública de ONVO exige
-conocer el ID para consultar el objeto; por eso copiarlo al caso local es un
-paso obligatorio del procedimiento.
+Los reembolsos no son una capacidad de EduNivel: no se crean casos, no se
+registran IDs, no se consultan endpoints de devoluciones y el cron no los
+concilia. El parser de PaymentIntent conserva `refunded` y
+`partially_refunded` porque forman parte del contrato de lectura de ONVO. Si
+aparecen, el pago pasa a `REQUIRES_REVIEW` con `UNSUPPORTED_PROVIDER_REVERSAL`.
+No se crea `PaymentRefund`, no se extiende nuevamente la suscripción y no se
+reduce ni revoca automáticamente el período premium ya concedido. La solución
+posterior es administrativa y externa al flujo automatizado.
 
 La frecuencia diaria es compatible con Vercel Hobby. En ese plan la invocación
 puede ocurrir en cualquier momento dentro de la hora programada. El webhook y la
@@ -320,7 +313,7 @@ docs/onvo-gate-1-local.md
 ```
 
 Incluye éxito, demora, ausencia, parcial, duplicados, concurrencia, webhook
-perdido, conciliación manual, aislamiento, renovación y reembolso. El comando
+perdido, aislamiento y renovación. El comando
 `pnpm onvo:audit -- --email=... --level=1` produce una instantánea de evidencia
 de solo lectura y sin datos completos del pagador.
 
@@ -347,6 +340,5 @@ completado.
 - [SINPE Móvil en ONVO](https://docs.onvopay.com/payments/sinpe-mobile)
 - [Métodos de prueba de ONVO](https://docs.onvopay.com/payments/testing)
 - [Webhooks de ONVO](https://docs.onvopay.com/webhooks)
-- [Reembolsos de ONVO](https://docs.onvopay.com/payments/refunds)
 - [Cron Jobs de Vercel](https://vercel.com/docs/cron-jobs)
 - [Límites de Cron Jobs](https://vercel.com/docs/cron-jobs/usage-and-pricing)

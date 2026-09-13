@@ -36,9 +36,6 @@ function getAccessMessage(item: LearnerSubscriptionItem) {
   if (item.effectiveStatus === "EXPIRED") {
     return `Tu acceso finalizó el ${endDate}. Puedes renovarlo cuando lo necesites.`;
   }
-  if (item.effectiveStatus === "REFUNDED") {
-    return "El pago fue reembolsado y este nivel ya no tiene acceso.";
-  }
   if (item.effectiveStatus === "INACTIVE") {
     return "Este nivel no está disponible actualmente.";
   }

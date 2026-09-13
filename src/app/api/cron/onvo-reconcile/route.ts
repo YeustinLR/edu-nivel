@@ -36,9 +36,7 @@ export async function GET(request: Request) {
   const summary = await reconcilePendingOnvoPayments();
   if (
     summary.succeeded > 0 ||
-    summary.alreadyApplied > 0 ||
-    summary.refundSucceeded > 0 ||
-    summary.refundAlreadyApplied > 0
+    summary.alreadyApplied > 0
   ) {
     revalidatePaymentAccessPages();
   }

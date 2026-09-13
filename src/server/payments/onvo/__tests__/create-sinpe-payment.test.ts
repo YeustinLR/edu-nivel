@@ -16,8 +16,10 @@ const {
   createMethodMock,
   paymentCreateMock,
   paymentFindUniqueMock,
+  paymentFindUniqueOrThrowMock,
   paymentFindFirstMock,
   paymentUpdateMock,
+  paymentUpdateManyMock,
   levelFindUniqueMock,
   reconcileMock,
   requireUserMock,
@@ -29,8 +31,10 @@ const {
   createMethodMock: vi.fn(),
   paymentCreateMock: vi.fn(),
   paymentFindUniqueMock: vi.fn(),
+  paymentFindUniqueOrThrowMock: vi.fn(),
   paymentFindFirstMock: vi.fn(),
   paymentUpdateMock: vi.fn(),
+  paymentUpdateManyMock: vi.fn(),
   levelFindUniqueMock: vi.fn(),
   reconcileMock: vi.fn(),
   requireUserMock: vi.fn(),
@@ -60,7 +64,9 @@ vi.mock("@/server/db/prisma", () => ({
       create: paymentCreateMock,
       findFirst: paymentFindFirstMock,
       findUnique: paymentFindUniqueMock,
+      findUniqueOrThrow: paymentFindUniqueOrThrowMock,
       update: paymentUpdateMock,
+      updateMany: paymentUpdateManyMock,
     },
   },
 }));
@@ -122,7 +128,7 @@ function localPayment() {
     providerPaymentMethodId: null as string | null,
     internalReference: "EDUNIVEL-test",
     checkoutRequestId: input.checkoutRequestId,
-    status: PaymentStatus.INITIALIZING,
+    status: PaymentStatus.INITIALIZING as PaymentStatus,
   };
 }
 
@@ -133,7 +139,9 @@ describe("createSinpePayment authorization and checkout ownership", () => {
     requireUserMock.mockResolvedValue(student);
     rateLimitMock.mockResolvedValue(undefined);
     paymentFindUniqueMock.mockResolvedValue(null);
+    paymentFindUniqueOrThrowMock.mockResolvedValue(localPayment());
     paymentFindFirstMock.mockResolvedValue(null);
+    paymentUpdateManyMock.mockResolvedValue({ count: 1 });
     levelFindUniqueMock.mockResolvedValue({
       id: input.levelId,
       levelNumber: 7,
@@ -219,9 +227,12 @@ describe("createSinpePayment authorization and checkout ownership", () => {
       status: "processing",
       receivedAmount: 0,
     });
-    paymentUpdateMock.mockImplementation(({ data }) => {
+    paymentFindUniqueOrThrowMock.mockImplementation(() =>
+      Promise.resolve(persisted),
+    );
+    paymentUpdateManyMock.mockImplementation(({ data }) => {
       persisted = { ...persisted, ...data };
-      return Promise.resolve(persisted);
+      return Promise.resolve({ count: 1 });
     });
 
     await createSinpePayment(input);
@@ -252,19 +263,65 @@ describe("createSinpePayment authorization and checkout ownership", () => {
     );
   });
 
+  it("does not downgrade a payment applied by a concurrent webhook", async () => {
+    let persisted = localPayment() as ReturnType<typeof localPayment> & {
+      appliedAt?: Date | null;
+    };
+    paymentCreateMock.mockResolvedValue(persisted);
+    paymentFindUniqueOrThrowMock.mockImplementation(() =>
+      Promise.resolve(persisted),
+    );
+    paymentUpdateManyMock.mockImplementation(({ data }) => {
+      if (data.status === PaymentStatus.PROCESSING) {
+        persisted = {
+          ...persisted,
+          status: PaymentStatus.SUCCEEDED,
+          appliedAt: new Date("2026-09-12T12:00:00.000Z"),
+        };
+        return Promise.resolve({ count: 0 });
+      }
+      persisted = { ...persisted, ...data };
+      return Promise.resolve({ count: 1 });
+    });
+    createIntentMock.mockResolvedValue({
+      id: "intent_1",
+      status: "requires_payment_method",
+    });
+    createMethodMock.mockResolvedValue({ id: "method_1" });
+    confirmIntentMock.mockResolvedValue({
+      id: "intent_1",
+      status: "processing",
+      receivedAmount: 0,
+    });
+
+    await expect(createSinpePayment(input)).resolves.toMatchObject({
+      status: PaymentStatus.SUCCEEDED,
+      appliedAt: expect.any(Date),
+    });
+    expect(reconcileMock).not.toHaveBeenCalled();
+    expect(paymentUpdateManyMock).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({
+        id: persisted.id,
+        appliedAt: null,
+        status: {
+          in: [PaymentStatus.INITIALIZING, PaymentStatus.PROCESSING],
+        },
+      }),
+      data: expect.objectContaining({ status: PaymentStatus.PROCESSING }),
+    });
+  });
+
   it("keeps an ambiguous ONVO 500 blocked for reconciliation", async () => {
     const persisted = localPayment();
     paymentCreateMock.mockResolvedValue(persisted);
-    paymentUpdateMock.mockImplementation(({ data }) =>
-      Promise.resolve({ ...persisted, ...data }),
-    );
+    paymentFindUniqueOrThrowMock.mockResolvedValue(persisted);
     createIntentMock.mockRejectedValue(new MockOnvoApiError(500, null));
 
     await expect(createSinpePayment(input)).rejects.toMatchObject({
       code: "PAYMENT_INITIALIZATION_FAILED",
     });
-    expect(paymentUpdateMock).toHaveBeenCalledWith({
-      where: { id: persisted.id },
+    expect(paymentUpdateManyMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: persisted.id, appliedAt: null }),
       data: expect.objectContaining({
         status: PaymentStatus.REQUIRES_REVIEW,
         errorCode: "ONVO_INITIALIZATION_UNCERTAIN",
@@ -275,9 +332,7 @@ describe("createSinpePayment authorization and checkout ownership", () => {
   it("marks a definitive ONVO validation rejection as failed", async () => {
     const persisted = localPayment();
     paymentCreateMock.mockResolvedValue(persisted);
-    paymentUpdateMock.mockImplementation(({ data }) =>
-      Promise.resolve({ ...persisted, ...data }),
-    );
+    paymentFindUniqueOrThrowMock.mockResolvedValue(persisted);
     createIntentMock.mockRejectedValue(
       new MockOnvoApiError(400, "invalid_request"),
     );
@@ -285,8 +340,8 @@ describe("createSinpePayment authorization and checkout ownership", () => {
     await expect(createSinpePayment(input)).rejects.toMatchObject({
       code: "PAYMENT_INITIALIZATION_FAILED",
     });
-    expect(paymentUpdateMock).toHaveBeenCalledWith({
-      where: { id: persisted.id },
+    expect(paymentUpdateManyMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: persisted.id, appliedAt: null }),
       data: expect.objectContaining({
         status: PaymentStatus.FAILED,
         errorCode: "invalid_request",

@@ -64,6 +64,10 @@ describe.skipIf(!RUN_SANDBOX_E2E)("ONVO Sandbox renewal", () => {
           email,
           password,
           ageDeclared: 25,
+          role: "STUDENT",
+          acceptTerms: true,
+          acceptPrivacy: true,
+          adultDeclaration: true,
         }),
       });
       expect(signUpResponse.status).toBe(200);
@@ -220,6 +224,10 @@ describe.skipIf(!RUN_SANDBOX_E2E)("ONVO Sandbox renewal", () => {
           email: teacherEmail,
           password,
           ageDeclared: 30,
+          role: "TEACHER",
+          acceptTerms: true,
+          acceptPrivacy: true,
+          adultDeclaration: true,
         }),
       });
       expect(teacherSignUp.status).toBe(200);

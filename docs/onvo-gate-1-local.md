@@ -171,18 +171,17 @@ extender desde `currentPeriodEnd`, incluso si el estado administrativo era
 automático ni una operación de cancelación de renovación: `CANCELED` representa
 un estado administrativo, no la cancelación de un mandato recurrente ONVO.
 
-## K — Reembolso total manual
+## K — Estado externo inesperado
 
-1. Abrir `/dashboard/admin/payments` y preparar el caso del pago Sandbox.
-2. Copiar su PaymentIntent y ejecutar únicamente un reembolso total desde el
-   Dashboard de ONVO.
-3. Copiar el `refundId` devuelto por ONVO y registrarlo en EduNivel.
-4. Si ONVO responde `pending`, el Payment continúa exitoso y el acceso no cambia.
-5. Al llegar a `succeeded`, el Payment pasa a `REFUNDED`, el refund conserva su
-   ID y `appliedAt`, y la suscripción se reconstruye con los demás pagos.
-6. Repetir la conciliación y el cron: las fechas no deben cambiar otra vez.
-7. Probar un ID ajeno, monto parcial y modo incorrecto: todos quedan rechazados
-   o en revisión sin recalcular automáticamente el acceso.
+1. Usar un PaymentIntent Sandbox cuyo estado de lectura sea `refunded` o
+   `partially_refunded`, si el entorno de ONVO lo permite.
+2. Conciliarlo desde el flujo normal y verificar `Payment.REQUIRES_REVIEW`,
+   `providerStatus` y `errorCode=UNSUPPORTED_PROVIDER_REVERSAL`.
+3. Confirmar que no se crea `PaymentRefund`, no se llama a un endpoint de
+   devoluciones, no se extiende nuevamente la suscripción y no se reduce
+   `currentPeriodEnd`.
+4. Repetir cron y conciliación: la incidencia permanece para revisión
+   administrativa.
 
 ## Evidencia y matriz
 
@@ -202,6 +201,6 @@ secretos ni payload bancario completo.
 | H | Firma/secreto inválido | Rechazado | PENDIENTE E2E |
 | I | Manipulación/aislamiento | Inocuo y separado | PENDIENTE E2E |
 | J | Renovación/cambio | Mismo derecho, tiempo conservado | PENDIENTE E2E |
-| K | Reembolso total | Acceso recalculado | PENDIENTE E2E |
+| K | Estado externo inesperado | Revisión sin retirar acceso aplicado | PENDIENTE E2E |
 
 No cambiar esta tabla a PASS sin conservar la evidencia correspondiente.
