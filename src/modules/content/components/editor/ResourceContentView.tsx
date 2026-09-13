@@ -179,17 +179,23 @@ function SpecializedContent({ resource }: { resource: ResourceContentDetail }) {
 
   if (resource.quiz) {
     return (
-      <dl className="border-y border-border">
-        <DetailRow label="Puntaje mínimo">
-          {resource.quiz.passingScore}%
-        </DetailRow>
-        <DetailRow label="Intentos">
-          {resource.quiz.maxAttempts ?? "Sin límite"}
-        </DetailRow>
-        <DetailRow label="Orden aleatorio">
-          {resource.quiz.shuffleQuestions ? "Sí" : "No"}
-        </DetailRow>
-      </dl>
+      <div>
+        <dl className="border-y border-border">
+          <DetailRow label="Preguntas">{resource.quiz.questionCount}</DetailRow>
+          <DetailRow label="Puntaje mínimo">
+            {resource.quiz.passingScore}%
+          </DetailRow>
+          <DetailRow label="Intentos">
+            {resource.quiz.maxAttempts ?? "Sin límite"}
+          </DetailRow>
+          <DetailRow label="Orden aleatorio">
+            {resource.quiz.shuffleQuestions ? "Sí" : "No"}
+          </DetailRow>
+        </dl>
+        <p className="border-t border-border py-2 text-xs text-muted">
+          Recurso de autoevaluación. El resultado no representa una calificación académica oficial.
+        </p>
+      </div>
     );
   }
 

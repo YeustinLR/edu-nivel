@@ -21,6 +21,8 @@ export function UploadResourceForm({
       requestId={requestId}
       closeHref="/dashboard/collaborator/content"
       successBaseHref={successBaseHref}
+      draftBaseHref={successBaseHref}
+      openDraftEditor
     />
   );
 }

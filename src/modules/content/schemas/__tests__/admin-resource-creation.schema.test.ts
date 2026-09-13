@@ -9,6 +9,15 @@ import {
 } from "@/modules/content/schemas/admin-resource-creation.schema";
 
 const requestId = "734790ea-f53c-4f2c-a70c-22f13683c6f1";
+const quizQuestion = {
+  id: "10000000-0000-4000-8000-000000000001",
+  prompt: "¿Cuánto es 2 + 2?",
+  options: [
+    { id: "20000000-0000-4000-8000-000000000001", text: "3" },
+    { id: "20000000-0000-4000-8000-000000000002", text: "4" },
+  ],
+  correctOptionId: "20000000-0000-4000-8000-000000000002",
+};
 
 function base(resourceType: ResourceType) {
   return {
@@ -72,6 +81,33 @@ describe("admin resource creation schema", () => {
       resourceType: ResourceType.LINK,
       url: "https://example.com/recurso",
     });
+
+    expect(
+      createAdminStructuredResourceSchema.parse({
+        ...base(ResourceType.QUIZ),
+        questions: JSON.stringify([quizQuestion]),
+        passingScore: "75",
+        maxAttempts: "3",
+        shuffleQuestions: true,
+      }),
+    ).toMatchObject({
+      resourceType: ResourceType.QUIZ,
+      questions: [quizQuestion],
+      passingScore: 75,
+      maxAttempts: 3,
+      shuffleQuestions: true,
+    });
+  });
+
+  it("rejects malformed quiz questions and out-of-range settings", () => {
+    const quiz = {
+      ...base(ResourceType.QUIZ),
+      questions: JSON.stringify([{ ...quizQuestion, correctOptionId: "20000000-0000-4000-8000-000000000099" }]),
+      passingScore: "101",
+      maxAttempts: "0",
+      shuffleQuestions: false,
+    };
+    expect(createAdminStructuredResourceSchema.safeParse(quiz).success).toBe(false);
   });
 
   it("accepts a resource with only a title", () => {
@@ -119,11 +155,18 @@ describe("admin resource creation schema", () => {
       "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     );
     formData.set("startAt", "30");
+    formData.set("questions", "[]");
+    formData.set("passingScore", "80");
+    formData.set("maxAttempts", "4");
+    formData.set("shuffleQuestions", "true");
 
     expect(getAdminStructuredResourceFormValues(formData)).toMatchObject({
       videoId: "dQw4w9WgXcQ",
       content: "Explicación del video",
       startAt: "30",
+      passingScore: "80",
+      maxAttempts: "4",
+      shuffleQuestions: true,
       openInNewTab: false,
     });
   });

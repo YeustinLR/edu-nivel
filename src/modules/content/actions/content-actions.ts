@@ -45,7 +45,7 @@ export async function selectLevelAction(formData: FormData) {
   });
 
   if (!level?.isActive) {
-    throw new Error("El nivel seleccionado no esta disponible.");
+    throw new Error("El nivel seleccionado no está disponible.");
   }
 
   await prisma.user.update({

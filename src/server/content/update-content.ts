@@ -15,6 +15,7 @@ import type {
   UpdateSubjectInput,
 } from "@/modules/content/schemas/content-edit.schema";
 import { normalizeResourceContentForStorage } from "@/modules/content/domain/resource-document";
+import { parseQuizQuestionsJson } from "@/modules/content/domain/quiz";
 import { prisma } from "@/server/db/prisma";
 import {
   ContentImageReferenceError,
@@ -29,7 +30,8 @@ export type ContentUpdateErrorCode =
   | "DUPLICATE"
   | "PARENT_INACTIVE"
   | "DEPENDENCY_BLOCKED"
-  | "INVALID_RESOURCE_DATA";
+  | "INVALID_RESOURCE_DATA"
+  | "INVALID_QUIZ_DATA";
 
 export class ContentUpdateError extends Error {
   constructor(
@@ -253,6 +255,16 @@ export async function updateCatalogResource(
     ...input,
     content: normalizeResourceContentForStorage(input.content) ?? undefined,
   };
+  const parsedQuizQuestions =
+    input.resourceType === ResourceType.QUIZ
+      ? parseQuizQuestionsJson(input.quizQuestions ?? "")
+      : null;
+  if (input.resourceType === ResourceType.QUIZ && !parsedQuizQuestions?.success) {
+    throw new ContentUpdateError(
+      "INVALID_QUIZ_DATA",
+      "Las preguntas del cuestionario no tienen un formato válido.",
+    );
+  }
   const resource = await prisma.resource.findUnique({
     where: { id: input.id },
     select: {
@@ -260,6 +272,7 @@ export async function updateCatalogResource(
       publicationStatus: true,
       type: true,
       content: true,
+      quiz: { select: { id: true } },
       youtubeVideo: { select: { id: true } },
       linkResource: { select: { id: true } },
     },
@@ -295,6 +308,13 @@ export async function updateCatalogResource(
     throw new ContentUpdateError(
       "INVALID_RESOURCE_DATA",
       "La URL del recurso es obligatoria.",
+    );
+  }
+
+  if (resource.type === ResourceType.QUIZ && !resource.quiz) {
+    throw new ContentUpdateError(
+      "INVALID_QUIZ_DATA",
+      "El cuestionario no tiene preguntas asociadas.",
     );
   }
 
@@ -360,6 +380,18 @@ export async function updateCatalogResource(
         data: {
           url: input.url ?? "",
           openInNewTab: input.openInNewTab ?? false,
+        },
+      });
+    }
+
+    if (resource.type === ResourceType.QUIZ && parsedQuizQuestions?.success) {
+      await transaction.quiz.update({
+        where: { resourceId: input.id },
+        data: {
+          passingScore: input.passingScore ?? 70,
+          maxAttempts: input.maxAttempts ?? null,
+          shuffleQuestions: input.shuffleQuestions ?? false,
+          questions: parsedQuizQuestions.data as Prisma.InputJsonValue,
         },
       });
     }

@@ -40,6 +40,11 @@ export async function duplicateCatalogModule(
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT "id" FROM "module"
+      WHERE "id" = ${input.moduleId} AND "subjectId" = ${input.subjectId}
+      FOR SHARE
+    `);
     const source = await tx.module.findFirst({
       where: { id: input.moduleId, subjectId: input.subjectId },
       select: {

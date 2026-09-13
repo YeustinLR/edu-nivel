@@ -115,6 +115,32 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               },
             },
           });
+          const quizQuestion = {
+            id: randomUUID(),
+            prompt: "Pregunta original",
+            options: [
+              { id: randomUUID(), text: "Opción incorrecta" },
+              { id: randomUUID(), text: "Opción correcta" },
+            ],
+            correctOptionId: "",
+          };
+          quizQuestion.correctOptionId = quizQuestion.options[1].id;
+          const quizResource = await prisma.resource.create({
+            data: {
+              moduleId: ownedModule.id,
+              type: ResourceType.QUIZ,
+              title: `Cuestionario ${marker}`,
+              createdById: collaboratorId,
+              quiz: {
+                create: {
+                  passingScore: 70,
+                  maxAttempts: null,
+                  shuffleQuestions: false,
+                  questions: [quizQuestion],
+                },
+              },
+            },
+          });
 
           await updates.updateCatalogModule(
             {
@@ -199,6 +225,49 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               "Contenido persistido de la lección",
             ),
             estimatedMinutes: 8,
+          });
+
+          await updates.updateCatalogResource(
+            {
+              id: quizResource.id,
+              expectedUpdatedAt: quizResource.updatedAt.toISOString(),
+              resourceType: ResourceType.QUIZ,
+              title: `Cuestionario actualizado ${marker}`,
+              instructions: "Selecciona una opción.",
+              content: "",
+              estimatedMinutes: 10,
+              quizQuestions: JSON.stringify([
+                { ...quizQuestion, prompt: "Pregunta editada" },
+              ]),
+              passingScore: 80,
+              maxAttempts: 4,
+              shuffleQuestions: true,
+            },
+            { id: collaboratorId, role: Role.COLLABORATOR },
+          );
+          await expect(
+            prisma.resource.findUniqueOrThrow({
+              where: { id: quizResource.id },
+              select: {
+                title: true,
+                quiz: {
+                  select: {
+                    passingScore: true,
+                    maxAttempts: true,
+                    shuffleQuestions: true,
+                    questions: true,
+                  },
+                },
+              },
+            }),
+          ).resolves.toMatchObject({
+            title: `Cuestionario actualizado ${marker}`,
+            quiz: {
+              passingScore: 80,
+              maxAttempts: 4,
+              shuffleQuestions: true,
+              questions: [{ prompt: "Pregunta editada" }],
+            },
           });
 
           await updates.updateCatalogResource(

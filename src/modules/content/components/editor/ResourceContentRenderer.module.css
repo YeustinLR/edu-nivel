@@ -70,10 +70,8 @@
 .warning .calloutIcon { background: color-mix(in srgb, #f59e0b 20%, transparent); color: #a16207; }
 .invalid { border: 1px dashed var(--border); border-radius: 0.75rem; color: var(--muted); padding: 1rem; }
 
-@media (prefers-color-scheme: dark) {
-  .textPurple { color: #c4b5fd; }
-  .textBlue { color: #93c5fd; }
-  .textGreen { color: #86efac; }
-  .textYellow { color: #fcd34d; }
-  .textRed { color: #fca5a5; }
-}
+:global(.dark) .textPurple { color: #c4b5fd; }
+:global(.dark) .textBlue { color: #93c5fd; }
+:global(.dark) .textGreen { color: #86efac; }
+:global(.dark) .textYellow { color: #fcd34d; }
+:global(.dark) .textRed { color: #fca5a5; }

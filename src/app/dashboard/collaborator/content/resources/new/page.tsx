@@ -16,7 +16,7 @@ export default async function CollaboratorCreateResourcePage() {
       <ContentPageHeader
         eyebrow="Crear contenido"
         title="Nuevo recurso"
-        description="Guarda un recurso como borrador o envíalo a revisión dentro de uno de tus módulos disponibles."
+        description="Crea contenido o una autoevaluación; guarda un borrador o envíalo a revisión dentro de uno de tus módulos disponibles."
         breadcrumbs={[{ label: "Mis contenidos", href: "/dashboard/collaborator/content" }, { label: "Nuevo recurso" }]}
       />
       <ContentFormSurface wide>

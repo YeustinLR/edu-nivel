@@ -17,7 +17,7 @@ import {
 } from "@/modules/content/domain/file-policy";
 
 export class R2ConfigurationError extends Error {
-  constructor(message = "Cloudflare R2 no esta habilitado.") {
+  constructor(message = "Cloudflare R2 no está habilitado.") {
     super(message);
     this.name = "R2ConfigurationError";
   }
@@ -144,4 +144,3 @@ export async function createPresignedDownloadUrl(input: {
     expiresIn: DOWNLOAD_URL_TTL_SECONDS,
   });
 }
-

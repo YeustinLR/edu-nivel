@@ -12,19 +12,20 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   lockModule: vi.fn(),
   targetFindUnique: vi.fn(),
-  sharedResourceFindMany: vi.fn(),
-  sharedContentImageFindMany: vi.fn(),
+  enqueueStorageCleanup: vi.fn(),
   deleteUploadIntents: vi.fn(),
   deleteModule: vi.fn(),
   deleteContentImages: vi.fn(),
   isR2UploadEnabled: vi.fn(),
-  deleteR2Object: vi.fn(),
+  cleanupQueuedStorageObjects: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/storage/r2", () => ({
   isR2UploadEnabled: mocks.isR2UploadEnabled,
-  deleteR2Object: mocks.deleteR2Object,
+}));
+vi.mock("@/server/content/cleanup-storage-objects", () => ({
+  cleanupQueuedStorageObjects: mocks.cleanupQueuedStorageObjects,
 }));
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
@@ -32,8 +33,6 @@ vi.mock("@/server/db/prisma", () => ({
       findUnique: mocks.initialFindUnique,
       updateMany: mocks.archiveModule,
     },
-    resource: { findMany: mocks.sharedResourceFindMany },
-    contentImage: { findMany: mocks.sharedContentImageFindMany },
     $transaction: mocks.transaction,
   },
 }));
@@ -88,13 +87,17 @@ describe("deleteCatalogModule", () => {
     mocks.archiveModule.mockResolvedValue({ count: 1 });
     mocks.lockModule.mockResolvedValue([{ id: "module-1" }]);
     mocks.targetFindUnique.mockResolvedValue(createTarget());
-    mocks.sharedResourceFindMany.mockResolvedValue([]);
-    mocks.sharedContentImageFindMany.mockResolvedValue([]);
+    mocks.enqueueStorageCleanup.mockResolvedValue({ count: 3 });
     mocks.deleteUploadIntents.mockResolvedValue({ count: 1 });
     mocks.deleteModule.mockResolvedValue({ count: 1 });
     mocks.deleteContentImages.mockResolvedValue({ count: 0 });
     mocks.isR2UploadEnabled.mockReturnValue(true);
-    mocks.deleteR2Object.mockResolvedValue(undefined);
+    mocks.cleanupQueuedStorageObjects.mockResolvedValue({
+      examined: 3,
+      cleaned: 3,
+      retained: 0,
+      failed: 0,
+    });
     mocks.transaction.mockImplementation(
       async (operation: (transactionClient: unknown) => unknown) =>
         operation({
@@ -105,11 +108,12 @@ describe("deleteCatalogModule", () => {
           },
           uploadIntent: { deleteMany: mocks.deleteUploadIntents },
           contentImage: { deleteMany: mocks.deleteContentImages },
+          storageObjectCleanup: { createMany: mocks.enqueueStorageCleanup },
         }),
     );
   });
 
-  it("archives first and permanently deletes the module and its unique R2 objects", async () => {
+  it("commits the deletion before processing its queued R2 objects", async () => {
     await expect(deleteCatalogModule(input, actor)).resolves.toEqual({
       subjectId: "subject-1",
       audience: ContentAudience.STUDENT,
@@ -124,20 +128,23 @@ describe("deleteCatalogModule", () => {
       },
       data: { isActive: false },
     });
-    expect(mocks.deleteR2Object).toHaveBeenCalledTimes(3);
-    expect(mocks.deleteR2Object).toHaveBeenCalledWith(
-      "temporary/module-1/file.pdf",
-    );
-    expect(mocks.deleteR2Object).toHaveBeenCalledWith(
-      "modules/module-1/file.pdf",
-    );
-    expect(mocks.deleteR2Object).toHaveBeenCalledWith(
-      "modules/module-1/image.png",
-    );
+    expect(mocks.enqueueStorageCleanup).toHaveBeenCalledWith({
+      data: [
+        { storageKey: "temporary/module-1/file.pdf" },
+        { storageKey: "modules/module-1/file.pdf" },
+        { storageKey: "modules/module-1/image.png" },
+      ],
+      skipDuplicates: true,
+    });
     expect(mocks.deleteUploadIntents).toHaveBeenCalledWith({
       where: { moduleId: "module-1" },
     });
     expect(mocks.deleteModule).toHaveBeenCalledOnce();
+    expect(mocks.cleanupQueuedStorageObjects).toHaveBeenCalledWith([
+      "temporary/module-1/file.pdf",
+      "modules/module-1/file.pdf",
+      "modules/module-1/image.png",
+    ]);
   });
 
   it("rejects published modules before changing data or storage", async () => {
@@ -151,7 +158,7 @@ describe("deleteCatalogModule", () => {
       message: "Despublica el módulo antes de eliminarlo.",
     });
     expect(mocks.archiveModule).not.toHaveBeenCalled();
-    expect(mocks.deleteR2Object).not.toHaveBeenCalled();
+    expect(mocks.cleanupQueuedStorageObjects).not.toHaveBeenCalled();
   });
 
   it("requires the exact module title before archiving it", async () => {
@@ -164,17 +171,24 @@ describe("deleteCatalogModule", () => {
     expect(mocks.archiveModule).not.toHaveBeenCalled();
   });
 
-  it("keeps the module archived when R2 cleanup fails", async () => {
-    mocks.deleteR2Object.mockRejectedValueOnce(new Error("R2 unavailable"));
+  it("keeps the committed cleanup task when immediate processing cannot start", async () => {
+    mocks.cleanupQueuedStorageObjects.mockRejectedValueOnce(
+      new Error("R2 unavailable"),
+    );
 
-    const deletion = deleteCatalogModule(input, actor);
-
-    await expect(deletion).rejects.toMatchObject({
-      code: "STORAGE_CLEANUP_FAILED",
+    await expect(deleteCatalogModule(input, actor)).resolves.toEqual({
+      subjectId: "subject-1",
+      audience: ContentAudience.STUDENT,
     });
-    expect(mocks.archiveModule).toHaveBeenCalled();
-    expect(mocks.deleteUploadIntents).not.toHaveBeenCalled();
-    expect(mocks.deleteModule).not.toHaveBeenCalled();
+    expect(mocks.enqueueStorageCleanup).toHaveBeenCalledOnce();
+    expect(mocks.deleteModule).toHaveBeenCalledOnce();
+  });
+
+  it("does not start R2 cleanup when the database transaction rolls back", async () => {
+    mocks.transaction.mockRejectedValueOnce(new Error("commit failed"));
+
+    await expect(deleteCatalogModule(input, actor)).rejects.toThrow("commit failed");
+    expect(mocks.cleanupQueuedStorageObjects).not.toHaveBeenCalled();
   });
 
   it("deletes database records without storage calls when R2 is disabled", async () => {
@@ -182,7 +196,8 @@ describe("deleteCatalogModule", () => {
 
     await deleteCatalogModule(input, actor);
 
-    expect(mocks.deleteR2Object).not.toHaveBeenCalled();
+    expect(mocks.enqueueStorageCleanup).not.toHaveBeenCalled();
+    expect(mocks.cleanupQueuedStorageObjects).not.toHaveBeenCalled();
     expect(mocks.deleteModule).toHaveBeenCalledOnce();
   });
 

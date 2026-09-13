@@ -86,6 +86,31 @@ function noteFormData() {
   return formData;
 }
 
+function quizFormData() {
+  const formData = new FormData();
+  formData.set("requestId", "734790ea-f53c-4f2c-a70c-22f13683c6f3");
+  formData.set("moduleId", "module-1");
+  formData.set("resourceType", ResourceType.QUIZ);
+  formData.set("title", "Autoevaluación de fracciones");
+  formData.set("instructions", "Elige una respuesta por pregunta.");
+  formData.set("questions", JSON.stringify([
+    {
+      id: "10000000-0000-4000-8000-000000000001",
+      prompt: "¿Cuál fracción equivale a 1/2?",
+      options: [
+        { id: "20000000-0000-4000-8000-000000000001", text: "2/4" },
+        { id: "20000000-0000-4000-8000-000000000002", text: "1/3" },
+      ],
+      correctOptionId: "20000000-0000-4000-8000-000000000001",
+    },
+  ]));
+  formData.set("passingScore", "70");
+  formData.set("maxAttempts", "2");
+  formData.set("shuffleQuestions", "true");
+  formData.set("disposition", "SUBMIT_FOR_REVIEW");
+  return formData;
+}
+
 function largeTableContent(padding: number, validate = true) {
   const rows = Array.from({ length: 100 }, (_, rowIndex) => ({
     cells: Array.from({ length: 33 }, (_, cellIndex) =>
@@ -182,6 +207,38 @@ describe("admin structured resource creation action", () => {
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
   });
 
+  it("lets a collaborator submit a structured quiz for review", async () => {
+    mocks.requireRole.mockResolvedValue({
+      id: "collaborator-1",
+      role: Role.COLLABORATOR,
+    });
+    mocks.createCatalogStructuredResource.mockResolvedValue({
+      id: "resource-quiz",
+      title: "Autoevaluación de fracciones",
+      type: ResourceType.QUIZ,
+    });
+
+    const result = await createAdminStructuredResourceAction(
+      initialResourceCreationActionState,
+      quizFormData(),
+    );
+
+    expect(mocks.createCatalogStructuredResource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resourceType: ResourceType.QUIZ,
+        passingScore: 70,
+        maxAttempts: 2,
+        shuffleQuestions: true,
+      }),
+      { id: "collaborator-1", role: Role.COLLABORATOR },
+    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Autoevaluación de fracciones fue enviado a revisión.",
+    });
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
+  });
+
   it("passes a valid FormData document close to 512 KiB without truncation", async () => {
     const content = largeTableContent(14_000);
     expect(getResourceDocumentByteLength(content)).toBeGreaterThan(
@@ -238,7 +295,7 @@ describe("admin structured resource creation action", () => {
     expect(mocks.createCatalogStructuredResource).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       status: "error",
-      message: "Tu rol solo puede crear notas sin adjunto desde este formulario.",
+      message: "Tu rol solo puede crear contenido o cuestionarios desde este formulario.",
     });
   });
 

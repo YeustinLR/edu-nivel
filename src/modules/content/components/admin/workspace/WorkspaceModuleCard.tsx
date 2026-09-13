@@ -35,6 +35,7 @@ export function WorkspaceModuleCard({
   position,
   moduleCount,
   visibleResources,
+  highlightedResourceId,
   open,
   now,
   canReorderModules,
@@ -64,6 +65,7 @@ export function WorkspaceModuleCard({
   position: number;
   moduleCount: number;
   visibleResources: AdminSubjectWorkspaceResource[];
+  highlightedResourceId?: string;
   open: boolean;
   now: string;
   canReorderModules: boolean;
@@ -301,6 +303,7 @@ export function WorkspaceModuleCard({
           <WorkspaceResourceList
             moduleId={moduleRecord.id}
             resources={visibleResources}
+            highlightedResourceId={highlightedResourceId}
             totalResourceCount={resourceCount}
             now={now}
             canReorder={canReorderResources}

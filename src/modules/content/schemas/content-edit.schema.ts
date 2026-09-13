@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ResourceType } from "@/generated/prisma/enums";
 import { contentAudienceValues } from "@/modules/content/domain/content-audience";
 import { normalizeYoutubeVideoId } from "@/modules/content/schemas/admin-resource-creation.schema";
+import { parseQuizQuestionsJson } from "@/modules/content/domain/quiz";
 import { optionalResourceDocumentContentSchema } from "@/modules/content/schemas/resource-content.schema";
 
 export const contentEditModes = [
@@ -172,6 +173,22 @@ export const updateResourceSchema = editBaseSchema
     url: optionalWebUrl,
     openInNewTab: z.boolean().optional(),
     altText: z.string().trim().max(300).optional(),
+    quizQuestions: z.string().max(1_000_000).optional(),
+    passingScore: z
+      .union([
+        z.literal(""),
+        z.coerce.number().int().min(0).max(100),
+      ])
+      .transform((value) => (value === "" ? 70 : value))
+      .optional(),
+    maxAttempts: z
+      .union([
+        z.literal(""),
+        z.coerce.number().int().min(1).max(100),
+      ])
+      .transform((value) => (value === "" ? null : value))
+      .optional(),
+    shuffleQuestions: z.boolean().optional(),
   })
   .superRefine((value, context) => {
     if (value.resourceType === ResourceType.YOUTUBE && !value.videoId) {
@@ -188,6 +205,19 @@ export const updateResourceSchema = editBaseSchema
         path: ["url"],
         message: "La URL es obligatoria.",
       });
+    }
+
+    if (value.resourceType === ResourceType.QUIZ) {
+      const questions = parseQuizQuestionsJson(value.quizQuestions ?? "");
+      if (!questions.success) {
+        for (const issue of questions.error.issues) {
+          context.addIssue({
+            code: "custom",
+            path: ["quizQuestions", ...issue.path],
+            message: issue.message,
+          });
+        }
+      }
     }
   });
 
@@ -255,6 +285,10 @@ export function getUpdateResourceFormValues(formData: FormData) {
     url: getTextValue(formData, "url") || undefined,
     openInNewTab: formData.get("openInNewTab") === "on",
     altText: getTextValue(formData, "altText") || undefined,
+    quizQuestions: getTextValue(formData, "quizQuestions") || "[]",
+    passingScore: getTextValue(formData, "passingScore") || "70",
+    maxAttempts: getTextValue(formData, "maxAttempts"),
+    shuffleQuestions: getTextValue(formData, "shuffleQuestions") === "true",
   };
 }
 

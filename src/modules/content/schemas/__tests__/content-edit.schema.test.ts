@@ -13,6 +13,15 @@ import {
 } from "@/modules/content/schemas/content-edit.schema";
 
 const updatedAt = "2026-08-01T18:30:00.000Z";
+const quizQuestion = {
+  id: "10000000-0000-4000-8000-000000000001",
+  prompt: "¿Cuánto es 2 + 2?",
+  options: [
+    { id: "20000000-0000-4000-8000-000000000001", text: "3" },
+    { id: "20000000-0000-4000-8000-000000000002", text: "4" },
+  ],
+  correctOptionId: "20000000-0000-4000-8000-000000000002",
+};
 
 describe("content edit schema", () => {
   it("parses valid level, module and resource updates", () => {
@@ -117,6 +126,35 @@ describe("content edit schema", () => {
         instructions: "",
         url: "javascript:alert(1)",
         openInNewTab: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates quiz questions and configuration when editing a quiz", () => {
+    expect(
+      updateResourceSchema.parse({
+        id: "resource-quiz",
+        expectedUpdatedAt: updatedAt,
+        resourceType: ResourceType.QUIZ,
+        title: "Autoevaluación",
+        instructions: "Elige una respuesta.",
+        content: "",
+        quizQuestions: JSON.stringify([quizQuestion]),
+        passingScore: "65",
+        maxAttempts: "3",
+        shuffleQuestions: true,
+      }),
+    ).toMatchObject({ passingScore: 65, maxAttempts: 3, shuffleQuestions: true });
+
+    expect(
+      updateResourceSchema.safeParse({
+        id: "resource-quiz",
+        expectedUpdatedAt: updatedAt,
+        resourceType: ResourceType.QUIZ,
+        title: "Autoevaluación",
+        instructions: "",
+        content: "",
+        quizQuestions: "[]",
       }).success,
     ).toBe(false);
   });

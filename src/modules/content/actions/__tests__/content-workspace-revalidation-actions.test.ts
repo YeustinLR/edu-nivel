@@ -13,13 +13,14 @@ const mocks = vi.hoisted(() => {
     reorderCatalogModules: vi.fn(),
     reorderCatalogResources: vi.fn(),
     duplicateCatalogModule: vi.fn(),
+    getResourceContentDetail: vi.fn(),
     revalidateContentPages: vi.fn(),
   };
 });
 
 vi.mock("@/server/auth/guards", () => ({ requireRole: mocks.requireRole }));
 vi.mock("@/server/content/content-detail-queries", () => ({
-  getResourceContentDetail: vi.fn(),
+  getResourceContentDetail: mocks.getResourceContentDetail,
 }));
 vi.mock("@/server/content/reorder-catalog-content", () => ({
   ContentReorderError: mocks.ContentReorderError,
@@ -36,6 +37,7 @@ vi.mock("@/server/content/revalidate-content", () => ({
 
 import {
   duplicateWorkspaceModuleAction,
+  getWorkspaceResourceDetailAction,
   reorderWorkspaceModulesAction,
   reorderWorkspaceResourcesAction,
 } from "@/modules/content/actions/content-workspace-actions";
@@ -81,5 +83,33 @@ describe("content workspace revalidation scope", () => {
 
     expect(result).toMatchObject({ status: "success", entityId: "module-copy" });
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
+  });
+
+  it("loads a draft resource preview with admin authorization and its learner heading data", async () => {
+    const resource = {
+      id: "resource-draft",
+      moduleId: "module-1",
+      moduleTitle: "Fracciones",
+      title: "Fracciones equivalentes",
+      publicationStatus: "DRAFT",
+      isActive: false,
+      isRequired: true,
+    };
+    mocks.getResourceContentDetail.mockResolvedValue(resource);
+
+    const result = await getWorkspaceResourceDetailAction({
+      subjectId: "subject-1",
+      moduleId: "module-1",
+      resourceId: "resource-draft",
+    });
+
+    expect(mocks.requireRole).toHaveBeenCalledWith(Role.ADMIN);
+    expect(mocks.getResourceContentDetail).toHaveBeenCalledWith({
+      resourceId: "resource-draft",
+      expectedModuleId: "module-1",
+      expectedSubjectId: "subject-1",
+      actor: { id: "admin-1", role: Role.ADMIN },
+    });
+    expect(result).toEqual({ status: "success", resource });
   });
 });

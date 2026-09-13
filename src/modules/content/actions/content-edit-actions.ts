@@ -44,6 +44,7 @@ function knownEditError(
     > = {
       DUPLICATE: duplicateField,
       INVALID_RESOURCE_DATA: "content",
+      INVALID_QUIZ_DATA: "quizQuestions",
       EDIT_CONFLICT: "expectedUpdatedAt",
     };
     const field =

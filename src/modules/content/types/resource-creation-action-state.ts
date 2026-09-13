@@ -9,6 +9,10 @@ export type ResourceCreationField =
   | "estimatedMinutes"
   | "videoId"
   | "startAt"
+  | "questions"
+  | "passingScore"
+  | "maxAttempts"
+  | "shuffleQuestions"
   | "url"
   | "openInNewTab"
   | "disposition";

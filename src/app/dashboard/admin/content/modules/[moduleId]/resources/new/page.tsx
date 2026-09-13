@@ -46,9 +46,10 @@ export default async function CreateAdminResourcePage({
           <div className="absolute right-0 top-0 z-10">
             <ResourceCreationHelp
               title="Ayuda rápida"
-              note="El contenido escrito forma parte del recurso; el adjunto es opcional."
+              note="Crea contenido educativo o una autoevaluación; los adjuntos son opcionales para el contenido."
               items={[
-                "Escribe un título y desarrolla el contenido educativo.",
+                "Elige contenido educativo o cuestionario después de escribir el título.",
+                "Las preguntas del cuestionario se configuran con opciones y una respuesta correcta.",
                 "Añade una duración estimada si puede orientar al estudiante.",
                 "Adjunta un video, archivo, imagen o vínculo si lo necesitas.",
               ]}

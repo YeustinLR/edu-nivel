@@ -1,10 +1,12 @@
 import { ResourceType } from "@/generated/prisma/enums";
 import { contentCreationDispositions } from "@/modules/content/domain/content-creation";
+import { parseQuizQuestionsJson } from "@/modules/content/domain/quiz";
 import { optionalResourceDocumentContentSchema } from "@/modules/content/schemas/resource-content.schema";
 import { z } from "zod";
 
 export const structuredResourceTypes = [
   ResourceType.NOTE,
+  ResourceType.QUIZ,
   ResourceType.YOUTUBE,
   ResourceType.LINK,
 ] as const;
@@ -47,6 +49,43 @@ const optionalNonNegativeInteger = z
   ])
   .transform((value) => (value === "" ? undefined : value));
 
+const optionalQuizPassingScore = z
+  .union([
+    z.literal(""),
+    z.coerce
+      .number({ error: "Ingresa un porcentaje válido." })
+      .int("El porcentaje debe ser un número entero.")
+      .min(0, "El porcentaje no puede ser menor que 0.")
+      .max(100, "El porcentaje no puede superar 100."),
+  ])
+  .transform((value) => (value === "" ? 70 : value));
+
+const optionalQuizMaxAttempts = z
+  .union([
+    z.literal(""),
+    z.coerce
+      .number({ error: "Ingresa un límite de intentos válido." })
+      .int("El límite debe ser un número entero.")
+      .min(1, "El límite debe ser al menos un intento.")
+      .max(100, "El límite no puede superar 100 intentos."),
+  ])
+  .transform((value) => (value === "" ? null : value));
+
+const serializedQuizQuestions = z.string().transform((serialized, context) => {
+  const parsed = parseQuizQuestionsJson(serialized);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      context.addIssue({
+        code: "custom",
+        path: issue.path,
+        message: issue.message,
+      });
+    }
+    return z.NEVER;
+  }
+  return parsed.data;
+});
+
 const youtubeVideoId = z
   .string()
   .trim()
@@ -88,6 +127,15 @@ const noteSchema = z.object({
   resourceType: z.literal(ResourceType.NOTE),
 });
 
+const quizSchema = z.object({
+  ...baseFields,
+  resourceType: z.literal(ResourceType.QUIZ),
+  questions: serializedQuizQuestions,
+  passingScore: optionalQuizPassingScore,
+  maxAttempts: optionalQuizMaxAttempts,
+  shuffleQuestions: z.boolean(),
+});
+
 const youtubeSchema = z.object({
   ...baseFields,
   resourceType: z.literal(ResourceType.YOUTUBE),
@@ -104,7 +152,7 @@ const linkSchema = z.object({
 
 export const createAdminStructuredResourceSchema = z.discriminatedUnion(
   "resourceType",
-  [noteSchema, youtubeSchema, linkSchema],
+  [noteSchema, quizSchema, youtubeSchema, linkSchema],
 );
 
 export type CreateAdminStructuredResourceInput = z.output<
@@ -165,6 +213,10 @@ export function getAdminStructuredResourceFormValues(formData: FormData) {
     estimatedMinutes: getTextValue(formData, "estimatedMinutes"),
     videoId: normalizeYoutubeVideoId(rawVideoValue) ?? rawVideoValue,
     startAt: getTextValue(formData, "startAt"),
+    questions: getTextValue(formData, "questions"),
+    passingScore: getTextValue(formData, "passingScore"),
+    maxAttempts: getTextValue(formData, "maxAttempts"),
+    shuffleQuestions: getTextValue(formData, "shuffleQuestions") === "true",
     url: getTextValue(formData, "url"),
     openInNewTab: formData.get("openInNewTab") === "on",
     disposition: getTextValue(formData, "disposition"),

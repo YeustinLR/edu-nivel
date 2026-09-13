@@ -118,10 +118,10 @@ export default async function CreateAdminSubjectResourcePage({
           <div className="absolute right-0 top-0 z-10">
             <ResourceCreationHelp
               title="Ayuda rápida"
-              note="Elige el módulo correcto antes de completar el recurso."
+              note="Elige el módulo correcto y crea contenido educativo o una autoevaluación."
               items={[
                 "Selecciona el módulo que corresponda a este recurso.",
-                "Completa el título, el contenido y, si quieres, una descripción.",
+                "Para un cuestionario, añade preguntas y marca una respuesta correcta en cada una.",
                 "Adjunta opcionalmente un archivo, imagen, vínculo o video.",
               ]}
             />

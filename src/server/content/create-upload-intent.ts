@@ -79,7 +79,7 @@ export async function createContentUploadIntent(
   ) {
     throw new ContentUploadError(
       "MODULE_NOT_AVAILABLE",
-      "El modulo seleccionado no esta disponible.",
+      "El módulo seleccionado no está disponible.",
       404,
     );
   }
@@ -92,7 +92,7 @@ export async function createContentUploadIntent(
   ) {
     throw new ContentUploadError(
       "MODULE_NOT_EDITABLE",
-      "No puedes agregar recursos a este modulo.",
+      "No puedes agregar recursos a este módulo.",
       403,
     );
   }

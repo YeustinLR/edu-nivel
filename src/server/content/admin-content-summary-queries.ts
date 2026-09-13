@@ -25,12 +25,16 @@ export const getAdminContentSummary = cache(
     const [
       levelsConfigured,
       totalModules,
+      modulesPendingReview,
       resourcesPendingReview,
       publishedModules,
       publishedResources,
     ] = await Promise.all([
       prisma.level.count(),
       prisma.module.count(),
+      prisma.module.count({
+        where: { publicationStatus: PublicationStatus.IN_REVIEW },
+      }),
       prisma.resource.count({
         where: { publicationStatus: PublicationStatus.IN_REVIEW },
       }),
@@ -46,8 +50,8 @@ export const getAdminContentSummary = cache(
       levelsConfigured,
       totalModules,
       pendingReview: {
-        total: resourcesPendingReview,
-        modules: 0,
+        total: modulesPendingReview + resourcesPendingReview,
+        modules: modulesPendingReview,
         resources: resourcesPendingReview,
       },
       publishedContent: {

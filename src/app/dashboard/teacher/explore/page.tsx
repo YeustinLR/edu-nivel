@@ -7,7 +7,7 @@ export default function TeacherExplorePage() {
       role={Role.TEACHER}
       presentation="learner"
       title="Explorar recursos docentes"
-      description="Recorre las materias y consulta los materiales TEACHER y BOTH publicados para tu nivel."
+      description="Recorre las materias y consulta los materiales publicados para docentes o para ambos públicos en tu nivel."
     />
   );
 }

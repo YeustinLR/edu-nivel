@@ -268,6 +268,24 @@ export async function getStudentContentWorkspace({
             passingScore: true,
             maxAttempts: true,
             shuffleQuestions: true,
+            _count: {
+              select: { attempts: { where: { userId: user.id } } },
+            },
+            attempts: {
+              where: { userId: user.id },
+              orderBy: { startedAt: "desc" },
+              take: 5,
+              select: {
+                id: true,
+                status: true,
+                questionCount: true,
+                correctAnswers: true,
+                percentage: true,
+                passed: true,
+                startedAt: true,
+                submittedAt: true,
+              },
+            },
           },
         },
         gameResource: { select: { gameType: true } },
@@ -328,7 +346,19 @@ export async function getStudentContentWorkspace({
               transcript: resource.audioResource.transcript,
             }
           : null,
-        quiz: resource.quiz,
+        quiz: resource.quiz
+          ? {
+              passingScore: resource.quiz.passingScore,
+              maxAttempts: resource.quiz.maxAttempts,
+              shuffleQuestions: resource.quiz.shuffleQuestions,
+              attemptsUsed: resource.quiz._count.attempts,
+              recentAttempts: resource.quiz.attempts.map((attempt) => ({
+                ...attempt,
+                startedAt: attempt.startedAt.toISOString(),
+                submittedAt: attempt.submittedAt?.toISOString() ?? null,
+              })),
+            }
+          : null,
         game: resource.gameResource,
       };
     }

@@ -46,7 +46,7 @@ const controls: Record<EditorialTransition, ControlDefinition> = {
     confirmLabel: "Sí, publicar",
     description: "Se publicará directamente, sin pasar por revisión.",
     needsConfirmation: true,
-    className: "bg-success text-white hover:opacity-90",
+    className: "bg-success-fill text-white hover:opacity-90",
     icon: CircleCheck,
   },
   PUBLISH: {
@@ -54,7 +54,7 @@ const controls: Record<EditorialTransition, ControlDefinition> = {
     confirmLabel: "Sí, publicar",
     description: "Quedará disponible para los usuarios que tengan acceso.",
     needsConfirmation: true,
-    className: "bg-success text-white hover:opacity-90",
+    className: "bg-success-fill text-white hover:opacity-90",
     icon: CircleCheck,
   },
   REQUEST_CHANGES: {

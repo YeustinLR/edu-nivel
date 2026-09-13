@@ -36,11 +36,12 @@ export async function createAdminStructuredResourceAction(
     const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
     if (
       actor.role === Role.COLLABORATOR &&
-      parsed.data.resourceType !== ResourceType.NOTE
+      parsed.data.resourceType !== ResourceType.NOTE &&
+      parsed.data.resourceType !== ResourceType.QUIZ
     ) {
       return {
         status: "error",
-        message: "Tu rol solo puede crear notas sin adjunto desde este formulario.",
+        message: "Tu rol solo puede crear contenido o cuestionarios desde este formulario.",
         values: actionValues,
       };
     }

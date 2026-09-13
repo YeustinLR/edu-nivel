@@ -16,6 +16,8 @@ import {
   editorFieldClass,
 } from "@/modules/content/components/editor/ContentEditForm";
 import { ResourceDocumentField } from "@/modules/content/components/editor/ResourceDocumentField";
+import { QuizQuestionEditor } from "@/modules/content/components/editor/QuizQuestionEditor";
+import type { QuizQuestion } from "@/modules/content/domain/quiz";
 import { getResourceContentValidationMessage } from "@/modules/content/domain/resource-document";
 import type { ResourceAttachmentKind } from "@/modules/content/domain/resource-attachment";
 import { initialContentEditActionState } from "@/modules/content/types/content-edit-action-state";
@@ -61,6 +63,12 @@ export function EditResourceForm({
     file?: ExistingFile | null;
     audio?: ExistingFile | null;
     image: (ExistingFile & { altText: string | null }) | null;
+    quiz: {
+      passingScore: number;
+      maxAttempts: number | null;
+      shuffleQuestions: boolean;
+      questions: QuizQuestion[];
+    } | null;
   };
   closeHref?: string;
   onCancel?: () => void;
@@ -78,6 +86,8 @@ export function EditResourceForm({
   const startAtErrorId = useId();
   const urlErrorId = useId();
   const altTextErrorId = useId();
+  const passingScoreErrorId = useId();
+  const maxAttemptsErrorId = useId();
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   const values = state.status === "error" ? state.values : undefined;
   const [content, setContent] = useState(() =>
@@ -85,6 +95,18 @@ export function EditResourceForm({
   );
   const [contentValidationError, setContentValidationError] = useState<string | null>(() =>
     getResourceContentValidationMessage(String(values?.content ?? resource.content ?? "")),
+  );
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(
+    () => resource.quiz?.questions ?? [],
+  );
+  const [passingScore, setPassingScore] = useState(
+    () => String(resource.quiz?.passingScore ?? 70),
+  );
+  const [maxAttempts, setMaxAttempts] = useState(
+    () => String(resource.quiz?.maxAttempts ?? ""),
+  );
+  const [shuffleQuestions, setShuffleQuestions] = useState(
+    () => resource.quiz?.shuffleQuestions ?? false,
   );
   const selectedAttachment = getExistingAttachment(resource.type);
   const existingFile = resource.pdf ?? resource.image ?? resource.file ?? resource.audio;
@@ -98,6 +120,19 @@ export function EditResourceForm({
       <input type="hidden" name="id" value={resource.id} />
       <input type="hidden" name="resourceType" value={resource.type} />
       <input type="hidden" name="expectedUpdatedAt" value={resource.updatedAt} />
+      <textarea
+        name="quizQuestions"
+        value={JSON.stringify(quizQuestions)}
+        readOnly
+        hidden
+      />
+      <input type="hidden" name="passingScore" value={passingScore} />
+      <input type="hidden" name="maxAttempts" value={maxAttempts} />
+      <input
+        type="hidden"
+        name="shuffleQuestions"
+        value={shuffleQuestions ? "true" : "false"}
+      />
       <EditActionFeedback state={state} />
 
       <section aria-labelledby="resource-basic-heading" className="space-y-4">
@@ -207,6 +242,61 @@ export function EditResourceForm({
           <EditFieldError id={durationErrorId} messages={errors?.estimatedMinutes} />
         </label>
       </section>
+
+      {resource.type === ResourceType.QUIZ ? (
+        <section className="space-y-5 rounded-xl border border-secondary/20 bg-secondary/5 p-4 sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block space-y-1.5 text-sm font-medium text-foreground">
+              Porcentaje de referencia
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={passingScore}
+                  disabled={isPending}
+                  onChange={(event) => setPassingScore(event.target.value)}
+                  className={editorFieldClass}
+                />
+                <span className="text-muted">%</span>
+              </div>
+              <EditFieldError id={passingScoreErrorId} messages={errors?.passingScore} />
+            </label>
+            <label className="block space-y-1.5 text-sm font-medium text-foreground">
+              Límite de intentos <span className="font-normal text-muted">(opcional)</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={maxAttempts}
+                disabled={isPending}
+                onChange={(event) => setMaxAttempts(event.target.value)}
+                placeholder="Sin límite"
+                className={editorFieldClass}
+              />
+              <EditFieldError id={maxAttemptsErrorId} messages={errors?.maxAttempts} />
+            </label>
+            <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                checked={shuffleQuestions}
+                disabled={isPending}
+                onChange={(event) => setShuffleQuestions(event.target.checked)}
+                className="size-4 accent-secondary"
+              />
+              Mezclar preguntas
+            </label>
+          </div>
+          <QuizQuestionEditor
+            questions={quizQuestions}
+            disabled={isPending}
+            onChange={setQuizQuestions}
+            error={errors?.quizQuestions?.[0]}
+          />
+        </section>
+      ) : null}
 
       <section aria-labelledby="resource-attachment-heading">
         <div className="flex items-center gap-2 font-semibold text-foreground">

@@ -4,14 +4,21 @@ import { Role } from "@/generated/prisma/enums";
 import { ContentFormSurface } from "@/modules/content/components/admin/ContentFormSurface";
 import { adminCatalogBreadcrumbs, ContentPageHeader } from "@/modules/content/components/admin/ContentPageHeader";
 import { ResourceCreationHelp } from "@/modules/content/components/admin/creation/ResourceCreationHelp";
+import { ResourceCreationToast } from "@/modules/content/components/creation/ResourceCreationToast";
 import { ContentAvailabilityControl } from "@/modules/content/components/editor/ContentAvailabilityControl";
 import { EditResourceForm } from "@/modules/content/components/editor/EditResourceForm";
 import { requireRole } from "@/server/auth/guards";
 import { getResourceContentDetail } from "@/server/content/content-detail-queries";
 import { prisma } from "@/server/db/prisma";
 
-export default async function EditAdminResourcePage({ params }: { params: Promise<{ resourceId: string }> }) {
-  const { resourceId } = await params;
+export default async function EditAdminResourcePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ resourceId: string }>;
+  searchParams: Promise<{ notice?: string | string[] }>;
+}) {
+  const [{ resourceId }, queryParams] = await Promise.all([params, searchParams]);
   const admin = await requireRole(Role.ADMIN);
   const [resource, context] = await Promise.all([
     getResourceContentDetail({ resourceId, actor: admin }),
@@ -19,6 +26,10 @@ export default async function EditAdminResourcePage({ params }: { params: Promis
   ]);
   if (!resource || !context) notFound();
   const resourceHref = `/dashboard/admin/content/resources/${encodeURIComponent(resource.id)}`;
+  const creationNotice =
+    queryParams.notice === "resource-draft"
+      ? `Borrador de “${resource.title}” guardado.`
+      : undefined;
 
   return (
     <div className="space-y-6">
@@ -63,6 +74,7 @@ export default async function EditAdminResourcePage({ params }: { params: Promis
           </div>
         </div>
       </ContentFormSurface>
+      <ResourceCreationToast message={creationNotice} />
     </div>
   );
 }

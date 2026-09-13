@@ -13,6 +13,8 @@ export default async function AdminSubjectDetailPage({
   params: Promise<{ subjectId: string }>;
   searchParams: Promise<{
     module?: string | string[];
+    resource?: string | string[];
+    notice?: string | string[];
   }>;
 }) {
   const [{ subjectId }, queryParams, actor] = await Promise.all([
@@ -39,8 +41,24 @@ export default async function AdminSubjectDetailPage({
   });
   const requestedModuleId =
     typeof queryParams.module === "string" ? queryParams.module : undefined;
-  const initialModuleId = modules.some((moduleRecord) => moduleRecord.id === requestedModuleId)
-    ? requestedModuleId
+  const requestedResourceId =
+    typeof queryParams.resource === "string" ? queryParams.resource : undefined;
+  const createdResourceContext = requestedResourceId
+    ? modules.flatMap((moduleRecord) =>
+        moduleRecord.resources.map((resource) => ({ moduleRecord, resource })),
+      ).find(({ resource }) => resource.id === requestedResourceId)
+    : undefined;
+  const initialModuleId = createdResourceContext?.moduleRecord.id ?? (
+    modules.some((moduleRecord) => moduleRecord.id === requestedModuleId)
+      ? requestedModuleId
+      : undefined
+  );
+  const initialToast = createdResourceContext
+    ? queryParams.notice === "resource-published"
+      ? `“${createdResourceContext.resource.title}” fue publicado.`
+      : queryParams.notice === "resource-submitted"
+        ? `“${createdResourceContext.resource.title}” fue enviado a revisión.`
+        : undefined
     : undefined;
   return (
     <SubjectContentWorkspace
@@ -48,6 +66,8 @@ export default async function AdminSubjectDetailPage({
       modules={modules}
       now={new Date().toISOString()}
       initialModuleId={initialModuleId}
+      initialResourceId={initialToast ? createdResourceContext?.resource.id : undefined}
+      initialToast={initialToast}
     />
   );
 }

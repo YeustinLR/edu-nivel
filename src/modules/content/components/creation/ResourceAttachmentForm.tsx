@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  CircleCheck,
   Clock3,
+  CircleHelp,
   ExternalLink,
   FileText,
   ImageIcon,
@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import {
   useActionState,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -42,6 +43,11 @@ import {
 } from "@/modules/content/domain/resource-attachment";
 import { initialResourceCreationActionState } from "@/modules/content/types/resource-creation-action-state";
 import { ResourceDocumentField } from "@/modules/content/components/editor/ResourceDocumentField";
+import { QuizQuestionEditor } from "@/modules/content/components/editor/QuizQuestionEditor";
+import {
+  quizQuestionsSchema,
+  type QuizQuestion,
+} from "@/modules/content/domain/quiz";
 import {
   adminResourceAttachments,
   collaboratorResourceAttachments,
@@ -76,7 +82,11 @@ export function ResourceAttachmentForm({
   modules = [],
   requestId = "",
   closeHref,
+  successHref,
   successBaseHref,
+  draftBaseHref,
+  draftPathSuffix = "",
+  openDraftEditor = false,
   expectedSubjectId,
   onCancel,
   onSuccess,
@@ -86,7 +96,11 @@ export function ResourceAttachmentForm({
   modules?: ResourceModuleOption[];
   requestId?: string;
   closeHref?: string;
+  successHref?: string;
   successBaseHref?: string;
+  draftBaseHref?: string;
+  draftPathSuffix?: string;
+  openDraftEditor?: boolean;
   expectedSubjectId?: string;
   onCancel?: () => void;
   onSuccess?: (resourceId: string, message: string) => void;
@@ -98,6 +112,7 @@ export function ResourceAttachmentForm({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedModuleId, setSelectedModuleId] = useState("");
+  const [resourceMode, setResourceMode] = useState<"CONTENT" | "QUIZ">("CONTENT");
   const [attachment, setAttachment] =
     useState<ResourceAttachmentKind | null>(null);
   const [title, setTitle] = useState("");
@@ -107,11 +122,18 @@ export function ResourceAttachmentForm({
   const [content, setContent] = useState("");
   const [contentValidationError, setContentValidationError] = useState<string | null>(null);
   const [estimatedMinutes, setEstimatedMinutes] = useState("");
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [passingScore, setPassingScore] = useState("70");
+  const [maxAttempts, setMaxAttempts] = useState("");
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadAttempt, setUploadAttempt] = useState<UploadAttempt | null>(null);
+  const [activeDisposition, setActiveDisposition] =
+    useState<ContentCreationDisposition | null>(null);
+  const errorSummaryRef = useRef<HTMLParagraphElement>(null);
 
   const moduleErrorId = useId();
   const titleErrorId = useId();
@@ -121,6 +143,8 @@ export function ResourceAttachmentForm({
   const urlErrorId = useId();
   const contentErrorId = useId();
   const estimatedMinutesErrorId = useId();
+  const passingScoreErrorId = useId();
+  const maxAttemptsErrorId = useId();
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   const moduleId = fixedModuleId ?? selectedModuleId;
   const attachments =
@@ -134,22 +158,82 @@ export function ResourceAttachmentForm({
     () => (file ? validateUploadFile(file) : null),
     [file],
   );
+  const quizQuestionsValidation = useMemo(
+    () => quizQuestionsSchema.safeParse(quizQuestions),
+    [quizQuestions],
+  );
   const uploadBusy = ["preparing", "uploading", "confirming"].includes(
     uploadStage,
   );
-  const isPending = isStructuredPending || uploadBusy;
+  const isPending = isStructuredPending || uploadBusy || state.status === "success";
+
+  const navigateAfterSuccess = useCallback((
+    resourceId: string,
+    disposition: ContentCreationDisposition,
+  ) => {
+    const notice =
+      disposition === "PUBLISH"
+        ? "resource-published"
+        : disposition === "SUBMIT_FOR_REVIEW"
+          ? "resource-submitted"
+          : "resource-draft";
+
+    if (disposition === "DRAFT" && draftBaseHref) {
+      const destination = new URL(
+        `${draftBaseHref}/${encodeURIComponent(resourceId)}${draftPathSuffix}`,
+        window.location.origin,
+      );
+      destination.searchParams.set("notice", notice);
+      if (openDraftEditor) destination.searchParams.set("edit", "1");
+      if (openDraftEditor) destination.hash = "resource-editor";
+      router.replace(
+        `${destination.pathname}${destination.search}${destination.hash}`,
+      );
+      return true;
+    }
+
+    if (successHref) {
+      const destination = new URL(successHref, window.location.origin);
+      destination.searchParams.set("module", moduleId);
+      destination.searchParams.set("resource", resourceId);
+      destination.searchParams.set("notice", notice);
+      router.replace(
+        `${destination.pathname}${destination.search}${destination.hash}`,
+        { scroll: false },
+      );
+      return true;
+    }
+
+    if (successBaseHref) {
+      const destination = new URL(
+        `${successBaseHref}/${encodeURIComponent(resourceId)}`,
+        window.location.origin,
+      );
+      destination.searchParams.set("notice", notice);
+      router.replace(`${destination.pathname}${destination.search}`);
+      return true;
+    }
+
+    return false;
+  }, [draftBaseHref, draftPathSuffix, moduleId, openDraftEditor, router, successBaseHref, successHref]);
 
   useEffect(() => {
     if (state.status !== "success") return;
     if (onSuccess) {
       onSuccess(state.resourceId, state.message);
-    } else if (successBaseHref) {
-      router.replace(
-        `${successBaseHref}/${encodeURIComponent(state.resourceId)}`,
-        { scroll: false },
-      );
+      return;
     }
-  }, [onSuccess, router, state, successBaseHref]);
+    navigateAfterSuccess(
+      state.resourceId,
+      activeDisposition ?? (mode === "admin" ? "PUBLISH" : "SUBMIT_FOR_REVIEW"),
+    );
+  }, [activeDisposition, mode, navigateAfterSuccess, onSuccess, state]);
+
+  useEffect(() => {
+    if (state.status === "error" || uploadStage === "error") {
+      errorSummaryRef.current?.focus();
+    }
+  }, [state, uploadStage]);
 
   function invalidateUploadAttempt() {
     setUploadAttempt(null);
@@ -180,6 +264,15 @@ export function ResourceAttachmentForm({
     setAttachment(nextAttachment);
   }
 
+  function selectResourceMode(nextMode: "CONTENT" | "QUIZ") {
+    if (resourceMode === nextMode || isPending) return;
+    if (nextMode === "QUIZ") {
+      resetAttachmentFields();
+      setAttachment(null);
+    }
+    setResourceMode(nextMode);
+  }
+
   function removeAttachment() {
     if (isPending) return;
     resetAttachmentFields();
@@ -204,18 +297,42 @@ export function ResourceAttachmentForm({
     setUploadMessage(null);
   }
 
+  const quizSettingsReady =
+    /^\d+$/.test(passingScore) &&
+    Number(passingScore) >= 0 &&
+    Number(passingScore) <= 100 &&
+    (!maxAttempts ||
+      (/^\d+$/.test(maxAttempts) &&
+        Number(maxAttempts) >= 1 &&
+        Number(maxAttempts) <= 100));
   const canSubmit =
-    isResourceAttachmentReady({
-      attachment,
-      moduleId,
-      title,
-      instructions,
-      content,
-      estimatedMinutes,
-      youtubeUrl,
-      linkUrl,
-      file,
-    }) && !contentValidationError && !isPending;
+    (resourceMode === "QUIZ"
+      ? quizQuestionsValidation.success &&
+        quizSettingsReady &&
+        isResourceAttachmentReady({
+          attachment: null,
+          moduleId,
+          title,
+          instructions,
+          content: "",
+          estimatedMinutes,
+          youtubeUrl: "",
+          linkUrl: "",
+          file: null,
+        })
+      : isResourceAttachmentReady({
+          attachment,
+          moduleId,
+          title,
+          instructions,
+          content,
+          estimatedMinutes,
+          youtubeUrl,
+          linkUrl,
+          file,
+      })) &&
+    (resourceMode === "QUIZ" || !contentValidationError) &&
+    !isPending;
 
   async function submitUpload(disposition: ContentCreationDisposition) {
     if (!file || !fileValidation?.success) return;
@@ -339,10 +456,8 @@ export function ResourceAttachmentForm({
             : "Recurso guardado como borrador.";
       if (onSuccess) {
         onSuccess(confirmation.resource.id, message);
-      } else if (successBaseHref) {
-        router.replace(
-          `${successBaseHref}/${encodeURIComponent(confirmation.resource.id)}`,
-        );
+      } else {
+        navigateAfterSuccess(confirmation.resource.id, disposition);
       }
     } catch (error) {
       setUploadStage("error");
@@ -360,25 +475,32 @@ export function ResourceAttachmentForm({
       return;
     }
 
+    const submitter = (event.nativeEvent as SubmitEvent)
+      .submitter as HTMLButtonElement | null;
+    const disposition = submitter?.value as ContentCreationDisposition;
+    if (!disposition) {
+      event.preventDefault();
+      return;
+    }
+    setActiveDisposition(disposition);
+
     if (attachment === "UPLOAD") {
       event.preventDefault();
-      const submitter = (event.nativeEvent as SubmitEvent)
-        .submitter as HTMLButtonElement | null;
-      const disposition = submitter?.value as ContentCreationDisposition;
-      if (!disposition) return;
       void submitUpload(disposition);
     }
   }
 
   const structuredResourceType =
-    attachment === null
+    resourceMode === "QUIZ"
+      ? ResourceType.QUIZ
+      : attachment === null
       ? ResourceType.NOTE
       : attachment === "YOUTUBE"
       ? ResourceType.YOUTUBE
       : attachment === "LINK"
         ? ResourceType.LINK
         : "";
-  const pendingLabel =
+  const uploadPendingLabel =
     uploadStage === "preparing"
       ? "Preparando…"
       : uploadStage === "uploading"
@@ -386,24 +508,13 @@ export function ResourceAttachmentForm({
         : uploadStage === "confirming"
           ? "Confirmando…"
           : "Guardando…";
-
-  if (state.status === "success") {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="rounded-xl border border-success/30 bg-success/10 p-5"
-      >
-        <p className="flex items-center gap-2 font-medium text-success">
-          <CircleCheck aria-hidden="true" className="h-5 w-5" />
-          {state.message}
-        </p>
-        <p className="mt-1 text-sm text-foreground-secondary">
-          Abriendo el recurso creado…
-        </p>
-      </div>
-    );
-  }
+  const pendingLabel = uploadBusy
+    ? uploadPendingLabel
+    : activeDisposition === "PUBLISH"
+      ? "Publicando…"
+      : activeDisposition === "SUBMIT_FOR_REVIEW"
+        ? "Enviando…"
+        : "Guardando borrador…";
 
   return (
     <form action={structuredAction} onSubmit={handleSubmit} className="space-y-6">
@@ -417,12 +528,22 @@ export function ResourceAttachmentForm({
       ) : null}
       <input type="hidden" name="requestId" value={requestId} />
       <input type="hidden" name="resourceType" value={structuredResourceType} />
+      <input type="hidden" name="questions" value={JSON.stringify(quizQuestions)} />
+      <input type="hidden" name="passingScore" value={passingScore} />
+      <input type="hidden" name="maxAttempts" value={maxAttempts} />
+      <input
+        type="hidden"
+        name="shuffleQuestions"
+        value={shuffleQuestions ? "true" : "false"}
+      />
       {attachment === "LINK" ? (
         <input type="hidden" name="openInNewTab" value="on" />
       ) : null}
 
       {state.status === "error" ? (
         <p
+          ref={errorSummaryRef}
+          tabIndex={-1}
           role="alert"
           className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-700 dark:text-red-300"
         >
@@ -431,6 +552,8 @@ export function ResourceAttachmentForm({
       ) : null}
       {uploadMessage ? (
         <p
+          ref={uploadStage === "error" ? errorSummaryRef : undefined}
+          tabIndex={uploadStage === "error" ? -1 : undefined}
           role={uploadStage === "error" ? "alert" : "status"}
           className={`rounded-lg border px-3 py-2.5 text-sm ${
             uploadStage === "error"
@@ -478,6 +601,28 @@ export function ResourceAttachmentForm({
           <p className="mt-1 text-sm text-muted">
             Identifica el recurso antes de elegir qué deseas adjuntar.
           </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Tipo de recurso">
+          <button
+            type="button"
+            aria-pressed={resourceMode === "CONTENT"}
+            disabled={isPending}
+            onClick={() => selectResourceMode("CONTENT")}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary ${resourceMode === "CONTENT" ? "border-secondary bg-secondary text-white" : "border-border bg-background text-foreground hover:bg-surface-elevated"}`}
+          >
+            <FileText aria-hidden="true" className="size-4" />
+            Contenido educativo
+          </button>
+          <button
+            type="button"
+            aria-pressed={resourceMode === "QUIZ"}
+            disabled={isPending}
+            onClick={() => selectResourceMode("QUIZ")}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary ${resourceMode === "QUIZ" ? "border-secondary bg-secondary text-white" : "border-border bg-background text-foreground hover:bg-surface-elevated"}`}
+          >
+            <CircleHelp aria-hidden="true" className="size-4" />
+            Cuestionario
+          </button>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="block space-y-1.5 text-sm font-medium text-foreground">
@@ -530,29 +675,36 @@ export function ResourceAttachmentForm({
           </label>
         </div>
 
-        <div className="space-y-1.5 text-sm font-medium text-foreground">
-          <div>Contenido <span className="font-normal text-muted">(opcional)</span></div>
-          <textarea name="content" value={content} readOnly hidden />
-          <ResourceDocumentField
-            initialValue={content}
-            imageUploadContext={{
-              editorSessionId: requestId,
-              moduleId: moduleId || undefined,
-            }}
-            disabled={isPending}
-            invalid={Boolean(errors?.content) || Boolean(contentValidationError)}
-            describedBy={contentErrorId}
-            onChange={(serialized, error) => {
-              setContent(serialized);
-              setContentValidationError(error);
-              invalidateUploadAttempt();
-            }}
-          />
-          <CreationFieldError
-            id={contentErrorId}
-            messages={errors?.content ?? (contentValidationError ? [contentValidationError] : undefined)}
-          />
-        </div>
+        <textarea
+          name="content"
+          value={resourceMode === "CONTENT" ? content : ""}
+          readOnly
+          hidden
+        />
+        {resourceMode === "CONTENT" ? (
+          <div className="space-y-1.5 text-sm font-medium text-foreground">
+            <div>Contenido <span className="font-normal text-muted">(opcional)</span></div>
+            <ResourceDocumentField
+              initialValue={content}
+              imageUploadContext={{
+                editorSessionId: requestId,
+                moduleId: moduleId || undefined,
+              }}
+              disabled={isPending}
+              invalid={Boolean(errors?.content) || Boolean(contentValidationError)}
+              describedBy={contentErrorId}
+              onChange={(serialized, error) => {
+                setContent(serialized);
+                setContentValidationError(error);
+                invalidateUploadAttempt();
+              }}
+            />
+            <CreationFieldError
+              id={contentErrorId}
+              messages={errors?.content ?? (contentValidationError ? [contentValidationError] : undefined)}
+            />
+          </div>
+        ) : null}
 
         <label className="block text-sm font-medium text-foreground">
           <span className="flex items-center gap-1.5">
@@ -591,7 +743,72 @@ export function ResourceAttachmentForm({
         </label>
       </section>
 
-      <fieldset disabled={isPending} aria-describedby={attachmentErrorId}>
+      {resourceMode === "QUIZ" ? (
+        <div className="space-y-6 rounded-xl border border-secondary/20 bg-secondary/5 p-4 sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block space-y-1.5 text-sm font-medium text-foreground">
+              Porcentaje de referencia
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={passingScore}
+                  disabled={isPending}
+                  onChange={(event) => setPassingScore(event.target.value)}
+                  aria-label="Porcentaje de referencia"
+                  className={creationFieldClass}
+                />
+                <span className="text-muted">%</span>
+              </div>
+              <CreationFieldError id={passingScoreErrorId} messages={errors?.passingScore} />
+            </label>
+            <label className="block space-y-1.5 text-sm font-medium text-foreground">
+              Límite de intentos <span className="font-normal text-muted">(opcional)</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={maxAttempts}
+                disabled={isPending}
+                onChange={(event) => setMaxAttempts(event.target.value)}
+                placeholder="Sin límite"
+                aria-label="Límite de intentos"
+                className={creationFieldClass}
+              />
+              <CreationFieldError id={maxAttemptsErrorId} messages={errors?.maxAttempts} />
+            </label>
+            <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                checked={shuffleQuestions}
+                disabled={isPending}
+                onChange={(event) => setShuffleQuestions(event.target.checked)}
+                className="size-4 accent-secondary"
+              />
+              Mezclar preguntas
+            </label>
+          </div>
+          <QuizQuestionEditor
+            questions={quizQuestions}
+            disabled={isPending}
+            onChange={(nextQuestions) => {
+              setQuizQuestions(nextQuestions);
+              invalidateUploadAttempt();
+            }}
+            error={errors?.questions?.[0]}
+          />
+          {!quizSettingsReady ? (
+            <p role="status" className="text-sm text-amber-800 dark:text-amber-200">
+              Revisa el porcentaje de referencia y el límite de intentos.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {resourceMode === "CONTENT" ? <fieldset disabled={isPending} aria-describedby={attachmentErrorId}>
         <legend className="sr-only">Adjuntar contenido opcional</legend>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 font-semibold text-foreground">
@@ -625,7 +842,7 @@ export function ResourceAttachmentForm({
           id={attachmentErrorId}
           messages={errors?.resourceType}
         />
-      </fieldset>
+      </fieldset> : null}
 
       {attachment === "YOUTUBE" ? (
         <label className="block space-y-1.5 text-sm font-medium text-foreground">

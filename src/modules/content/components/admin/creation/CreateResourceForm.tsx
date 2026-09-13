@@ -29,7 +29,9 @@ export function CreateResourceForm({
       modules={modules}
       requestId={requestId}
       closeHref={closeHref}
-      successBaseHref="/dashboard/admin/content/resources"
+      successHref={closeHref}
+      draftBaseHref="/dashboard/admin/content/resources"
+      draftPathSuffix="/edit"
       expectedSubjectId={subjectId}
       onCancel={onCancel}
       onSuccess={onSuccess}

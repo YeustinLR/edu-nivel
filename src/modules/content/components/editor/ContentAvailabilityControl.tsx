@@ -96,7 +96,7 @@ export function ContentAvailabilityControl({
               type="submit"
               disabled={isPending}
               className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50 ${
-                isActive ? "bg-red-600 hover:bg-red-700" : "bg-success"
+                isActive ? "bg-red-600 hover:bg-red-700" : "bg-success-fill"
               }`}
             >
               {isPending

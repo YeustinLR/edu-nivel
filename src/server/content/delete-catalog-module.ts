@@ -5,17 +5,14 @@ import { ContentAudience, Role } from "@/generated/prisma/enums";
 import { isModulePermanentlyDeletable } from "@/modules/content/domain/content-permissions";
 import type { AdminModuleDeleteInput } from "@/modules/content/schemas/admin-module-delete.schema";
 import { prisma } from "@/server/db/prisma";
-import {
-  deleteR2Object,
-  isR2UploadEnabled,
-} from "@/server/storage/r2";
+import { cleanupQueuedStorageObjects } from "@/server/content/cleanup-storage-objects";
+import { isR2UploadEnabled } from "@/server/storage/r2";
 
 export type CatalogModuleDeletionErrorCode =
   | "NOT_FOUND"
   | "FORBIDDEN"
   | "TITLE_MISMATCH"
   | "INVALID_STATE"
-  | "STORAGE_CLEANUP_FAILED"
   | "CONCURRENT_OPERATION";
 
 export class CatalogModuleDeletionError extends Error {
@@ -106,65 +103,6 @@ function getStorageKeys(target: DeletionTarget) {
   return [...keys];
 }
 
-async function deleteStoredObjects(target: DeletionTarget) {
-  if (!isR2UploadEnabled()) return;
-
-  const candidateKeys = getStorageKeys(target);
-  const sharedResources = await prisma.resource.findMany({
-    where: {
-      moduleId: { not: target.id },
-      OR: [
-        { pdfResource: { storageKey: { in: candidateKeys } } },
-        { fileResource: { storageKey: { in: candidateKeys } } },
-        { imageResource: { storageKey: { in: candidateKeys } } },
-        { audioResource: { storageKey: { in: candidateKeys } } },
-      ],
-    },
-    select: {
-      pdfResource: { select: { storageKey: true } },
-      fileResource: { select: { storageKey: true } },
-      imageResource: { select: { storageKey: true } },
-      audioResource: { select: { storageKey: true } },
-    },
-  });
-  const sharedContentImages = await prisma.contentImage.findMany({
-    where: {
-      OR: [
-        { storageKey: { in: candidateKeys } },
-        { temporaryStorageKey: { in: candidateKeys } },
-      ],
-      resources: { some: { resource: { moduleId: { not: target.id } } } },
-    },
-    select: { storageKey: true, temporaryStorageKey: true },
-  });
-  const sharedKeys = new Set(
-    [
-      ...sharedResources.flatMap((resource) =>
-        [
-        resource.pdfResource?.storageKey,
-        resource.fileResource?.storageKey,
-        resource.imageResource?.storageKey,
-        resource.audioResource?.storageKey,
-        ].filter((key): key is string => Boolean(key)),
-      ),
-      ...sharedContentImages.flatMap((image) => [
-        image.storageKey,
-        image.temporaryStorageKey,
-      ]),
-    ],
-  );
-  const keys = candidateKeys.filter((key) => !sharedKeys.has(key));
-  const results = await Promise.allSettled(
-    keys.map((key) => deleteR2Object(key)),
-  );
-  if (results.some((result) => result.status === "rejected")) {
-    throw new CatalogModuleDeletionError(
-      "STORAGE_CLEANUP_FAILED",
-      "No se pudieron eliminar todos los archivos. El módulo quedó archivado; inténtalo nuevamente.",
-    );
-  }
-}
-
 export async function deleteCatalogModule(
   input: AdminModuleDeleteInput,
   actor: { id: string; role: Role },
@@ -214,7 +152,7 @@ export async function deleteCatalogModule(
   }
 
   try {
-    return await prisma.$transaction(
+    const deletion = await prisma.$transaction(
       async (tx) => {
         const locked = await tx.$queryRaw<Array<{ id: string }>>`
           SELECT "id" FROM "module" WHERE "id" = ${input.moduleId} FOR UPDATE
@@ -250,7 +188,13 @@ export async function deleteCatalogModule(
           );
         }
 
-        await deleteStoredObjects(target);
+        const storageKeys = isR2UploadEnabled() ? getStorageKeys(target) : [];
+        if (storageKeys.length) {
+          await tx.storageObjectCleanup.createMany({
+            data: storageKeys.map((storageKey) => ({ storageKey })),
+            skipDuplicates: true,
+          });
+        }
         await tx.uploadIntent.deleteMany({
           where: { moduleId: target.id },
         });
@@ -283,8 +227,11 @@ export async function deleteCatalogModule(
         }
 
         return {
-          subjectId: target.subjectId,
-          audience: target.audience,
+          result: {
+            subjectId: target.subjectId,
+            audience: target.audience,
+          },
+          storageKeys,
         };
       },
       {
@@ -293,6 +240,12 @@ export async function deleteCatalogModule(
         timeout: 60_000,
       },
     );
+    if (deletion.storageKeys.length) {
+      await cleanupQueuedStorageObjects(deletion.storageKeys).catch((error) => {
+        console.error("Deferred R2 cleanup could not start", error);
+      });
+    }
+    return deletion.result;
   } catch (error) {
     if (error instanceof CatalogModuleDeletionError) throw error;
     if (

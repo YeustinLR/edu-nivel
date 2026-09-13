@@ -16,6 +16,10 @@ export type ContentEditField =
   | "url"
   | "openInNewTab"
   | "altText"
+  | "quizQuestions"
+  | "passingScore"
+  | "maxAttempts"
+  | "shuffleQuestions"
   | "type"
   | "isActive";
 

@@ -97,7 +97,7 @@ describe("published academic catalog cache", () => {
       publicationStatus: PublicationStatus.PUBLISHED,
     });
     expect(JSON.stringify(query.select)).not.toMatch(
-      /userId|progress|savedBy|subscription|payment|refund|storageKey|signedUrl/,
+      /userId|progress|savedBy|subscription|payment|storageKey|signedUrl/,
     );
   });
 

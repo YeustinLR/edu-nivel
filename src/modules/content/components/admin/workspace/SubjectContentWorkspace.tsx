@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  CircleCheck,
   Pencil,
   Plus,
   X,
@@ -10,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useOptimistic,
@@ -45,9 +47,14 @@ import {
   type WorkspaceConfirmation,
 } from "@/modules/content/components/admin/workspace/WorkspaceConfirmationDialog";
 import { EditModuleForm } from "@/modules/content/components/editor/EditModuleForm";
-import { ResourceContentView } from "@/modules/content/components/editor/ResourceContentView";
+import { LearnerResourcePresentation } from "@/modules/content/components/student-content/LearnerResourcePresentation";
 import { initialContentEditActionState } from "@/modules/content/types/content-edit-action-state";
 import { initialEditorialActionState } from "@/modules/content/types/editorial-action-state";
+import {
+  learnerBodyFont,
+  learnerHeadingFont,
+  learnerMetaFont,
+} from "@/modules/dashboard/styles/learner-fonts";
 import type {
   AdminSubjectWorkspaceModule,
   AdminSubjectWorkspaceResource,
@@ -77,6 +84,7 @@ type DrawerState =
       moduleId: string;
       resourceId: string;
       resource?: WorkspaceResourceDetail;
+      error?: string;
     }
   | null;
 
@@ -136,11 +144,15 @@ export function SubjectContentWorkspace({
   modules,
   now,
   initialModuleId,
+  initialResourceId,
+  initialToast,
 }: {
   subject: SubjectWorkspaceContext;
   modules: AdminSubjectWorkspaceModule[];
   now: string;
   initialModuleId?: string;
+  initialResourceId?: string;
+  initialToast?: string;
 }) {
   const router = useRouter();
   const [orderedModules, updateOptimisticOrder] = useOptimistic(
@@ -155,12 +167,53 @@ export function SubjectContentWorkspace({
   const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
   const [moduleDragPreviewIds, setModuleDragPreviewIds] = useState<string[] | null>(null);
   const [drawer, setDrawer] = useState<DrawerState>(null);
-  const [toast, setToast] = useState<ToastState>(null);
+  const [toast, setToast] = useState<ToastState>(
+    initialToast ? { message: initialToast, tone: "success" } : null,
+  );
+  const [highlightedResourceId, setHighlightedResourceId] = useState(initialResourceId);
   const [confirmation, setConfirmation] = useState<WorkspaceConfirmation | null>(null);
   const [isPending, startTransition] = useTransition();
   const moduleElementsRef = useRef(new Map<string, HTMLDivElement>());
   const previousModulePositionsRef = useRef(new Map<string, DOMRect>());
   const moduleDropCommittedRef = useRef(false);
+
+  useEffect(() => {
+    if (!initialToast) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("notice");
+    url.searchParams.delete("resource");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [initialToast]);
+
+  useEffect(() => {
+    if (!initialResourceId) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const frame = window.requestAnimationFrame(() => {
+      const resourceElement = document.getElementById(
+        `workspace-resource-${encodeURIComponent(initialResourceId)}`,
+      );
+      resourceElement?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      resourceElement?.focus({ preventScroll: true });
+    });
+    const timeout = window.setTimeout(() => setHighlightedResourceId(undefined), 4_000);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [initialResourceId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(null), 5_000);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   const displayedModules = useMemo(
     () =>
@@ -251,21 +304,35 @@ export function SubjectContentWorkspace({
   function openResourcePreview(moduleId: string, resourceId: string) {
     setDrawer({ kind: "resource", moduleId, resourceId });
     startTransition(async () => {
-      const result = await getWorkspaceResourceDetailAction({
-        subjectId: subject.id,
-        moduleId,
-        resourceId,
-      });
-      if (result.status === "error") {
-        setDrawer(null);
-        showToast(result.message, "error");
-        return;
+      try {
+        const result = await getWorkspaceResourceDetailAction({
+          subjectId: subject.id,
+          moduleId,
+          resourceId,
+        });
+        if (result.status === "error") {
+          setDrawer((current) =>
+            current?.kind === "resource" && current.resourceId === resourceId
+              ? { ...current, error: result.message }
+              : current,
+          );
+          return;
+        }
+        setDrawer((current) =>
+          current?.kind === "resource" && current.resourceId === resourceId
+            ? { ...current, resource: result.resource, error: undefined }
+            : current,
+        );
+      } catch {
+        setDrawer((current) =>
+          current?.kind === "resource" && current.resourceId === resourceId
+            ? {
+                ...current,
+                error: "Ocurrió un problema al cargar el recurso. Inténtalo de nuevo.",
+              }
+            : current,
+        );
       }
-      setDrawer((current) =>
-        current?.kind === "resource" && current.resourceId === resourceId
-          ? { ...current, resource: result.resource }
-          : current,
-      );
     });
   }
 
@@ -467,8 +534,12 @@ export function SubjectContentWorkspace({
       : drawer?.kind === "edit-module"
           ? `Editar ${drawer.moduleRecord.title}`
           : drawer?.kind === "resource"
-            ? "Vista previa del recurso"
+            ? "Vista previa como estudiante"
             : "Gestión de contenido";
+  const drawerDescription =
+    drawer?.kind === "resource"
+      ? `Así se mostrará este recurso en ${subject.name}.`
+      : `Gestiona el contenido sin salir de ${subject.name}.`;
 
   return (
     <div className="space-y-6">
@@ -569,6 +640,7 @@ export function SubjectContentWorkspace({
                     position={position}
                     moduleCount={orderedModules.length}
                     visibleResources={visibleResources}
+                    highlightedResourceId={highlightedResourceId}
                     open={openModuleIds.has(moduleRecord.id)}
                     now={now}
                     canReorderModules={canReorderModules}
@@ -645,7 +717,7 @@ export function SubjectContentWorkspace({
       <ContentWorkspaceDrawer
         open={Boolean(drawer)}
         title={drawerTitle}
-        description={`Gestiona el contenido sin salir de ${subject.name}.`}
+        description={drawerDescription}
         onClose={closeDrawer}
         wide={drawer?.kind === "resource"}
       >
@@ -672,9 +744,32 @@ export function SubjectContentWorkspace({
           />
         ) : drawer?.kind === "resource" ? (
           drawer.resource ? (
-            <ResourceContentView resource={drawer.resource} />
+            <div
+              className={`${learnerBodyFont.variable} ${learnerHeadingFont.variable} ${learnerMetaFont.variable} learner-dashboard learner-dashboard--materias rounded-card bg-[var(--student-bg)] font-body text-[var(--student-text)]`}
+            >
+              <LearnerResourcePresentation
+                resource={drawer.resource}
+                moduleTitle={drawer.resource.moduleTitle}
+              />
+            </div>
+          ) : drawer.error ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-500/25 bg-red-50 p-5 text-red-900 dark:bg-red-950/30 dark:text-red-100"
+            >
+              <h3 className="font-semibold">No pudimos cargar la vista previa</h3>
+              <p className="mt-2 text-sm leading-6">{drawer.error}</p>
+              <button
+                type="button"
+                onClick={() => openResourcePreview(drawer.moduleId, drawer.resourceId)}
+                className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-red-500/30 px-4 text-sm font-semibold hover:bg-red-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              >
+                Reintentar
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3" aria-label="Cargando recurso">
+            <div className="space-y-3" role="status" aria-label="Cargando vista previa del recurso">
+              <span className="sr-only">Cargando vista previa del recurso…</span>
               <div className="h-6 w-32 animate-pulse rounded bg-surface-elevated" />
               <div className="h-10 animate-pulse rounded-lg bg-surface-elevated" />
               <div className="h-40 animate-pulse rounded-xl bg-surface-elevated" />
@@ -698,6 +793,9 @@ export function SubjectContentWorkspace({
               : "border-success/25 bg-card text-foreground"
           }`}
         >
+          {toast.tone === "success" ? (
+            <CircleCheck aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
+          ) : null}
           <span className="flex-1">{toast.message}</span>
           <button type="button" onClick={() => setToast(null)} aria-label="Cerrar notificación" className="rounded p-1 hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             <X aria-hidden="true" className="h-4 w-4" />

@@ -15,17 +15,20 @@ import {
 } from "@/modules/content/domain/content-permissions";
 import { prisma } from "@/server/db/prisma";
 import { isR2UploadEnabled } from "@/server/storage/r2";
+import { quizQuestionsSchema, type QuizQuestion } from "@/modules/content/domain/quiz";
 
 export type ContentDetailActor = { id: string; role: Role };
 
 export type ResourceContentDetail = {
   id: string;
   moduleId: string;
+  moduleTitle: string;
   type: ResourceType;
   title: string;
   instructions: string | null;
   content: string | null;
   estimatedMinutes: number | null;
+  isRequired: boolean;
   publicationStatus: PublicationStatus;
   isActive: boolean;
   createdById: string;
@@ -73,6 +76,8 @@ export type ResourceContentDetail = {
     passingScore: number;
     maxAttempts: number | null;
     shuffleQuestions: boolean;
+    questionCount: number;
+    questions: QuizQuestion[];
   } | null;
   game: { gameType: string } | null;
 };
@@ -225,6 +230,7 @@ export async function getResourceContentDetail({
       instructions: true,
       content: true,
       estimatedMinutes: true,
+      isRequired: true,
       publicationStatus: true,
       isActive: true,
       createdById: true,
@@ -232,6 +238,7 @@ export async function getResourceContentDetail({
       createdBy: { select: { name: true } },
       module: {
         select: {
+          title: true,
           createdById: true,
           isActive: true,
           publicationStatus: true,
@@ -287,6 +294,7 @@ export async function getResourceContentDetail({
           passingScore: true,
           maxAttempts: true,
           shuffleQuestions: true,
+          questions: true,
         },
       },
       gameResource: { select: { gameType: true } },
@@ -312,23 +320,29 @@ export async function getResourceContentDetail({
     createdById: resource.createdById,
     publicationStatus: resource.publicationStatus,
   };
+  const canEdit = canEditEditorialContent(actor, permissionTarget);
+  const quizQuestions = resource.quiz
+    ? quizQuestionsSchema.safeParse(resource.quiz.questions)
+    : null;
   const serializeSize = (value: bigint | null) => value?.toString() ?? null;
 
   return {
     id: resource.id,
     moduleId: resource.moduleId,
+    moduleTitle: resource.module.title,
     type: resource.type,
     title: resource.title,
     instructions: resource.instructions,
     content: resource.content,
     estimatedMinutes: resource.estimatedMinutes,
+    isRequired: resource.isRequired,
     publicationStatus: resource.publicationStatus,
     isActive: resource.isActive,
     createdById: resource.createdById,
     authorName: resource.createdBy.name,
     updatedAt: resource.updatedAt,
     protectedFileAccessEnabled: isR2UploadEnabled(),
-    canEdit: canEditEditorialContent(actor, permissionTarget),
+    canEdit,
     canArchive: canArchiveEditorialContent(actor, permissionTarget),
     canReactivate:
       canReactivateEditorialContent(actor, permissionTarget) &&
@@ -361,7 +375,16 @@ export async function getResourceContentDetail({
           sizeBytes: serializeSize(resource.audioResource.sizeBytes),
         }
       : null,
-    quiz: resource.quiz,
+    quiz: resource.quiz
+      ? {
+          ...resource.quiz,
+          questionCount: quizQuestions?.success ? quizQuestions.data.length : 0,
+          questions:
+            quizQuestions?.success && (actor.role === "ADMIN" || canEdit)
+              ? quizQuestions.data
+              : [],
+        }
+      : null,
     game: resource.gameResource,
   };
 }

@@ -13,6 +13,7 @@ import {
   normalizeResourceDocument,
   serializeResourceDocument,
 } from "@/modules/content/domain/resource-document";
+import type { CreateAdminStructuredResourceInput } from "@/modules/content/schemas/admin-resource-creation.schema";
 
 vi.mock("server-only", () => ({}));
 
@@ -132,6 +133,40 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             ),
           ).rejects.toMatchObject({ code: "REQUEST_CONFLICT" });
 
+          const quizQuestion = {
+            id: randomUUID(),
+            prompt: "¿Cuánto es 2 + 2?",
+            options: [
+              { id: randomUUID(), text: "3" },
+              { id: randomUUID(), text: "4" },
+            ],
+            correctOptionId: "",
+          };
+          quizQuestion.correctOptionId = quizQuestion.options[1].id;
+          const quizRequest = {
+            requestId: randomUUID(),
+            moduleId: moduleRecord.id,
+            resourceType: ResourceType.QUIZ,
+            title: `Cuestionario ${marker}`,
+            instructions: "Selecciona la respuesta correcta.",
+            content: undefined,
+            estimatedMinutes: 10,
+            questions: [quizQuestion],
+            passingScore: 70,
+            maxAttempts: 3,
+            shuffleQuestions: true,
+            disposition: "DRAFT",
+          } satisfies CreateAdminStructuredResourceInput;
+          const quiz = await creation.createCatalogStructuredResource(
+            quizRequest,
+            actor,
+          );
+          const quizReplay = await creation.createCatalogStructuredResource(
+            quizRequest,
+            actor,
+          );
+          expect(quizReplay.id).toBe(quiz.id);
+
           const youtube = await creation.createCatalogStructuredResource(
             {
               requestId: randomUUID(),
@@ -164,7 +199,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           );
           const persisted = await prisma.resource.findMany({
             where: {
-              id: { in: [contentResource.id, youtube.id, link.id] },
+              id: { in: [contentResource.id, quiz.id, youtube.id, link.id] },
             },
             orderBy: { type: "asc" },
             select: {
@@ -174,11 +209,19 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               estimatedMinutes: true,
               publicationStatus: true,
               youtubeVideo: { select: { videoId: true, startAt: true } },
+              quiz: {
+                select: {
+                  passingScore: true,
+                  maxAttempts: true,
+                  shuffleQuestions: true,
+                  questions: true,
+                },
+              },
               linkResource: { select: { url: true, openInNewTab: true } },
               contentImages: { select: { contentImageId: true } },
             },
           });
-          expect(persisted).toHaveLength(3);
+          expect(persisted).toHaveLength(4);
           expect(
             persisted.every(
               (resource) =>
@@ -195,6 +238,15 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           expect(persisted.find((item) => item.type === ResourceType.YOUTUBE))
             .toMatchObject({
               youtubeVideo: { videoId: "dQw4w9WgXcQ", startAt: 20 },
+            });
+          expect(persisted.find((item) => item.type === ResourceType.QUIZ))
+            .toMatchObject({
+              quiz: {
+                passingScore: 70,
+                maxAttempts: 3,
+                shuffleQuestions: true,
+                questions: [quizQuestion],
+              },
             });
           expect(persisted.find((item) => item.type === ResourceType.LINK))
             .toMatchObject({

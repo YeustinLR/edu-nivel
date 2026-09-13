@@ -8,6 +8,7 @@ import {
   summarizeResourceTypes,
 } from "@/modules/content/domain/student-explore";
 import { formatLearnerLevel } from "@/modules/dashboard/domain/learner-presentation";
+import { APPLIED_ACCESS_PAYMENT_STATUSES } from "@/modules/subscriptions/domain/premium-access";
 import type {
   EducationStage,
   StudentExploreData,
@@ -50,7 +51,7 @@ export async function getStudentExploreData({
         currentPeriodEnd: true,
         payments: {
           where: {
-            status: PaymentStatus.SUCCEEDED,
+            status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
             appliedAt: { not: null },
           },
           take: 1,

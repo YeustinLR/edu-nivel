@@ -77,6 +77,17 @@ export type StudentContentResourceDetail = {
     passingScore: number;
     maxAttempts: number | null;
     shuffleQuestions: boolean;
+    attemptsUsed: number;
+    recentAttempts: {
+      id: string;
+      status: "IN_PROGRESS" | "SUBMITTED";
+      questionCount: number;
+      correctAnswers: number | null;
+      percentage: number | null;
+      passed: boolean | null;
+      startedAt: string;
+      submittedAt: string | null;
+    }[];
   } | null;
   game: { gameType: string } | null;
 };

@@ -37,6 +37,7 @@ const resourceIconClasses = {
 export function WorkspaceResourceList({
   moduleId,
   resources,
+  highlightedResourceId,
   totalResourceCount,
   now,
   canReorder,
@@ -50,6 +51,7 @@ export function WorkspaceResourceList({
 }: {
   moduleId: string;
   resources: AdminSubjectWorkspaceResource[];
+  highlightedResourceId?: string;
   totalResourceCount: number;
   now: string;
   canReorder: boolean;
@@ -81,6 +83,8 @@ export function WorkspaceResourceList({
         {resources.map((resource, index) => (
           <li
             key={resource.id}
+            id={`workspace-resource-${encodeURIComponent(resource.id)}`}
+            tabIndex={-1}
             onDragOver={(event) => {
               if (canReorder && draggingId) event.preventDefault();
             }}
@@ -91,8 +95,12 @@ export function WorkspaceResourceList({
               }
               setDraggingId(null);
             }}
-            className={`grid items-center gap-2 px-3 py-2.5 transition-colors lg:grid-cols-[2.2rem_minmax(14rem,1.6fr)_minmax(7rem,.6fr)_minmax(8rem,.7fr)_minmax(8rem,.7fr)_minmax(9rem,.8fr)_7rem] lg:gap-3 ${
-              draggingId === resource.id ? "opacity-50" : "hover:bg-surface/60"
+            className={`grid items-center gap-2 px-3 py-2.5 transition-[background-color,box-shadow,opacity] duration-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary lg:grid-cols-[2.2rem_minmax(14rem,1.6fr)_minmax(7rem,.6fr)_minmax(8rem,.7fr)_minmax(8rem,.7fr)_minmax(9rem,.8fr)_7rem] lg:gap-3 ${
+              draggingId === resource.id
+                ? "opacity-50"
+                : highlightedResourceId === resource.id
+                  ? "bg-success/10 shadow-[inset_3px_0_0_var(--success)]"
+                  : "hover:bg-surface/60"
             }`}
           >
             <button
@@ -156,14 +164,24 @@ export function WorkspaceResourceList({
             </span>
 
             <div className="flex items-center justify-end gap-1 max-lg:col-start-1 max-lg:row-start-2 max-lg:justify-start">
-              <button
-                type="button"
-                onClick={() => onPreview(moduleId, resource.id)}
-                aria-label={`Vista previa de ${resource.title}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-elevated hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-              >
-                <Eye aria-hidden="true" className="h-4 w-4" />
-              </button>
+              <span className="group/preview relative inline-flex h-9 w-9 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onPreview(moduleId, resource.id)}
+                  aria-label={`Vista previa de ${resource.title}`}
+                  aria-describedby={`preview-tooltip-${resource.id}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-elevated hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                >
+                  <Eye aria-hidden="true" className="h-4 w-4" />
+                </button>
+                <span
+                  id={`preview-tooltip-${resource.id}`}
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover/preview:opacity-100 group-focus-within/preview:opacity-100 motion-reduce:transition-none"
+                >
+                  Vista previa
+                </span>
+              </span>
               {resource.canEdit ? (
                 <button
                   type="button"

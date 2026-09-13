@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { isDeepStrictEqual } from "node:util";
 
 import { Prisma } from "@/generated/prisma/client";
 import { PublicationStatus, ResourceType } from "@/generated/prisma/enums";
@@ -79,6 +80,14 @@ function findExistingResource(resourceId: string) {
       content: true,
       estimatedMinutes: true,
       createdById: true,
+      quiz: {
+        select: {
+          passingScore: true,
+          maxAttempts: true,
+          shuffleQuestions: true,
+          questions: true,
+        },
+      },
       youtubeVideo: { select: { videoId: true, startAt: true } },
       linkResource: { select: { url: true, openInNewTab: true } },
     },
@@ -105,6 +114,13 @@ function isMatchingRequest(
   switch (input.resourceType) {
     case ResourceType.NOTE:
       return true;
+    case ResourceType.QUIZ:
+      return (
+        existing.quiz?.passingScore === input.passingScore &&
+        existing.quiz.maxAttempts === input.maxAttempts &&
+        existing.quiz.shuffleQuestions === input.shuffleQuestions &&
+        isDeepStrictEqual(existing.quiz.questions, input.questions)
+      );
     case ResourceType.YOUTUBE:
       return (
         existing.youtubeVideo?.videoId === input.videoId &&
@@ -163,6 +179,17 @@ function buildResourceData(
             create: {
               videoId: input.videoId,
               startAt: input.startAt ?? 0,
+            },
+          }
+        : undefined,
+    quiz:
+      input.resourceType === ResourceType.QUIZ
+        ? {
+            create: {
+              passingScore: input.passingScore,
+              maxAttempts: input.maxAttempts,
+              shuffleQuestions: input.shuffleQuestions,
+              questions: input.questions as Prisma.InputJsonValue,
             },
           }
         : undefined,

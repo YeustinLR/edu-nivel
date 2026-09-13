@@ -1,12 +1,17 @@
 import { ContentAvailabilityControl } from "@/modules/content/components/editor/ContentAvailabilityControl";
+import { ResourceCreationToast } from "@/modules/content/components/creation/ResourceCreationToast";
 import { EditResourceForm } from "@/modules/content/components/editor/EditResourceForm";
 import { ResourceContentView } from "@/modules/content/components/editor/ResourceContentView";
 import type { ResourceContentDetail } from "@/server/content/content-detail-queries";
 
 export function CollaboratorResourcePanel({
   resource,
+  initiallyEditing = false,
+  creationNotice,
 }: {
   resource: ResourceContentDetail;
+  initiallyEditing?: boolean;
+  creationNotice?: string;
 }) {
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -15,7 +20,11 @@ export function CollaboratorResourcePanel({
         backHref="/dashboard/collaborator/content"
       />
       {resource.canEdit ? (
-        <details className="mt-5 border-t border-border pt-4">
+        <details
+          id="resource-editor"
+          open={initiallyEditing}
+          className="mt-5 border-t border-border pt-4"
+        >
           <summary className="cursor-pointer text-sm font-medium text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
             Editar este recurso
           </summary>
@@ -41,6 +50,10 @@ export function CollaboratorResourcePanel({
           </div>
         </details>
       ) : null}
+      <ResourceCreationToast
+        message={creationNotice}
+        clearParams={["notice", "edit"]}
+      />
     </section>
   );
 }
