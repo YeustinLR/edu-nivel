@@ -2,7 +2,7 @@ import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
-import { eligibleUserWhere, NOTIFICATION_PAGE_SIZE, notificationPage, notificationTypeLabels, reminderKey, renewalWhere } from "@/modules/notifications/domain/notifications";
+import { eligibleUserWhere, isRenewableSubscriptionStatus, NOTIFICATION_PAGE_SIZE, notificationPage, notificationTypeLabels, reminderKey, renewalWhere } from "@/modules/notifications/domain/notifications";
 import { requireRole, requireUser } from "@/server/auth/guards";
 import { prisma } from "@/server/db/prisma";
 import { pendingPaymentExclusions, NotificationError } from "./send";
@@ -72,19 +72,50 @@ export async function getRenewalCandidates(search: NotificationSearch) {
 export async function getAdminNotifications(search: NotificationSearch) {
   await requireRole(Role.ADMIN);
   search = normalizeNotificationSearch(search);
-  const where: Prisma.NotificationWhereInput = { type: typeFilter(search.type), sentById: search.senderId?.slice(0, 128) || undefined };
+  const query = search.q?.trim().slice(0, 150);
+  const where: Prisma.NotificationWhereInput = {
+    type: typeFilter(search.type),
+    sentById: search.senderId?.slice(0, 128) || undefined,
+    OR: query ? [
+      { title: { contains: query, mode: "insensitive" } },
+      { body: { contains: query, mode: "insensitive" } },
+      { sentBy: { name: { contains: query, mode: "insensitive" } } },
+      { sentBy: { email: { contains: query, mode: "insensitive" } } },
+    ] : undefined,
+  };
   const total = await prisma.notification.count({ where });
   const page = paging(search.page, total);
   const items = await prisma.notification.findMany({
     where, skip: page.skip, take: NOTIFICATION_PAGE_SIZE, orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-    include: { sentBy: { select: { name: true } }, _count: { select: { recipients: true } } },
+    include: { sentBy: { select: { id: true, name: true, email: true } }, _count: { select: { recipients: true } } },
   });
-  return { ...page, total, items };
+  const readCounts = items.length ? await prisma.notificationRecipient.groupBy({
+    by: ["notificationId"],
+    where: { notificationId: { in: items.map(item => item.id) }, readAt: { not: null } },
+    _count: { _all: true },
+  }) : [];
+  const readByNotification = new Map(readCounts.map(item => [item.notificationId, item._count._all]));
+  return { ...page, total, items: items.map(item => ({ ...item, readCount: readByNotification.get(item.id) ?? 0 })) };
+}
+
+export async function getAdminNotificationSenders() {
+  const admin = await requireRole(Role.ADMIN);
+  const items = await prisma.user.findMany({
+    where: { notificationsSent: { some: {} } },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+    select: { id: true, name: true, email: true },
+  });
+  return {
+    items: items.map(item => ({
+      ...item,
+      label: item.id === admin.id ? `Mis envíos · ${item.name}` : `${item.name} · ${item.email}`,
+    })),
+  };
 }
 
 export async function getAdminNotification(id: string, pageValue?: string, recipientId?: string) {
   await requireRole(Role.ADMIN);
-  const notification = await prisma.notification.findUnique({ where: { id }, include: { sentBy: { select: { id: true, name: true } }, resendOfRecipient: { select: { id: true, notificationId: true } } } });
+  const notification = await prisma.notification.findUnique({ where: { id }, include: { sentBy: { select: { id: true, name: true, email: true } }, resendOfRecipient: { select: { id: true, notificationId: true } } } });
   if (!notification) return null;
   const where = { notificationId: id };
   const [total, read] = await Promise.all([prisma.notificationRecipient.count({ where }), prisma.notificationRecipient.count({ where: { ...where, readAt: { not: null } } })]);
@@ -115,7 +146,7 @@ export async function getNotificationInbox(search: NotificationSearch) {
     const sub = item.subscription;
     const samePeriod = !!sub && sub.currentPeriodEnd.getTime() === item.periodEndSnapshot?.getTime();
     const matchesRole = (user.role === "STUDENT" && sub?.product === "STUDENT_PREMIUM") || (user.role === "TEACHER" && sub?.product === "TEACHER_PREMIUM");
-    const canRenew = samePeriod && sub.userId === user.id && matchesRole && sub.level.isActive && sub.level.requiresSubscription && sub.status !== "REFUNDED";
+    const canRenew = samePeriod && sub.userId === user.id && matchesRole && sub.level.isActive && sub.level.requiresSubscription && isRenewableSubscriptionStatus(sub.status);
     const renewalStatus = item.subscriptionId && !canRenew
       ? sub && item.periodEndSnapshot && sub.currentPeriodEnd > item.periodEndSnapshot ? "Suscripción renovada" : "Recordatorio no vigente"
       : null;
@@ -138,7 +169,7 @@ export async function getNotificationRenewalDestination(userId: string, role: st
   });
   const sub = recipient?.subscription;
   const product = role === "STUDENT" ? "STUDENT_PREMIUM" : role === "TEACHER" ? "TEACHER_PREMIUM" : null;
-  if (!sub || sub.userId !== userId || sub.product !== product || !sub.level.isActive || !sub.level.requiresSubscription || sub.status === "REFUNDED" || sub.currentPeriodEnd.getTime() !== recipient?.periodEndSnapshot?.getTime()) return "/dashboard/notifications?notice=obsolete";
+  if (!sub || sub.userId !== userId || sub.product !== product || !sub.level.isActive || !sub.level.requiresSubscription || !isRenewableSubscriptionStatus(sub.status) || sub.currentPeriodEnd.getTime() !== recipient?.periodEndSnapshot?.getTime()) return "/dashboard/notifications?notice=obsolete";
   const pending = await client.payment.findFirst({ where: { userId, levelId: sub.levelId, status: { in: ["INITIALIZING", "PROCESSING", "REQUIRES_REVIEW"] } }, orderBy: { createdAt: "desc" }, select: { id: true } });
   return pending ? `/dashboard/subscription/payments/${encodeURIComponent(pending.id)}` : `/dashboard/subscription/renew/${encodeURIComponent(sub.id)}`;
 }

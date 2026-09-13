@@ -30,7 +30,9 @@ export function DashboardShell({
   const { allItems, activeItem } = useActiveNavItem(userRole);
 
   const pageTitle =
-    activeItem && activeItem.label !== "Panel" ? activeItem.label : null;
+    activeItem && !["Panel", "Panel principal"].includes(activeItem.label)
+      ? activeItem.label
+      : null;
 
   if (userRole === "STUDENT" || userRole === "TEACHER") {
     return (
@@ -58,7 +60,7 @@ export function DashboardShell({
 
       <div
         className={`flex flex-1 flex-col transition-[margin] duration-300 ${
-          "lg:ml-[248px]"
+          "lg:ml-[224px]"
         }`}
       >
         <div className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:sticky lg:top-0">
@@ -70,7 +72,7 @@ export function DashboardShell({
               <GraduationCap aria-hidden="true" size={17} strokeWidth={2.5} />
             </span>
             <span className="text-base font-semibold tracking-tight text-foreground">
-              Edu<span className="text-accent">Nivel</span>
+              Edu<span className="text-accent-text">Nivel</span>
             </span>
           </Link>
 

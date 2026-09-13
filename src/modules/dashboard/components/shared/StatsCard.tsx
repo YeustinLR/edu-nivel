@@ -19,7 +19,7 @@ export function StatsCard({ label, value, icon: Icon, trend }: StatsCardProps) {
           )}
         </div>
         <div className="rounded-lg bg-accent/10 p-2">
-          <Icon className="h-5 w-5 text-accent" />
+          <Icon className="h-5 w-5 text-accent-text" />
         </div>
       </div>
     </div>

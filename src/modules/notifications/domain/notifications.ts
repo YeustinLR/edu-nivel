@@ -54,6 +54,14 @@ export function renewalWhere(now = new Date()): Prisma.SubscriptionWhereInput {
   };
 }
 
+export function isRenewableSubscriptionStatus(status: SubscriptionStatus) {
+  return (
+    status === SubscriptionStatus.ACTIVE ||
+    status === SubscriptionStatus.EXPIRED ||
+    status === SubscriptionStatus.CANCELED
+  );
+}
+
 export function reminderKey(subscriptionId: string, end: Date) {
   return `${subscriptionId}:${end.toISOString()}`;
 }

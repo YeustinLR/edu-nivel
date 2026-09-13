@@ -67,7 +67,7 @@ export function DashboardSidebar({
   return (
     <>
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col bg-ink-900 font-body text-white lg:flex"
+        className="fixed inset-y-0 left-0 z-30 hidden w-[224px] flex-col bg-ink-900 font-body text-white lg:flex"
         aria-label="Navegación del panel"
       >
         <Link href={dashboardHref} className="mx-5 flex h-24 items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900">
@@ -105,7 +105,7 @@ export function DashboardSidebar({
             role="dialog"
             aria-modal="true"
             aria-label="Navegación del panel"
-            className="absolute left-0 top-0 flex h-dvh w-[248px] flex-col bg-ink-900 font-body text-white shadow-2xl sidebar-drawer"
+            className="absolute left-0 top-0 flex h-dvh w-[224px] flex-col bg-ink-900 font-body text-white shadow-2xl sidebar-drawer"
           >
             <button
               type="button"

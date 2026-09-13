@@ -181,16 +181,16 @@ describe.skipIf(!run)("internal notifications in an isolated PostgreSQL schema",
     expect(await db.notificationRecipient.count({ where: { readAt: null } })).toBe(1);
     expect(await db.notificationRecipient.count({ where: { readAt: { not: null } } })).toBe(1);
   });
-  it.each(["future", "refunded", "level", "role", "pending"])("excludes non-eligible renewal: %s", async reason => {
+  it.each(["future", "level", "role", "pending", "review"])("excludes non-eligible renewal: %s", async reason => {
     const sub = await subscription();
     if (reason === "future") {
       sub.currentPeriodEnd = new Date(Date.now() + RENEWAL_WINDOW_MS + 60_000);
       await db.subscription.update({ where: { id: sub.id }, data: { currentPeriodEnd: sub.currentPeriodEnd } });
     }
-    if (reason === "refunded") await db.subscription.update({ where: { id: sub.id }, data: { status: "REFUNDED" } });
     if (reason === "level") await db.level.update({ where: { id: sub.levelId }, data: { isActive: false } });
     if (reason === "role") await db.user.update({ where: { id: "student" }, data: { role: "TEACHER" } });
     if (reason === "pending") await db.payment.updateMany({ data: { status: "PROCESSING" } });
+    if (reason === "review") await db.payment.updateMany({ data: { status: "REQUIRES_REVIEW" } });
     await expect(sendNotification(renewal(sub.id, sub.currentPeriodEnd), "admin", db)).rejects.toMatchObject({ code: "PERIOD_CHANGED" });
   });
   it("rolls back deliveries when audit insertion fails", async () => {

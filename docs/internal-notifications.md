@@ -63,8 +63,9 @@ Para recordatorios se exige:
 - Período vencido o que vence en los siguientes siete días, inclusive.
 - Producto compatible con el rol actual STUDENT/TEACHER.
 - Nivel activo que requiere suscripción y al menos un pago `SUCCEEDED` aplicado.
-- Estado ACTIVE, EXPIRED o CANCELED; se excluye REFUNDED. CANCELED es admisible
-  en este flujo manual porque no representa una baja de cobro recurrente.
+- Estado ACTIVE, EXPIRED o CANCELED. CANCELED es admisible en este flujo manual
+  porque no representa una baja de cobro recurrente. Estados legado no forman
+  parte de los candidatos.
 - Ningún pago INITIALIZING, PROCESSING o REQUIRES_REVIEW para el usuario/nivel,
   aunque ese pago aún no tenga `subscriptionId`.
 
@@ -73,8 +74,8 @@ admite un primer recordatorio. Reenviar crea otro envío y otra entrega sin leer
 conservando la lectura anterior; cada entrega permite un único sucesor. El
 historial enlaza el sucesor para volver a reenviar de forma deliberada.
 
-La bandeja no ofrece renovar un período cambiado, una suscripción reembolsada,
-un producto incompatible o un nivel inactivo/gratuito. La acción vuelve a
+La bandeja no ofrece renovar un período cambiado, una suscripción con estado
+legado, un producto incompatible o un nivel inactivo/gratuito. La acción vuelve a
 comprobar propietario y vigencia. Si existe un pago pendiente, abre ese pago;
 en caso contrario abre el flujo de renovación ya existente. No crea pagos ni
 marca automáticamente el recordatorio como leído. Al renovar un período,

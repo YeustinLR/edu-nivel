@@ -42,7 +42,7 @@ export function LearnerSidebar({
   return (
     <aside
       aria-label={navigationLabel}
-      className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col bg-ink-900 font-body text-white lg:flex"
+      className="fixed inset-y-0 left-0 z-40 hidden w-[224px] flex-col bg-ink-900 font-body text-white lg:flex"
     >
       <Link
         href={dashboardHref}

@@ -32,7 +32,7 @@ export function SidebarLogo({ collapsed, onToggleCollapse }: SidebarLogoProps) {
       ) : (
         <>
           <span className="text-base font-semibold tracking-tight text-foreground">
-            Edu<span className="text-accent">Nivel</span>
+            Edu<span className="text-accent-text">Nivel</span>
           </span>
           {onToggleCollapse ? (
             <button

@@ -159,8 +159,11 @@ El colaborador no crea niveles ni materias.
 
 ### Administrador
 
-El resumen consulta cantidades reales de usuarios, colaboradores, módulos
-activos y suscripciones activas. En contenido puede:
+La portada administrativa funciona como centro operativo y obtiene una sola
+captura tipada mediante `getAdminDashboardSummary(now)`. La página no consulta
+Prisma directamente. El resumen prioriza trabajo pendiente, indicadores con
+período, uso de la plataforma y brechas del catálogo. En contenido el
+administrador puede:
 
 - crear y actualizar niveles;
 - crear y actualizar materias;
@@ -173,6 +176,90 @@ activos y suscripciones activas. En contenido puede:
 
 La publicación y revisión registran los campos de auditoría definidos en
 Prisma.
+
+### Métricas del panel administrativo
+
+Todas las consultas de una captura comparten el mismo `now`. Los períodos son
+semiabiertos (`inicio <= fecha < fin`) para que un evento en el límite nunca se
+cuente dos veces:
+
+- **Cobrado, 30 días:** suma únicamente pagos `SUCCEEDED` con `appliedAt` dentro
+  del período —usa `receivedAmountMinor` y, si falta, `expectedAmountMinor`—.
+  Nunca resta operaciones de devolución y compara con los 30 días anteriores.
+- **Accesos pagos vigentes:** cuenta suscripciones `ACTIVE` o `CANCELED` cuyo
+  período empezó y aún no termina, para un usuario habilitado, nivel activo,
+  producto compatible con el rol y al menos un pago aplicado `SUCCEEDED` o
+  `REQUIRES_REVIEW`. El segundo solo conserva un período ya concedido y no
+  puede originar una nueva extensión. Una cancelación conserva el acceso hasta
+  `currentPeriodEnd`.
+- **Nuevos usuarios verificados, 30 días:** estudiantes y docentes creados en
+  el período que cumplen las mismas condiciones de habilitación usadas para
+  notificaciones internas. Se compara con los 30 días anteriores.
+- **Usuarios activos, 7 días:** estudiantes y docentes habilitados distintos
+  que tienen `ResourceProgress.lastViewedAt` dentro del período. Se compara con
+  los siete días anteriores.
+
+El panel no muestra una variación histórica de accesos pagos. `Subscription`
+conserva el estado y período vigentes, pero no fotografías anteriores que
+permitan reconstruir ese dato con exactitud. Mostrar una diferencia exigiría
+un historial de eventos o snapshots de suscripción.
+
+La tendencia financiera agrupa el cobrado de los últimos 30 días por
+semana calendario de Costa Rica. La primera y la última semana pueden ser
+parciales y sus etiquetas muestran el rango efectivo.
+
+### Atención y salud del catálogo
+
+La bandeja de atención combina sin exponer datos personales:
+
+- módulos y recursos `IN_REVIEW`, junto con la entrega más antigua;
+- pagos `REQUIRES_REVIEW`, incluidos estados externos inesperados reportados por
+  ONVO;
+- períodos vencidos o próximos a vencer que siguen siendo elegibles para un
+  primer recordatorio;
+- invitaciones activas cuyo enlace expiró.
+
+La salud del catálogo cuenta solamente contenido efectivamente visible:
+niveles, materias, módulos y recursos deben estar activos y los dos últimos,
+publicados. Las brechas señalan contenido con cambios solicitados, módulos
+publicados sin recursos publicados y materias activas sin módulos publicados.
+
+### Separación TEST/LIVE y zona horaria
+
+Los indicadores financieros, las incidencias de cobros, las renovaciones y la
+existencia del pago que respalda un acceso se filtran por el
+modo ONVO configurado. `ONVO_ENV=live` selecciona `LIVE`; cualquier entorno sin
+ONVO live configurado muestra explícitamente **Datos de prueba · ONVO TEST**.
+Los modos nunca se suman en una misma métrica.
+
+Las fechas se almacenan y comparan como instantes. La interfaz las presenta con
+locale `es-CR` y zona `America/Costa_Rica`; las semanas usan el calendario de
+Costa Rica, que permanece en UTC-06:00.
+
+### Limitaciones analíticas actuales
+
+- `ResourceProgress.lastViewedAt` mide consumo académico reciente, no sesiones
+  ni duración de uso.
+- El preflight de retiro de devoluciones del 10 de septiembre de 2026 encontró
+  1 fila histórica en `payment_refund`, 0 pagos `REFUNDED`, 0 suscripciones
+  `REFUNDED` y 2 entradas `PAYMENT_REFUND*` en auditoría. Por eso no se creó ni
+  aplicó una migración destructiva: el modelo y enums legado permanecen solo
+  para lectura/compatibilidad y los flujos activos no pueden generar nuevos
+  registros. Cuando una auditoría futura confirme cero filas y dependencias
+  históricas, se preparará una migración forward-only con precondiciones para
+  retirar `payment_refund`, `RefundStatus` y los valores `REFUNDED`; nunca se
+  reescribirá una fila existente para facilitarla.
+- `refunded` y `partially_refunded` son estados externos reconocidos de ONVO.
+  Si aparecen, el pago pasa a `REQUIRES_REVIEW` con
+  `UNSUPPORTED_PROVIDER_REVERSAL`; se conserva el período premium aplicado y
+  la resolución posterior es administrativa.
+- No existe un historial uniforme para reconstruir actividad reciente de todos
+  los dominios; por eso esa sección se pospone hasta contar con eventos
+  auditables.
+- No se calcula MRR, churn o conversión. Esas métricas necesitan historial de
+  cambios de plan, renovaciones y cancelaciones, no solo el estado vigente.
+- Los badges dinámicos de navegación se posponen para no duplicar consultas ni
+  acoplar el shell de presentación a la capa de datos del panel.
 
 ## Catálogo para estudiante y docente
 

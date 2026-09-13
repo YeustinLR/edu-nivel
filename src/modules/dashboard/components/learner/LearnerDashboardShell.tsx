@@ -48,7 +48,7 @@ export function LearnerDashboardShell({
         userImage={userImage}
         onLogout={handleLogout}
       />
-      <div className="min-h-dvh lg:ml-[248px]">
+      <div className="min-h-dvh lg:ml-[224px]">
         <LearnerDashboardHeader
           role={role}
           firstName={firstName}

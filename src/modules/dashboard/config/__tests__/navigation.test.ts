@@ -77,8 +77,24 @@ describe("learner dashboard navigation", () => {
       );
     }
     expect(linksFor("ADMIN")).toContainEqual({
-      label: "Gestionar notificaciones",
+      label: "Notificaciones",
       href: "/dashboard/admin/notifications",
     });
+  });
+
+  it("groups administrative navigation by operational priority", () => {
+    expect(navigationByRole.ADMIN.map((group) => group.title)).toEqual([
+      "General",
+      "Operación",
+      "Gestión",
+    ]);
+    expect(linksFor("ADMIN")).toEqual([
+      { label: "Panel principal", href: "/dashboard/admin" },
+      { label: "Revisiones", href: "/dashboard/admin/content/reviews" },
+      { label: "Cobros", href: "/dashboard/admin/payments" },
+      { label: "Contenido", href: "/dashboard/admin/content" },
+      { label: "Usuarios", href: "/dashboard/admin/users" },
+      { label: "Notificaciones", href: "/dashboard/admin/notifications" },
+    ]);
   });
 });

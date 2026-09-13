@@ -77,21 +77,28 @@ export const navigationByRole: Record<string, NavGroup[]> = {
   ],
   ADMIN: [
     {
-      title: "Administración",
+      title: "General",
       items: [
-        { label: "Panel", href: "/dashboard/admin", icon: LayoutDashboard },
-        { label: "Gestionar notificaciones", href: "/dashboard/admin/notifications", icon: Bell },
+        { label: "Panel principal", href: "/dashboard/admin", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Operación",
+      items: [
+        { label: "Revisiones", href: "/dashboard/admin/content/reviews", icon: Clock3 },
+        { label: "Cobros", href: "/dashboard/admin/payments", icon: CreditCard },
+      ],
+    },
+    {
+      title: "Gestión",
+      items: [
         {
           label: "Contenido",
           href: "/dashboard/admin/content",
           icon: BookOpen,
         },
         { label: "Usuarios", href: "/dashboard/admin/users", icon: Users },
-        { label: "Cobros", href: "/dashboard/admin/payments", icon: CreditCard },
-        // { label: "Colaboradores", href: "/dashboard/admin/collaborators", icon: UserPlus },
-        // { label: "Módulos", href: "/dashboard/admin/modules", icon: BookOpen },
-        // { label: "Analíticas", href: "/dashboard/admin/analytics", icon: BarChart3 },
-        // { label: "Configuración", href: "/dashboard/admin/settings", icon: Settings },
+        { label: "Notificaciones", href: "/dashboard/admin/notifications", icon: Bell },
       ],
     },
   ],
