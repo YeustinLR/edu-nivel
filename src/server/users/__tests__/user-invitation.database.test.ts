@@ -64,6 +64,9 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               ageDeclared: 30,
               role: "COLLABORATOR",
               invitationToken: token,
+              acceptTerms: true,
+              acceptPrivacy: true,
+              adultDeclaration: true,
             } as NonNullable<Parameters<typeof auth.api.signUpEmail>[0]>["body"],
           });
 
@@ -75,6 +78,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             role: Role.COLLABORATOR,
             selectedLevelId: null,
             emailVerified: false,
+            invitationPending: false,
           });
           expect(createdUser.accounts).toHaveLength(1);
 
@@ -97,6 +101,9 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 ageDeclared: 30,
                 role: "COLLABORATOR",
                 invitationToken: token,
+                acceptTerms: true,
+                acceptPrivacy: true,
+                adultDeclaration: true,
               } as NonNullable<Parameters<typeof auth.api.signUpEmail>[0]>["body"],
             }),
           ).rejects.toMatchObject({

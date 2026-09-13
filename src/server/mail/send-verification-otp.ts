@@ -52,13 +52,13 @@ export async function sendVerificationOTP(data: SendVerificationOtpData) {
 function getOtpEmailContent(type: EmailOtpType, otp: string): OtpEmailContent {
   if (type === "forget-password") {
     return {
-      subject: "Restablece tu contrasena en EduNivel",
-      preview: `Tu codigo para restablecer la contrasena es ${otp}`,
-      heading: "Restablece tu contrasena",
+      subject: "Restablece tu contraseña en EduNivel",
+      preview: `Tu código para restablecer la contraseña es ${otp}`,
+      heading: "Restablece tu contraseña",
       intro:
-        "Usa este codigo para confirmar que el correo te pertenece y definir una nueva contrasena.",
+        "Usa este código para confirmar que el correo te pertenece y definir una nueva contraseña.",
       footer:
-        "Si no solicitaste restablecer tu contrasena, puedes ignorar este correo.",
+        "Si no solicitaste restablecer tu contraseña, puedes ignorar este correo.",
       codeBoxBackgroundColor: "#ecfdf5",
     };
   }
@@ -66,18 +66,18 @@ function getOtpEmailContent(type: EmailOtpType, otp: string): OtpEmailContent {
   if (type === "email-verification") {
     return {
       subject: "Verifica tu correo en EduNivel",
-      preview: `Tu codigo de verificacion de EduNivel es ${otp}`,
+      preview: `Tu código de verificación de EduNivel es ${otp}`,
       heading: "Verifica tu correo",
-      intro: "Usa este codigo para activar tu cuenta de EduNivel.",
+      intro: "Usa este código para activar tu cuenta de EduNivel.",
       footer: "Si no creaste una cuenta en EduNivel, puedes ignorar este correo.",
     };
   }
 
   return {
-    subject: "Tu codigo de seguridad de EduNivel",
-    preview: `Tu codigo de seguridad de EduNivel es ${otp}`,
-    heading: "Tu codigo de seguridad",
-    intro: "Usa este codigo para continuar con la accion solicitada en EduNivel.",
+    subject: "Tu código de seguridad de EduNivel",
+    preview: `Tu código de seguridad de EduNivel es ${otp}`,
+    heading: "Tu código de seguridad",
+    intro: "Usa este código para continuar con la acción solicitada en EduNivel.",
     footer: "Si no realizaste esta solicitud, puedes ignorar este correo.",
   };
 }

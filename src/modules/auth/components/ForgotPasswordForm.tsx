@@ -17,7 +17,9 @@ const initialState: AuthFormState = { status: "idle" };
 export default function ForgotPasswordForm() {
   const router = useRouter();
   const [formState, setFormState] = useState<AuthFormState>(initialState);
+  const [emailInvalid, setEmailInvalid] = useState(false);
   const sendCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.passwordResetResend);
+  const hasError = formState.status === "error";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,12 +31,15 @@ export default function ForgotPasswordForm() {
     });
 
     if (!parsed.success) {
+      setEmailInvalid(true);
       setFormState({
         status: "error",
         message: parsed.error.issues[0]?.message ?? AUTH_VALIDATION_MESSAGES.defaultFormError,
       });
       return;
     }
+
+    setEmailInvalid(false);
 
     const { error } = await authClient.emailOtp.requestPasswordReset({
       email: parsed.data.email,
@@ -45,7 +50,7 @@ export default function ForgotPasswordForm() {
       if (retryAfter) sendCooldown.start(retryAfter);
       setFormState({
         status: "error",
-        message: getAuthErrorMessage(error, "No se pudo enviar el codigo."),
+        message: getAuthErrorMessage(error, "No se pudo enviar el código."),
       });
       return;
     }
@@ -59,10 +64,10 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" aria-describedby={hasError ? "auth-form-message" : undefined}>
       <div className="space-y-2">
         <label htmlFor="email" className="text-small font-semibold text-foreground">
-          Correo electronico
+          Correo electrónico
         </label>
         <input
           id="email"
@@ -71,7 +76,9 @@ export default function ForgotPasswordForm() {
           autoComplete="email"
           required
           disabled={formState.status === "loading"}
-          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus:border-accent disabled:cursor-not-allowed disabled:opacity-70"
+          aria-invalid={emailInvalid}
+          aria-describedby={hasError ? "auth-form-message" : undefined}
+          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70"
           placeholder="tu@correo.com"
         />
       </div>
@@ -84,10 +91,10 @@ export default function ForgotPasswordForm() {
         className="btn-primary w-full rounded-lg px-5 py-3 text-small disabled:cursor-not-allowed disabled:opacity-70"
       >
         {formState.status === "loading"
-          ? "Enviando codigo..."
+          ? "Enviando código..."
           : sendCooldown.isActive
             ? `Enviar de nuevo en ${sendCooldown.secondsLeft}s`
-            : "Enviar codigo"}
+            : "Enviar código"}
       </button>
     </form>
   );

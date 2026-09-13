@@ -40,20 +40,18 @@ const subscriptionProductLabels: Record<SubscriptionProduct, string> = {
   [SubscriptionProduct.TEACHER_PREMIUM]: "Premium docente",
 };
 
-const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
+const subscriptionStatusLabels: Partial<Record<SubscriptionStatus, string>> = {
   [SubscriptionStatus.ACTIVE]: "Activa",
   [SubscriptionStatus.CANCELED]: "Cancelada",
   [SubscriptionStatus.EXPIRED]: "Vencida",
-  [SubscriptionStatus.REFUNDED]: "Reembolsada",
 };
 
-const paymentStatusLabels: Record<PaymentStatus, string> = {
+const paymentStatusLabels: Partial<Record<PaymentStatus, string>> = {
   [PaymentStatus.INITIALIZING]: "Inicializando",
   [PaymentStatus.PROCESSING]: "En proceso",
   [PaymentStatus.SUCCEEDED]: "Confirmado",
   [PaymentStatus.FAILED]: "Fallido",
   [PaymentStatus.CANCELED]: "Cancelado",
-  [PaymentStatus.REFUNDED]: "Reembolsado",
   [PaymentStatus.REQUIRES_REVIEW]: "Requiere revisión",
 };
 
@@ -255,7 +253,7 @@ export function AdminUserDetailView({ user }: { user: AdminUserDetail }) {
                     <Link href={`/dashboard/admin/notifications/renewals?subscriptionId=${encodeURIComponent(subscription.id)}`} className="inline-flex min-h-11 items-center text-sm underline">Recordatorio de renovación</Link>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(subscription.status)}`}>
-                    {subscriptionStatusLabels[subscription.status]}
+                    {subscriptionStatusLabels[subscription.status] ?? "Estado legado"}
                   </span>
                 </li>
               ))}
@@ -286,7 +284,7 @@ export function AdminUserDetailView({ user }: { user: AdminUserDetail }) {
                       {crcFormatter.format(amountMinorToCRC(payment.expectedAmountMinor))}
                     </p>
                     <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(payment.status)}`}>
-                      {paymentStatusLabels[payment.status]}
+                      {paymentStatusLabels[payment.status] ?? "Estado legado"}
                     </span>
                   </div>
                 </li>

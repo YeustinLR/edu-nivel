@@ -21,9 +21,9 @@ interface AuthErrorBoundaryProps {
 
 export default function AuthErrorBoundary({ reset }: AuthErrorBoundaryProps) {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center p-6 text-center">
-      <h2 className="mb-2 text-xl font-semibold text-foreground">Ocurrio un problema</h2>
-      <p className="mb-6 text-small text-muted">No fue posible cargar esta seccion.</p>
+    <div role="alert" className="flex min-h-[50vh] flex-col items-center justify-center p-6 text-center">
+      <h2 className="mb-2 text-xl font-semibold text-foreground">Ocurrió un problema</h2>
+      <p className="mb-6 text-small text-muted">No fue posible cargar esta sección.</p>
       <button
         type="button"
         onClick={reset}

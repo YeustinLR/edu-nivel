@@ -43,6 +43,7 @@ import { sendVerificationOTP } from "@/server/mail/send-verification-otp";
 import {
   assertSignUpInvitationAllowed,
   finalizeSignUpInvitation,
+  getInvitationTokenFromAuthContext,
   getInvitedLevelFromAuthContext,
 } from "@/server/users/user-invitation-auth";
 
@@ -56,6 +57,7 @@ const PASSWORD_SETTING_PATHS = new Set([
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+  disabledPaths: ["/forget-password/email-otp"],
   // Better Auth persiste usuarios, cuentas, sesiones y verificaciones sobre los modelos
   // definidos en Prisma. Aqui delegamos el acceso a PostgreSQL al adaptador oficial.
   database: prismaAdapter(prisma, {
@@ -85,6 +87,13 @@ export const auth = betterAuth({
         returned: false,
         input: false,
       },
+      invitationPending: {
+        type: "boolean",
+        required: false,
+        returned: false,
+        input: false,
+        defaultValue: false,
+      },
       passwordChangeRequired: {
         type: "boolean",
         required: false,
@@ -102,16 +111,19 @@ export const auth = betterAuth({
         type: "date",
         required: false,
         returned: false,
+        input: false,
       },
       privacyAcceptedAt: {
         type: "date",
         required: false,
         returned: false,
+        input: false,
       },
       ageVerifiedAt: {
         type: "date",
         required: false,
         returned: false,
+        input: false,
       },
     },
   },
@@ -187,6 +199,19 @@ export const auth = betterAuth({
         });
       }
 
+      if (
+        ctx.path === "/sign-up/email" &&
+        (body?.acceptTerms !== true ||
+          body.acceptPrivacy !== true ||
+          body.adultDeclaration !== true)
+      ) {
+        throw APIError.from("BAD_REQUEST", {
+          code: "REGISTRATION_CONSENT_REQUIRED",
+          message:
+            "Debes aceptar los términos, la política de privacidad y la declaración de mayoría de edad.",
+        });
+      }
+
       if (!PASSWORD_SETTING_PATHS.has(ctx.path)) {
         return;
       }
@@ -250,7 +275,7 @@ export const auth = betterAuth({
           if (!Number.isInteger(ageDeclared) || !isAllowedDeclaredAge(ageDeclared)) {
             throw APIError.from("FORBIDDEN", {
               code: "AGE_RESTRICTED",
-              message: "Debes tener 18 anos o mas para crear una cuenta.",
+              message: "Debes tener 18 años o más para crear una cuenta.",
             });
           }
 
@@ -260,6 +285,9 @@ export const auth = betterAuth({
             email: user.email,
             role: String(user.role),
           });
+          const invitationPending = Boolean(
+            getInvitationTokenFromAuthContext(context),
+          );
 
           return {
             data: {
@@ -268,6 +296,7 @@ export const auth = betterAuth({
               termsAcceptedAt: now,
               privacyAcceptedAt: now,
               ageVerifiedAt: now,
+              invitationPending,
               ...(invitedLevelId !== undefined
                 ? { selectedLevelId: invitedLevelId }
                 : {}),
@@ -294,6 +323,7 @@ export const auth = betterAuth({
             suspendedAt?: Date | string | null;
             suspensionExpiresAt?: Date | string | null;
             adminCreatedAt?: Date | string | null;
+            invitationPending?: boolean | null;
             deletedAt?: Date | string | null;
           } | null;
           const suspendedAt = suspensionState?.suspendedAt
@@ -310,10 +340,17 @@ export const auth = betterAuth({
             });
           }
 
+          if (suspensionState?.invitationPending) {
+            throw APIError.from("FORBIDDEN", {
+              code: "INVITATION_NOT_FINALIZED",
+              message: "La invitación de esta cuenta no se completó.",
+            });
+          }
+
           if (!ageVerifiedAt && !suspensionState?.adminCreatedAt) {
             throw APIError.from("FORBIDDEN", {
               code: "AGE_RESTRICTED",
-              message: "Debes tener 18 anos o mas para iniciar sesion.",
+              message: "Debes tener 18 años o más para iniciar sesión.",
             });
           }
 

@@ -20,8 +20,9 @@ import { DASHBOARD_ROLES } from "@/modules/auth/lib/dashboard-path";
 
 export const authClient = createAuthClient({
   plugins: [
-    // Los sellos de consentimiento los estampa el servidor y nunca viajan desde el cliente.
-    // El rol puede volver en la respuesta de sesion/login para decidir navegacion; el formulario
+    // Los consentimientos viajan como declaraciones booleanas; las fechas correspondientes las
+    // estampa el servidor y nunca se aceptan como entrada del cliente. El rol puede volver en la
+    // respuesta de sesion/login para decidir navegacion; el formulario
     // y el validator server-side siguen limitando el registro publico a STUDENT y TEACHER.
     inferAdditionalFields({
       user: {
@@ -40,6 +41,21 @@ export const authClient = createAuthClient({
         invitationToken: {
           type: "string",
           required: false,
+          returned: false,
+        },
+        acceptTerms: {
+          type: "boolean",
+          required: true,
+          returned: false,
+        },
+        acceptPrivacy: {
+          type: "boolean",
+          required: true,
+          returned: false,
+        },
+        adultDeclaration: {
+          type: "boolean",
+          required: true,
           returned: false,
         },
       },

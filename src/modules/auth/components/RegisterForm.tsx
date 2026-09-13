@@ -11,8 +11,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, ChevronDown, GraduationCap } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { BookOpen, Check, GraduationCap } from "lucide-react";
 
 import { MAXIMUM_SIGN_UP_AGE, MINIMUM_SIGN_UP_AGE } from "@/modules/auth/lib/age";
 import { getAuthErrorMessage } from "@/modules/auth/lib/auth-error-messages";
@@ -70,31 +70,6 @@ export default function RegisterForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [ageDropdownOpen, setAgeDropdownOpen] = useState(false);
-  const [selectedAge, setSelectedAge] = useState<string>("");
-  const ageDropdownRef = useRef<HTMLDivElement>(null);
-
-  const closeAgeDropdown = useCallback(() => setAgeDropdownOpen(false), []);
-
-  useEffect(() => {
-    if (!ageDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (ageDropdownRef.current && !ageDropdownRef.current.contains(e.target as Node)) {
-        closeAgeDropdown();
-      }
-    }
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, [ageDropdownOpen, closeAgeDropdown]);
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (ageDropdownOpen && e.key === "Escape") closeAgeDropdown();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [ageDropdownOpen, closeAgeDropdown]);
-
   const passwordsMatch = Boolean(confirmPassword) && password === confirmPassword;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -145,14 +120,16 @@ export default function RegisterForm() {
 
     setFieldErrors({});
 
-    // Los sellos de consentimiento (terminos, privacidad, verificacion de edad) los
-    // estampa el servidor en el hook de creacion del usuario; no se envian desde aqui.
+    // El servidor valida las declaraciones y estampa sus fechas de forma autoritativa.
     const { error } = await authClient.signUp.email({
       name: parsed.data.name,
       email: parsed.data.email,
       password: parsed.data.password,
       ageDeclared: parsed.data.ageDeclared,
       role: parsed.data.role,
+      acceptTerms: parsed.data.acceptTerms,
+      acceptPrivacy: parsed.data.acceptPrivacy,
+      adultDeclaration: parsed.data.adultDeclaration,
     });
 
     if (error) {
@@ -179,7 +156,7 @@ export default function RegisterForm() {
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-2.5">
-        <fieldset className="space-y-1">
+        <fieldset className="space-y-1" aria-describedby={fieldErrors.role ? "role-error" : undefined}>
           <legend className="text-small font-semibold text-foreground">
             ¿Cómo usarás EduNivel?
           </legend>
@@ -195,10 +172,11 @@ export default function RegisterForm() {
                     value={option.value}
                     required
                     defaultChecked={option.value === defaultRole}
+                    aria-describedby={fieldErrors.role ? "role-error" : undefined}
                     className="peer sr-only"
                   />
                   <span className="flex h-full gap-2 rounded-lg border border-border bg-background p-2.5 transition hover:border-accent/60 peer-checked:border-accent peer-checked:bg-accent/10 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-text">
                       <Icon size={15} aria-hidden="true" />
                     </span>
                     <span className="space-y-1">
@@ -215,7 +193,7 @@ export default function RegisterForm() {
             })}
           </div>
           {fieldErrors.role && (
-            <p className="text-small text-red-500">{fieldErrors.role}</p>
+            <p id="role-error" className="text-small text-danger">{fieldErrors.role}</p>
           )}
         </fieldset>
 
@@ -230,11 +208,13 @@ export default function RegisterForm() {
               type="text"
               autoComplete="name"
               required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-body text-foreground outline-none transition focus:border-accent"
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? "name-error" : undefined}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               placeholder="Tu nombre"
             />
             {fieldErrors.name && (
-              <p className="text-small text-red-500">{fieldErrors.name}</p>
+              <p id="name-error" className="text-small text-danger">{fieldErrors.name}</p>
             )}
           </div>
 
@@ -242,44 +222,20 @@ export default function RegisterForm() {
             <label htmlFor="ageDeclared" className="text-small font-semibold text-foreground">
               Edad
             </label>
-            <div ref={ageDropdownRef} className="relative">
-              <input type="hidden" name="ageDeclared" value={selectedAge} />
-              <button
-                type="button"
-                onClick={() => setAgeDropdownOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2.5 text-body text-left outline-none transition focus:border-accent"
-              >
-                <span className={selectedAge ? "text-foreground" : "text-muted"}>
-                  {selectedAge || "Selecciona tu edad"}
-                </span>
-                <ChevronDown
-                  size={16}
-                  className={`shrink-0 text-muted transition-transform ${ageDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {ageDropdownOpen && (
-                <ul className="absolute left-0 top-full z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
-                  {AGE_OPTIONS.map((age) => (
-                    <li key={age}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedAge(String(age));
-                          setAgeDropdownOpen(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left text-body transition hover:bg-accent/10 ${
-                          String(age) === selectedAge ? "bg-accent/15 font-semibold text-accent" : "text-foreground"
-                        }`}
-                      >
-                        {age}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <select
+              id="ageDeclared"
+              name="ageDeclared"
+              required
+              defaultValue=""
+              aria-invalid={Boolean(fieldErrors.ageDeclared)}
+              aria-describedby={fieldErrors.ageDeclared ? "age-declared-error" : undefined}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-left text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <option value="" disabled>Selecciona tu edad</option>
+              {AGE_OPTIONS.map((age) => <option key={age} value={age}>{age}</option>)}
+            </select>
             {fieldErrors.ageDeclared && (
-              <p className="text-small text-red-500">{fieldErrors.ageDeclared}</p>
+              <p id="age-declared-error" className="text-small text-danger">{fieldErrors.ageDeclared}</p>
             )}
           </div>
         </div>
@@ -294,11 +250,13 @@ export default function RegisterForm() {
             type="email"
             autoComplete="email"
             required
-            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-body text-foreground outline-none transition focus:border-accent"
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             placeholder="tu@correo.com"
           />
           {fieldErrors.email && (
-            <p className="text-small text-red-500">{fieldErrors.email}</p>
+            <p id="email-error" className="text-small text-danger">{fieldErrors.email}</p>
           )}
         </div>
 
@@ -346,7 +304,14 @@ export default function RegisterForm() {
 
         <div className="grid gap-1.5 rounded-lg border border-border bg-background/60 p-2 sm:grid-cols-2">
           <label className="flex gap-2 text-small text-muted">
-            <input name="adultDeclaration" type="checkbox" required className="mt-0.5 h-4 w-4 accent-current" />
+            <input
+              name="adultDeclaration"
+              type="checkbox"
+              required
+              aria-invalid={Boolean(fieldErrors.legal)}
+              aria-describedby={fieldErrors.legal ? "legal-error" : undefined}
+              className="mt-0.5 h-4 w-4 accent-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+            />
             <span>Declaro que tengo 18 años o más.</span>
           </label>
           <label className="flex gap-2 text-small text-muted">
@@ -354,7 +319,9 @@ export default function RegisterForm() {
               name="acceptTerms"
               type="checkbox"
               required
-              className="mt-0.5 h-4 w-4 accent-current"
+              aria-invalid={Boolean(fieldErrors.legal)}
+              aria-describedby={fieldErrors.legal ? "legal-error" : undefined}
+              className="mt-0.5 h-4 w-4 accent-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
             />
             <span>
               Acepto los{" "}
@@ -362,15 +329,15 @@ export default function RegisterForm() {
                 href="/terminos-legales"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-foreground underline-offset-4 hover:text-accent hover:underline"
+                className="rounded-sm font-semibold text-foreground underline-offset-4 hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
               >
-                terminos</Link>
+                términos</Link>
               {" "}y la{" "}
               <Link
                 href="/privacidad"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-foreground underline-offset-4 hover:text-accent hover:underline"
+                className="rounded-sm font-semibold text-foreground underline-offset-4 hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
               >
                 privacidad
               </Link>
@@ -378,7 +345,7 @@ export default function RegisterForm() {
             </span>
           </label>
           {fieldErrors.legal && (
-            <p className="text-small text-red-500 sm:col-span-2">{fieldErrors.legal}</p>
+            <p id="legal-error" className="text-small text-danger sm:col-span-2">{fieldErrors.legal}</p>
           )}
         </div>
 
@@ -394,7 +361,7 @@ export default function RegisterForm() {
 
         <p className="text-center text-small text-muted">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="font-semibold text-foreground hover:text-accent">
+          <Link href="/login" className="rounded-sm font-semibold text-foreground hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
             Inicia sesión
           </Link>
         </p>

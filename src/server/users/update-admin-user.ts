@@ -1,7 +1,8 @@
 import "server-only";
 
-import { Role } from "@/generated/prisma/enums";
+import { PaymentStatus, Role } from "@/generated/prisma/enums";
 import type { AdminUserEditInput } from "@/modules/users/schemas/admin-user-edit.schema";
+import { getRequiredSubscriptionProduct } from "@/modules/subscriptions/domain/premium-access";
 import { prisma } from "@/server/db/prisma";
 
 export type AdminUserUpdateErrorCode =
@@ -9,6 +10,7 @@ export type AdminUserUpdateErrorCode =
   | "EDIT_CONFLICT"
   | "SELF_ROLE_CHANGE"
   | "ADMIN_ROLE_PROTECTED"
+  | "ROLE_FINANCIAL_CONFLICT"
   | "INVALID_LEVEL";
 
 export class AdminUserUpdateError extends Error {
@@ -60,6 +62,38 @@ export async function updateAdminUser(
       );
     }
 
+    const targetProduct = getRequiredSubscriptionProduct(input.role);
+    if (roleChanged && targetProduct) {
+      const incompatibleSubscription = await tx.subscription.findFirst({
+        where: {
+          userId: target.id,
+          product: { not: targetProduct },
+        },
+        select: { id: true },
+      });
+      const incompatibleOpenPayment = await tx.payment.findFirst({
+        where: {
+          userId: target.id,
+          roleAtCheckout: { not: input.role },
+          status: {
+            in: [
+              PaymentStatus.INITIALIZING,
+              PaymentStatus.PROCESSING,
+              PaymentStatus.REQUIRES_REVIEW,
+            ],
+          },
+        },
+        select: { id: true },
+      });
+
+      if (incompatibleSubscription || incompatibleOpenPayment) {
+        throw new AdminUserUpdateError(
+          "ROLE_FINANCIAL_CONFLICT",
+          "El usuario tiene una suscripción o un pago incompatible con el nuevo rol.",
+        );
+      }
+    }
+
     const canSelectLevel =
       input.role === Role.STUDENT || input.role === Role.TEACHER;
     const selectedLevelId = canSelectLevel ? input.selectedLevelId : null;
@@ -96,6 +130,17 @@ export async function updateAdminUser(
 
     if (roleChanged) {
       await tx.session.deleteMany({ where: { userId: target.id } });
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: actor.id,
+          targetUserId: target.id,
+          action: "USER_ROLE_CHANGED",
+          changes: {
+            previousRole: target.role,
+            nextRole: input.role,
+          },
+        },
+      });
     }
 
     return { id: target.id, roleChanged };

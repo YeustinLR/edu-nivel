@@ -2,6 +2,7 @@ import "server-only";
 
 import { APIError } from "better-auth";
 
+import type { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
 import { prisma } from "@/server/db/prisma";
 import { hashUserInvitationToken } from "@/server/users/user-invitation-token";
@@ -58,12 +59,14 @@ export async function findPendingSignUpInvitation({
   return invitation;
 }
 
-export async function consumeSignUpInvitation({
+async function consumeSignUpInvitationWithDb({
+  db,
   token,
   userId,
   email,
   role,
 }: {
+  db: Prisma.TransactionClient | typeof prisma;
   token: string;
   userId: string;
   email: string;
@@ -71,7 +74,7 @@ export async function consumeSignUpInvitation({
 }) {
   const normalizedEmail = email.trim().toLowerCase();
   const now = new Date();
-  const result = await prisma.userInvitation.updateMany({
+  const result = await db.userInvitation.updateMany({
     where: {
       tokenHash: hashUserInvitationToken(token),
       email: normalizedEmail,
@@ -89,6 +92,15 @@ export async function consumeSignUpInvitation({
   });
 
   return result.count === 1;
+}
+
+export async function consumeSignUpInvitation(
+  input: Omit<
+    Parameters<typeof consumeSignUpInvitationWithDb>[0],
+    "db"
+  >,
+) {
+  return consumeSignUpInvitationWithDb({ db: prisma, ...input });
 }
 
 function invalidInvitationError(message = "La invitación no es válida o ya expiró.") {
@@ -150,14 +162,30 @@ export async function finalizeSignUpInvitation({
   const token = getInvitationTokenFromAuthContext(context);
   if (!token) return;
 
-  const consumed = await consumeSignUpInvitation({
-    token,
-    userId: user.id,
-    email: user.email,
-    role: user.role as Role,
-  });
+  await prisma.$transaction(async (tx) => {
+    const consumed = await consumeSignUpInvitationWithDb({
+      db: tx,
+      token,
+      userId: user.id,
+      email: user.email,
+      role: user.role as Role,
+    });
 
-  if (!consumed) {
-    throw invalidInvitationError("La invitación no pudo consumirse.");
-  }
+    if (!consumed) {
+      throw invalidInvitationError("La invitación no pudo consumirse.");
+    }
+
+    const finalized = await tx.user.updateMany({
+      where: {
+        id: user.id,
+        email: user.email.trim().toLowerCase(),
+        role: user.role as Role,
+        invitationPending: true,
+      },
+      data: { invitationPending: false },
+    });
+    if (finalized.count !== 1) {
+      throw invalidInvitationError("La cuenta invitada no pudo activarse.");
+    }
+  });
 }

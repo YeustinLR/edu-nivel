@@ -99,6 +99,9 @@ export function AcceptUserInvitationForm({
       ageDeclared: parsed.data.ageDeclared,
       role: parsed.data.role,
       invitationToken: parsed.data.invitationToken,
+      acceptTerms: parsed.data.acceptTerms,
+      acceptPrivacy: parsed.data.acceptPrivacy,
+      adultDeclaration: parsed.data.adultDeclaration,
     });
 
     if (error) {

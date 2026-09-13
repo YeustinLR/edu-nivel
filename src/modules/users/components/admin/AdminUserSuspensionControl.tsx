@@ -68,7 +68,7 @@ export function AdminUserSuspensionControl({
               <button
                 type="submit"
                 disabled={isPending}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-success px-3.5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-success-fill px-3.5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
                 <RotateCcw aria-hidden="true" className="h-4 w-4" />
                 {isPending ? "Reactivando…" : "Reactivar"}

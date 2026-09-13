@@ -4,14 +4,14 @@ import AuthCard from "@/modules/auth/components/AuthCard";
 import ResetPasswordForm from "@/modules/auth/components/ResetPasswordForm";
 
 export const metadata: Metadata = {
-  title: "Restablecer contrasena",
+  title: "Restablecer contraseña",
 };
 
 export default function ResetPasswordPage() {
   return (
     <AuthCard
-      title="Restablecer contrasena"
-      subtitle="Ingresa el codigo recibido y define una nueva contrasena."
+      title="Restablecer contraseña"
+      subtitle="Ingresa el código recibido y define una nueva contraseña."
     >
       <ResetPasswordForm />
     </AuthCard>

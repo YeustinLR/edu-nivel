@@ -13,6 +13,15 @@ const tx = {
   session: {
     deleteMany: vi.fn(),
   },
+  subscription: {
+    findFirst: vi.fn(),
+  },
+  payment: {
+    findFirst: vi.fn(),
+  },
+  adminAuditLog: {
+    create: vi.fn(),
+  },
 };
 
 const mocks = vi.hoisted(() => ({
@@ -50,6 +59,9 @@ describe("updateAdminUser", () => {
     tx.level.findUnique.mockResolvedValue({ isActive: true });
     tx.user.updateMany.mockResolvedValue({ count: 1 });
     tx.session.deleteMany.mockResolvedValue({ count: 0 });
+    tx.subscription.findFirst.mockResolvedValue(null);
+    tx.payment.findFirst.mockResolvedValue(null);
+    tx.adminAuditLog.create.mockResolvedValue({ id: "audit-1" });
   });
 
   it("updates safe profile fields without revoking unchanged sessions", async () => {
@@ -86,6 +98,45 @@ describe("updateAdminUser", () => {
     expect(tx.session.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
+    expect(tx.adminAuditLog.create).toHaveBeenCalledWith({
+      data: {
+        actorId: actor.id,
+        targetUserId: "user-1",
+        action: "USER_ROLE_CHANGED",
+        changes: {
+          previousRole: Role.TEACHER,
+          nextRole: Role.COLLABORATOR,
+        },
+      },
+    });
+  });
+
+  it("rejects a role whose product conflicts with subscription history", async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: Role.STUDENT,
+      selectedLevelId: "level-7",
+    });
+    tx.subscription.findFirst.mockResolvedValue({ id: "subscription-1" });
+
+    await expect(
+      updateAdminUser({ ...baseInput, role: Role.TEACHER }, actor),
+    ).rejects.toMatchObject({ code: "ROLE_FINANCIAL_CONFLICT" });
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a role change while an incompatible payment remains open", async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: Role.STUDENT,
+      selectedLevelId: "level-7",
+    });
+    tx.payment.findFirst.mockResolvedValue({ id: "payment-1" });
+
+    await expect(
+      updateAdminUser({ ...baseInput, role: Role.TEACHER }, actor),
+    ).rejects.toMatchObject({ code: "ROLE_FINANCIAL_CONFLICT" });
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
   });
 
   it("prevents an administrator from changing their own role", async () => {

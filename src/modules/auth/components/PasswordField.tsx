@@ -17,6 +17,8 @@ type PasswordFieldProps = {
   onChange: (value: string) => void;
   disabled?: boolean;
   error?: string;
+  invalid?: boolean;
+  describedBy?: string;
   placeholder?: string;
   minLength?: number;
   toggleLabels?: PasswordToggleLabels;
@@ -39,12 +41,15 @@ export default function PasswordField({
   onChange,
   disabled = false,
   error,
+  invalid = false,
+  describedBy,
   placeholder,
   minLength,
   toggleLabels = DEFAULT_TOGGLE_LABELS,
   compact = false,
 }: PasswordFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const errorId = `${id}-error`;
 
   return (
     <div className={compact ? "space-y-1.5" : "space-y-2"}>
@@ -61,8 +66,10 @@ export default function PasswordField({
           minLength={minLength}
           value={value}
           disabled={disabled}
+          aria-invalid={Boolean(error) || invalid}
+          aria-describedby={error ? errorId : describedBy}
           onChange={(event) => onChange(event.target.value)}
-          className={`w-full rounded-lg border border-border bg-background pr-12 text-body text-foreground outline-none transition focus:border-accent disabled:cursor-not-allowed disabled:opacity-70 ${
+          className={`w-full rounded-lg border border-border bg-background pr-12 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70 ${
             compact ? "px-3 py-2.5" : "px-4 py-3"
           }`}
           placeholder={placeholder}
@@ -71,13 +78,13 @@ export default function PasswordField({
           type="button"
           disabled={disabled}
           onClick={() => setShowPassword((current) => !current)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-60"
           aria-label={showPassword ? toggleLabels.hide : toggleLabels.show}
         >
           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
-      {error && <p className="text-small text-red-500">{error}</p>}
+      {error && <p id={errorId} className="text-small text-danger">{error}</p>}
     </div>
   );
 }

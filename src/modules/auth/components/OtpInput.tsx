@@ -6,6 +6,8 @@ type OtpInputProps = {
   digits: string[];
   inputRefs: RefObject<Array<HTMLInputElement | null>>;
   disabled?: boolean;
+  invalid?: boolean;
+  describedBy?: string;
   onDigitChange: (index: number, value: string) => void;
   onKeyDown: (index: number, event: KeyboardEvent<HTMLInputElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLInputElement>) => void;
@@ -16,6 +18,8 @@ export default function OtpInput({
   digits,
   inputRefs,
   disabled = false,
+  invalid = false,
+  describedBy,
   onDigitChange,
   onKeyDown,
   onPaste,
@@ -40,8 +44,10 @@ export default function OtpInput({
           onChange={(event) => onDigitChange(index, event.target.value)}
           onKeyDown={(event) => onKeyDown(index, event)}
           onPaste={onPaste}
-          className="aspect-square w-full rounded-lg border border-border bg-background text-center text-xl font-bold text-foreground outline-none transition focus:border-accent disabled:cursor-not-allowed disabled:opacity-70"
-          aria-label={`Digito ${index + 1}`}
+          className="aspect-square w-full rounded-lg border border-border bg-background text-center text-xl font-bold text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70"
+          aria-label={`Dígito ${index + 1}`}
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
         />
       ))}
     </div>

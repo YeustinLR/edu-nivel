@@ -7,5 +7,5 @@ export const otpSchema = z
   .string()
   .regex(
     new RegExp(`^\\d{${AUTH_OTP_LENGTH}}$`),
-    `Ingresa el codigo de ${AUTH_OTP_LENGTH} digitos.`,
+    `Ingresa el código de ${AUTH_OTP_LENGTH} dígitos.`,
   );

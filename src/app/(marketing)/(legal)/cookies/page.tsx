@@ -89,11 +89,11 @@ export default function CookiesPage() {
         <h2 className="text-xl font-bold text-foreground pt-4">Contacto</h2>
         <p>
           Si tienes dudas sobre esta política o sobre el uso de cookies en EduNivel, puedes escribirnos a:<br />
-          <a href="mailto:ericv@gmail.com" className="text-accent hover:underline">ericv@gmail.com</a>
+          <a href="mailto:ericv@gmail.com" className="text-accent-text hover:underline">ericv@gmail.com</a>
         </p>
 
         <p className="text-muted pt-6 text-xs">
-          Última actualización: [Fecha de publicación]
+          Última actualización: 10 de septiembre de 2026
         </p>
       </section>
     </section>

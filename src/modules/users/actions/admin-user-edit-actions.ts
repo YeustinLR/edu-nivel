@@ -39,6 +39,7 @@ function knownUpdateError(
     EDIT_CONFLICT: "expectedUpdatedAt",
     SELF_ROLE_CHANGE: "role",
     ADMIN_ROLE_PROTECTED: "role",
+    ROLE_FINANCIAL_CONFLICT: "role",
     INVALID_LEVEL: "selectedLevelId",
   };
   const field = fieldByCode[error.code];

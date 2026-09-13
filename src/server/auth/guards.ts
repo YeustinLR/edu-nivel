@@ -23,7 +23,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
-  PaymentStatus,
   Role,
   SubscriptionProduct,
   type Level,
@@ -31,6 +30,7 @@ import {
   type User,
 } from "@/generated/prisma/client";
 import {
+  APPLIED_ACCESS_PAYMENT_STATUSES,
   evaluatePremiumAccess,
   getRequiredSubscriptionProduct,
   type PremiumAccessDecision,
@@ -78,6 +78,7 @@ export class AuthGuardError extends Error {
 export const getCurrentSession = cache(async () => {
   return auth.api.getSession({
     headers: await headers(),
+    query: { disableCookieCache: true },
   });
 });
 
@@ -116,6 +117,10 @@ export const requireUser = cache(async (): Promise<AuthenticatedUser> => {
   }
 
   if (user.deletedAt) {
+    redirect("/login");
+  }
+
+  if (user.invitationPending) {
     redirect("/login");
   }
 
@@ -192,7 +197,7 @@ export async function requireRole(allowedRoles: Role | Role[]) {
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
   if (!roles.includes(user.role)) {
-    throw new AuthGuardError("FORBIDDEN", "No tienes permisos para esta accion.");
+    throw new AuthGuardError("FORBIDDEN", "No tienes permisos para esta acción.");
   }
 
   return user;
@@ -283,7 +288,7 @@ export async function getPremiumAccessDecision(
     include: {
       payments: {
         where: {
-          status: PaymentStatus.SUCCEEDED,
+          status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
           appliedAt: { not: null },
         },
         select: { id: true },
@@ -338,48 +343,48 @@ export async function requireActiveSubscription() {
   if (code === "SUBSCRIPTION_REQUIRED") {
     throw new AuthGuardError(
       "SUBSCRIPTION_REQUIRED",
-      "Necesitas una suscripcion activa.",
+      "Necesitas una suscripción activa.",
     );
   }
 
   if (code === "SUBSCRIPTION_EXPIRED") {
     throw new AuthGuardError(
       "SUBSCRIPTION_EXPIRED",
-      "Tu suscripcion esta vencida.",
+      "Tu suscripción está vencida.",
     );
   }
 
   if (code === "SUBSCRIPTION_NOT_STARTED") {
     throw new AuthGuardError(
       "SUBSCRIPTION_NOT_STARTED",
-      "Tu suscripcion todavia no ha iniciado.",
+      "Tu suscripción todavía no ha iniciado.",
     );
   }
 
   if (code === "SUBSCRIPTION_PRODUCT_MISMATCH") {
     throw new AuthGuardError(
       "SUBSCRIPTION_PRODUCT_MISMATCH",
-      "Tu suscripcion no corresponde a este producto.",
+      "Tu suscripción no corresponde a este producto.",
     );
   }
 
   if (code === "SUBSCRIPTION_PAYMENT_UNCONFIRMED") {
     throw new AuthGuardError(
       "SUBSCRIPTION_PAYMENT_UNCONFIRMED",
-      "La suscripcion no tiene un pago confirmado.",
+      "La suscripción no tiene un pago confirmado.",
     );
   }
 
   if (code === "SUBSCRIPTION_INACTIVE") {
     throw new AuthGuardError(
       "SUBSCRIPTION_INACTIVE",
-      "Tu suscripcion no esta activa.",
+      "Tu suscripción no está activa.",
     );
   }
 
   throw new AuthGuardError(
     "SUBSCRIPTION_INACTIVE",
-    "No fue posible validar tu suscripcion.",
+    "No fue posible validar tu suscripción.",
   );
 }
 

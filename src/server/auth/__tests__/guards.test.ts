@@ -79,6 +79,10 @@ describe("getPremiumAccessDecision", () => {
     const result = await getPremiumAccessDecision("level-1");
 
     expect(result.decision).toEqual({ allowed: true });
+    expect(getSessionMock).toHaveBeenCalledWith({
+      headers: expect.any(Headers),
+      query: { disableCookieCache: true },
+    });
     expect(subscriptionFindUniqueMock).toHaveBeenCalledWith({
       where: {
         userId_levelId: {
@@ -89,7 +93,7 @@ describe("getPremiumAccessDecision", () => {
       include: {
         payments: {
           where: {
-            status: PaymentStatus.SUCCEEDED,
+          status: { in: [PaymentStatus.SUCCEEDED, PaymentStatus.REQUIRES_REVIEW] },
             appliedAt: { not: null },
           },
           select: { id: true },

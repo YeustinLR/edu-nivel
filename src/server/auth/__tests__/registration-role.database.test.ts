@@ -32,6 +32,11 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           (role) => `db-role-${role.toLowerCase()}-${unique}@example.com`,
         );
         const privilegedEmail = `db-role-admin-${unique}@example.com`;
+        const consents = {
+          acceptTerms: true,
+          acceptPrivacy: true,
+          adultDeclaration: true,
+        } as const;
 
         try {
           for (const [index, role] of PUBLIC_REGISTRATION_ROLES.entries()) {
@@ -44,6 +49,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 email,
                 password: "Segura9!alfabeto",
                 ageDeclared: 25,
+                ...consents,
               },
             });
 
@@ -77,6 +83,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 email: duplicateEmail.toUpperCase(),
                 password: "OtraSegura9!alfabeto",
                 ageDeclared: 30,
+                ...consents,
               },
             }),
           ).rejects.toMatchObject({
@@ -109,6 +116,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 email: privilegedEmail,
                 password: "Segura9!alfabeto",
                 ageDeclared: 25,
+                ...consents,
               },
             }),
           ).rejects.toMatchObject({ statusCode: 400 });

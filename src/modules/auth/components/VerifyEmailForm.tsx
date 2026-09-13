@@ -20,7 +20,7 @@ import { authClient } from "@/modules/auth/services/auth-client";
 import type { AuthFormState } from "@/modules/auth/types/auth-form-state";
 
 const VERIFIED_SUCCESS_MESSAGE =
-  "Correo verificado correctamente. Tu cuenta ya esta activa. Seras redirigido al inicio de sesion.";
+  "Correo verificado correctamente. Tu cuenta ya está activa. Serás redirigido al inicio de sesión.";
 
 const initialState: AuthFormState = { status: "idle" };
 
@@ -42,11 +42,13 @@ export default function VerifyEmailForm() {
     ) ?? "";
   });
   const [formState, setFormState] = useState<AuthFormState>(initialState);
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
   const resendCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.emailVerificationResend);
   const attemptCooldown = useCountdown(0, AUTH_SESSION_STORAGE_KEYS.emailVerificationAttempts);
   const otpInput = useOtpInput();
 
   const isBusy = formState.status === "loading" || formState.status === "success";
+  const hasError = formState.status === "error";
 
   useEffect(() => {
     if (formState.status !== "done") {
@@ -70,6 +72,7 @@ export default function VerifyEmailForm() {
     const parsed = verifyEmailSchema.safeParse({ email, otp: otpInput.otp });
 
     if (!parsed.success) {
+      setInvalidFields(new Set(parsed.error.issues.map((issue) => String(issue.path[0]))));
       setFormState({
         status: "error",
         message: parsed.error.issues[0]?.message ?? AUTH_VALIDATION_MESSAGES.defaultFormError,
@@ -77,6 +80,7 @@ export default function VerifyEmailForm() {
       return;
     }
 
+    setInvalidFields(new Set());
     setFormState({ status: "loading" });
 
     const { error } = await authClient.emailOtp.verifyEmail({
@@ -89,7 +93,7 @@ export default function VerifyEmailForm() {
       if (retryAfter) attemptCooldown.start(retryAfter);
       setFormState({
         status: "error",
-        message: getAuthErrorMessage(error, "No se pudo verificar el codigo."),
+        message: getAuthErrorMessage(error, "No se pudo verificar el código."),
       });
       return;
     }
@@ -116,7 +120,7 @@ export default function VerifyEmailForm() {
       if (retryAfter) resendCooldown.start(retryAfter);
       setFormState({
         status: "error",
-        message: getAuthErrorMessage(error, "No se pudo reenviar el codigo."),
+        message: getAuthErrorMessage(error, "No se pudo reenviar el código."),
       });
       return;
     }
@@ -125,7 +129,7 @@ export default function VerifyEmailForm() {
     resendCooldown.start(AUTH_OTP_RESEND_COOLDOWN_SECONDS);
     setFormState({
       status: "success",
-      message: "Enviamos un codigo nuevo. El codigo anterior dejo de ser valido.",
+      message: "Enviamos un código nuevo. El código anterior dejó de ser válido.",
     });
 
     window.setTimeout(() => {
@@ -137,17 +141,17 @@ export default function VerifyEmailForm() {
 
   if (formState.status === "done") {
     return (
-      <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-center">
+      <div role="status" aria-live="polite" className="rounded-lg border border-success/30 bg-success/10 p-4 text-center">
         <p className="text-small font-semibold text-success">{formState.message}</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" aria-describedby={hasError ? "auth-form-message" : undefined}>
       <div className="space-y-2">
         <label htmlFor="email" className="text-small font-semibold text-foreground">
-          Correo electronico
+          Correo electrónico
         </label>
         <input
           id="email"
@@ -158,24 +162,28 @@ export default function VerifyEmailForm() {
           value={email}
           disabled={isBusy}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus:border-accent disabled:cursor-not-allowed disabled:opacity-70"
+          aria-invalid={invalidFields.has("email")}
+          aria-describedby={hasError ? "auth-form-message" : undefined}
+          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70"
           placeholder="tu@correo.com"
         />
       </div>
 
-      <div className="space-y-3">
-        <label className="text-small font-semibold text-foreground">
-          Codigo de verificacion
-        </label>
+      <fieldset className="space-y-3">
+        <legend className="text-small font-semibold text-foreground">
+          Código de verificación
+        </legend>
         <OtpInput
           digits={otpInput.digits}
           inputRefs={otpInput.inputRefs}
           disabled={isBusy}
+          invalid={invalidFields.has("otp")}
+          describedBy={hasError ? "auth-form-message" : undefined}
           onDigitChange={otpInput.handleDigitChange}
           onKeyDown={otpInput.handleKeyDown}
           onPaste={otpInput.handlePaste}
         />
-      </div>
+      </fieldset>
 
       <AuthFormMessage state={formState} />
 
@@ -195,11 +203,11 @@ export default function VerifyEmailForm() {
         type="button"
         disabled={isBusy || resendCooldown.isActive || !email.trim()}
         onClick={handleResend}
-        className="w-full rounded-lg border border-border px-5 py-3 text-small font-semibold text-foreground transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg border border-border px-5 py-3 text-small font-semibold text-foreground transition hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
       >
         {resendCooldown.isActive
-          ? `Reenviar codigo en ${resendCooldown.secondsLeft}s`
-          : "Reenviar codigo"}
+          ? `Reenviar código en ${resendCooldown.secondsLeft}s`
+          : "Reenviar código"}
       </button>
     </form>
   );

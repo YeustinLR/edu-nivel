@@ -50,7 +50,7 @@ export function OtpEmail({
             <Text style={styles.code}>{otp}</Text>
           </Section>
           <Text style={styles.text}>
-            {`El codigo expira en ${EXPIRES_MINUTES} minutos. Si solicitas otro codigo, este dejara de ser valido.`}
+            {`El código expira en ${EXPIRES_MINUTES} minutos. Si solicitas otro código, este dejará de ser válido.`}
           </Text>
           <Hr style={styles.hr} />
           <Text style={styles.footer}>{footer}</Text>

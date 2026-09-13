@@ -37,6 +37,10 @@ export default function LoginForm() {
   const redirectUrl = getSafeRedirect(searchParams.get("redirect"));
   const [formState, setFormState] = useState<AuthFormState>(initialState);
   const [password, setPassword] = useState("");
+  const [invalidFields, setInvalidFields] = useState<Set<"email" | "password">>(
+    new Set(),
+  );
+  const hasError = formState.status === "error";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,12 +53,19 @@ export default function LoginForm() {
     });
 
     if (!parsed.success) {
+      setInvalidFields(new Set(
+        parsed.error.issues
+          .map((issue) => issue.path[0])
+          .filter((field): field is "email" | "password" => field === "email" || field === "password"),
+      ));
       setFormState({
         status: "error",
         message: parsed.error.issues[0]?.message ?? AUTH_VALIDATION_MESSAGES.defaultFormError,
       });
       return;
     }
+
+    setInvalidFields(new Set());
 
     const { data, error } = await authClient.signIn.email({
       email: parsed.data.email,
@@ -75,7 +86,7 @@ export default function LoginForm() {
 
       setFormState({
         status: "error",
-        message: getAuthErrorMessage(error, "Correo o contrasena incorrectos."),
+        message: getAuthErrorMessage(error, "Correo o contraseña incorrectos."),
       });
       return;
     }
@@ -89,10 +100,10 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" aria-describedby={hasError ? "auth-form-message" : undefined}>
       <div className="space-y-2">
         <label htmlFor="email" className="text-small font-semibold text-foreground">
-          Correo electronico
+          Correo electrónico
         </label>
         <input
           id="email"
@@ -100,7 +111,9 @@ export default function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus:border-accent"
+          aria-invalid={invalidFields.has("email")}
+          aria-describedby={hasError ? "auth-form-message" : undefined}
+          className="w-full rounded-lg border border-border bg-background px-4 py-3 text-body text-foreground outline-none transition focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           placeholder="tu@correo.com"
         />
       </div>
@@ -108,11 +121,13 @@ export default function LoginForm() {
       <PasswordField
         id="password"
         name="password"
-        label="Contrasena"
+        label="Contraseña"
         autoComplete="current-password"
         value={password}
         onChange={setPassword}
-        placeholder="Tu contrasena"
+        placeholder="Tu contraseña"
+        invalid={invalidFields.has("password")}
+        describedBy={hasError ? "auth-form-message" : undefined}
       />
 
       <AuthFormMessage state={formState} />
@@ -122,19 +137,19 @@ export default function LoginForm() {
         disabled={formState.status === "loading"}
         className="btn-primary w-full rounded-lg px-5 py-3 text-small disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {formState.status === "loading" ? "Ingresando..." : "Iniciar sesion"}
+        {formState.status === "loading" ? "Ingresando..." : "Iniciar sesión"}
       </button>
 
       <p className="text-center text-small">
-        <Link href="/recuperar-contrasena" className="font-semibold text-foreground hover:text-accent">
-          Olvidaste tu contrasena?
+        <Link href="/recuperar-contrasena" className="rounded-sm font-semibold text-foreground hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
+          ¿Olvidaste tu contraseña?
         </Link>
       </p>
 
       <p className="text-center text-small text-muted">
-        No tienes cuenta?{" "}
-        <Link href="/registro" className="font-semibold text-foreground hover:text-accent">
-          Registrate
+        ¿No tienes cuenta?{" "}
+        <Link href="/registro" className="rounded-sm font-semibold text-foreground hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
+          Regístrate
         </Link>
       </p>
     </form>

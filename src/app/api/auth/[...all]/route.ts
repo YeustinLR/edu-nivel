@@ -81,12 +81,21 @@ export async function POST(request: Request) {
     body && typeof body === "object" && typeof (body as { email?: unknown }).email === "string"
       ? (body as { email: string }).email
       : null;
+  const otpType =
+    body && typeof body === "object" && "type" in body
+      ? (body as { type?: unknown }).type
+      : null;
+  const rateLimitPath: OtpRateLimitPath =
+    pathname === "/email-otp/send-verification-otp" &&
+    otpType === "forget-password"
+      ? "/email-otp/request-password-reset"
+      : (pathname as OtpRateLimitPath);
   const isSignUp = pathname === "/sign-up/email";
   let receipt: Awaited<ReturnType<typeof consumeOtpRateLimit>>;
 
   try {
     receipt = await consumeOtpRateLimit({
-      path: pathname as OtpRateLimitPath,
+      path: rateLimitPath,
       email,
       ip: getIp(request, IP_OPTIONS),
       // Se reserva el cupo para cerrar carreras concurrentes. Si el registro o Resend

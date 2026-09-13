@@ -39,20 +39,20 @@ export default function PasswordStrengthMeter({
 function getPasswordStrength(score: number) {
   if (score >= 5) {
     return {
-      label: "Contrasena fuerte",
-      barClassName: "bg-success",
+      label: "Contraseña fuerte",
+      barClassName: "bg-success-fill",
     };
   }
 
   if (score >= 3) {
     return {
-      label: "Contrasena aceptable",
+      label: "Contraseña aceptable",
       barClassName: "bg-accent",
     };
   }
 
   return {
-    label: "Contrasena debil",
+    label: "Contraseña débil",
     barClassName: "bg-red-500",
   };
 }

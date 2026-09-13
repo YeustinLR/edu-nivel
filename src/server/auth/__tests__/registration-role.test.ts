@@ -26,6 +26,9 @@ const validBody = {
   email: "registro@example.com",
   password: "Segura9!alfabeto",
   ageDeclared: 25,
+  acceptTerms: true,
+  acceptPrivacy: true,
+  adultDeclaration: true,
 };
 
 describe("public registration role protection", () => {
@@ -57,6 +60,21 @@ describe("public registration role protection", () => {
         body: validBody as typeof validBody & { role: "STUDENT" },
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects registration when the server does not receive every consent", async () => {
+    await expect(
+      auth.api.signUpEmail({
+        body: {
+          ...validBody,
+          role: "STUDENT",
+          acceptPrivacy: false,
+        } as NonNullable<Parameters<typeof auth.api.signUpEmail>[0]>["body"],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "REGISTRATION_CONSENT_REQUIRED" },
+    });
   });
 
   it("rejects a collaborator registration with an invalid invitation", async () => {

@@ -12,7 +12,7 @@ export default function VerifyEmailPage() {
   return (
     <AuthCard
       title="Verifica tu correo"
-      subtitle="Ingresa el codigo de seis digitos que enviamos a tu correo."
+      subtitle="Ingresa el código de seis dígitos que enviamos a tu correo."
     >
       <Suspense fallback={null}>
         <VerifyEmailForm />
