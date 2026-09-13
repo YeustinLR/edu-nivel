@@ -70,6 +70,7 @@ enum PaymentStatus {
 }
 
 enum RefundStatus {
+  // Legacy compatibility only. EduNivel no longer creates or processes refunds.
   REQUESTED
   PENDING
   SUCCEEDED
@@ -109,6 +110,11 @@ enum ResourceType {
   GAME
   IMAGE
   AUDIO
+}
+
+enum QuizAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
 }
 
 enum ContentAudience {
@@ -155,6 +161,7 @@ model User {
   suspensionReason       String?
   suspensionExpiresAt    DateTime?
   adminCreatedAt         DateTime?
+  invitationPending      Boolean   @default(false)
   passwordChangeRequired Boolean   @default(false)
   deletedAt              DateTime?
   selectedLevelId        String?
@@ -183,6 +190,7 @@ model User {
   adminActionsTargeted AdminAuditLog[]    @relation("AuditTarget")
   notificationsSent    Notification[]    @relation("NotificationSender")
   notificationsReceived NotificationRecipient[]
+  quizAttempts           QuizAttempt[]
 
   @@index([deletedAt])
   @@map("user")
@@ -420,6 +428,8 @@ model Payment {
   @@map("payment")
 }
 
+/// Legacy compatibility model. Existing rows are retained for audit/read-only
+/// purposes; no active application flow may create or reconcile these records.
 model PaymentRefund {
   id                  String          @id @default(cuid())
   paymentId           String
@@ -666,6 +676,19 @@ model ContentImage {
   @@map("content_image")
 }
 
+model StorageObjectCleanup {
+  id            String   @id @default(cuid())
+  storageKey    String   @unique
+  attemptCount  Int      @default(0)
+  lastAttemptAt DateTime?
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("storage_object_cleanup")
+}
+
 model ResourceContentImage {
   resourceId     String
   resource       Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
@@ -691,8 +714,30 @@ model Quiz {
   maxAttempts      Int?
   shuffleQuestions Boolean  @default(false)
   questions        Json
+  attempts         QuizAttempt[]
 
   @@map("quiz")
+}
+
+model QuizAttempt {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId           String
+  quiz             Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  status           QuizAttemptStatus @default(IN_PROGRESS)
+  questionsSnapshot Json
+  answers          Json?
+  questionCount    Int
+  correctAnswers   Int?
+  percentage       Float?
+  passed           Boolean?
+  startedAt        DateTime          @default(now())
+  submittedAt      DateTime?
+
+  @@index([userId, quizId, startedAt])
+  @@index([quizId, status])
+  @@map("quiz_attempt")
 }
 
 model YoutubeVideo {
