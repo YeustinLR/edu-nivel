@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { QuizQuestion } from "@/modules/content/domain/quiz";
 
@@ -15,6 +16,50 @@ function newQuestion(): QuizQuestion {
     ],
     correctOptionId: firstOptionId,
   };
+}
+
+function QuestionActionButton({
+  label,
+  ariaLabel = label,
+  tooltipId,
+  disabled,
+  onClick,
+  danger = false,
+  children,
+}: {
+  label: string;
+  ariaLabel?: string;
+  tooltipId: string;
+  disabled?: boolean;
+  onClick: () => void;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span className="group/question-action relative inline-flex size-9 shrink-0">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-describedby={tooltipId}
+        disabled={disabled}
+        onClick={onClick}
+        className={`inline-flex size-9 items-center justify-center rounded-md border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-not-allowed disabled:opacity-40 ${
+          danger
+            ? "border-transparent text-muted hover:bg-red-500/10 hover:text-red-600"
+            : "border-border text-muted hover:bg-surface-elevated hover:text-foreground"
+        }`}
+      >
+        {children}
+      </button>
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover/question-action:opacity-100 group-focus-within/question-action:opacity-100 motion-reduce:transition-none"
+      >
+        {label}
+      </span>
+    </span>
+  );
 }
 
 export function QuizQuestionEditor({
@@ -44,32 +89,38 @@ export function QuizQuestionEditor({
     onChange(next);
   }
 
+  function addQuestion(afterIndex: number) {
+    const next = [...questions];
+    next.splice(afterIndex + 1, 0, newQuestion());
+    onChange(next);
+  }
+
   return (
     <section aria-labelledby="quiz-questions-heading" className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="quiz-questions-heading" className="font-semibold text-foreground">
-            Preguntas
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Cada pregunta admite de dos a ocho opciones y una respuesta correcta.
-          </p>
-        </div>
-        <button
-          type="button"
-          disabled={disabled || questions.length >= 100}
-          onClick={() => onChange([...questions, newQuestion()])}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/5 px-3 text-sm font-semibold text-secondary hover:bg-secondary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          Añadir pregunta
-        </button>
+      <div>
+        <h2 id="quiz-questions-heading" className="font-semibold text-foreground">
+          Preguntas
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Cada pregunta admite de dos a ocho opciones y una respuesta correcta.
+        </p>
       </div>
 
       {questions.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">
-          Añade al menos una pregunta para crear el cuestionario.
-        </p>
+        <div className="rounded-xl border border-dashed border-border p-5">
+          <p className="text-sm text-muted">
+            Añade al menos una pregunta para crear el cuestionario.
+          </p>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => addQuestion(-1)}
+            className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/5 px-3 text-sm font-semibold text-secondary hover:bg-secondary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            Añadir primera pregunta
+          </button>
+        </div>
       ) : null}
 
       {questions.map((question, questionIndex) => (
@@ -79,37 +130,51 @@ export function QuizQuestionEditor({
           className="space-y-4 rounded-xl border border-border bg-background p-4 sm:p-5"
         >
           <legend className="sr-only">Pregunta {questionIndex + 1}</legend>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-semibold text-foreground">Pregunta {questionIndex + 1}</p>
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label={`Mover pregunta ${questionIndex + 1} hacia arriba`}
+              <QuestionActionButton
+                label="Mover hacia arriba"
+                ariaLabel={`Mover pregunta ${questionIndex + 1} hacia arriba`}
+                tooltipId={`move-question-up-tooltip-${question.id}`}
                 disabled={disabled || questionIndex === 0}
                 onClick={() => moveQuestion(questionIndex, -1)}
-                className="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-40"
               >
                 <ArrowUp aria-hidden="true" className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label={`Mover pregunta ${questionIndex + 1} hacia abajo`}
+              </QuestionActionButton>
+              <QuestionActionButton
+                label="Mover hacia abajo"
+                ariaLabel={`Mover pregunta ${questionIndex + 1} hacia abajo`}
+                tooltipId={`move-question-down-tooltip-${question.id}`}
                 disabled={disabled || questionIndex === questions.length - 1}
                 onClick={() => moveQuestion(questionIndex, 1)}
-                className="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-40"
               >
                 <ArrowDown aria-hidden="true" className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label={`Eliminar pregunta ${questionIndex + 1}`}
+              </QuestionActionButton>
+              <QuestionActionButton
+                label={
+                  questions.length >= 100
+                    ? "Límite de 100 preguntas"
+                    : "Añadir pregunta"
+                }
+                ariaLabel={`Añadir pregunta después de la pregunta ${questionIndex + 1}`}
+                tooltipId={`add-question-tooltip-${question.id}`}
+                disabled={disabled || questions.length >= 100}
+                onClick={() => addQuestion(questionIndex)}
+              >
+                <Plus aria-hidden="true" className="size-4" />
+              </QuestionActionButton>
+              <QuestionActionButton
+                label="Eliminar pregunta"
+                ariaLabel={`Eliminar pregunta ${questionIndex + 1}`}
+                tooltipId={`delete-question-tooltip-${question.id}`}
+                danger
                 onClick={() =>
                   onChange(questions.filter((item) => item.id !== question.id))
                 }
-                className="inline-flex size-9 items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
               >
                 <Trash2 aria-hidden="true" className="size-4" />
-              </button>
+              </QuestionActionButton>
             </div>
           </div>
 
@@ -170,9 +235,10 @@ export function QuizQuestionEditor({
                   placeholder={`Opción ${optionIndex + 1}`}
                   className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
                 />
-                <button
-                  type="button"
-                  aria-label={`Eliminar opción ${optionIndex + 1} de pregunta ${questionIndex + 1}`}
+                <QuestionActionButton
+                  label="Eliminar opción"
+                  ariaLabel={`Eliminar opción ${optionIndex + 1} de pregunta ${questionIndex + 1}`}
+                  tooltipId={`delete-option-tooltip-${question.id}-${option.id}`}
                   disabled={question.options.length <= 2}
                   onClick={() =>
                     updateQuestion(question.id, (current) => {
@@ -189,10 +255,10 @@ export function QuizQuestionEditor({
                       };
                     })
                   }
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                  danger
                 >
                   <Trash2 aria-hidden="true" className="size-4" />
-                </button>
+                </QuestionActionButton>
               </div>
             ))}
             <button
