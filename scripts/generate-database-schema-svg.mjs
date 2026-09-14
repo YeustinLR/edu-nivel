@@ -32,10 +32,10 @@ const relations = [...source.matchAll(relationRegex)].map((match) => {
 const groups = [
   { title: "Autenticación y usuarios", color: "#DBEAFE", names: ["USER", "SESSION", "ACCOUNT", "VERIFICATION", "RATE_LIMIT"] },
   { title: "Administración", color: "#F3E8FF", names: ["ADMIN_AUDIT_LOG", "USER_INVITATION"] },
-  { title: "Suscripciones y pagos", color: "#DCFCE7", names: ["SUBSCRIPTION", "PAYMENT", "PAYMENT_REFUND", "WEBHOOK_RECEIPT"] },
-  { title: "Estructura educativa", color: "#FEF3C7", names: ["LEVEL", "SUBJECT", "MODULE", "RESOURCE", "UPLOAD_INTENT"] },
+  { title: "Suscripciones y pagos (PaymentRefund legado)", color: "#DCFCE7", names: ["SUBSCRIPTION", "PAYMENT", "PAYMENT_REFUND", "WEBHOOK_RECEIPT"] },
+  { title: "Estructura educativa", color: "#FEF3C7", names: ["LEVEL", "SUBJECT", "MODULE", "RESOURCE", "UPLOAD_INTENT", "STORAGE_OBJECT_CLEANUP"] },
   { title: "Recursos especializados", color: "#FCE7F3", names: ["QUIZ", "YOUTUBE_VIDEO", "PDF_RESOURCE", "FILE_RESOURCE", "LINK_RESOURCE", "GAME_RESOURCE", "IMAGE_RESOURCE", "AUDIO_RESOURCE"] },
-  { title: "Progreso del estudiante", color: "#E0E7FF", names: ["RESOURCE_PROGRESS", "SAVED_RESOURCE"] },
+  { title: "Progreso del estudiante", color: "#E0E7FF", names: ["RESOURCE_PROGRESS", "SAVED_RESOURCE", "QUIZ_ATTEMPT"] },
 ];
 
 const width = 6800;
@@ -134,14 +134,18 @@ const enumText = [
   "Role: STUDENT | TEACHER | COLLABORATOR | ADMIN",
   "PlanCode: STUDENT_MONTHLY | STUDENT_YEARLY | TEACHER_MONTHLY | TEACHER_YEARLY",
   "SubscriptionProduct: STUDENT_PREMIUM | TEACHER_PREMIUM · BillingInterval: MONTHLY | YEARLY",
-  "SubscriptionStatus: ACTIVE | CANCELED | EXPIRED | REFUNDED · PaymentStatus: INITIALIZING | PROCESSING | SUCCEEDED | FAILED | CANCELED | REFUNDED | REQUIRES_REVIEW",
-  "RefundStatus: REQUESTED | PENDING | SUCCEEDED | FAILED | REQUIRES_REVIEW | CANCELED · PaymentProvider: ONVO · PaymentMethod: SINPE_MOBILE",
+  "Legacy: SubscriptionStatus/PaymentStatus conservan REFUNDED y RefundStatus solo para datos históricos",
+  "ONVO: refunded | partially_refunded => Payment.REQUIRES_REVIEW + UNSUPPORTED_PROVIDER_REVERSAL · PaymentProvider: ONVO · PaymentMethod: SINPE_MOBILE",
   "ProviderMode: TEST | LIVE · WebhookOutcome: PROCESSED | IGNORED | REQUIRES_REVIEW | FAILED | PROCESSING",
   "ResourceType: NOTE | QUIZ | YOUTUBE | PDF | FILE | LINK | GAME | IMAGE | AUDIO · ContentAudience: STUDENT | TEACHER | BOTH",
   "PublicationStatus: DRAFT | IN_REVIEW | CHANGES_REQUESTED | PUBLISHED | UNPUBLISHED · UploadStatus: PENDING | PROCESSING | CONFIRMED | CLEANUP_PENDING | FAILED | EXPIRED",
+  "QuizAttemptStatus: IN_PROGRESS | SUBMITTED",
 ];
 enumText.forEach((line, index) => parts.push(`<text x="105" y="${enumY + 60 + index * 20}" font-family="Arial, sans-serif" font-size="13" fill="#475569">${esc(line)}</text>`));
 parts.push("</svg>");
+
+const height = enumY + 260;
+parts[0] = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
 
 fs.writeFileSync(outputPath, parts.join("\n"));
 console.log(`Generated ${outputPath.pathname}`);

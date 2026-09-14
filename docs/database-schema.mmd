@@ -19,6 +19,7 @@ erDiagram
         String suspensionReason optional
         DateTime suspensionExpiresAt optional
         DateTime adminCreatedAt optional
+        Boolean invitationPending
         Boolean passwordChangeRequired
         DateTime deletedAt optional
         String selectedLevelId FK optional
@@ -144,6 +145,7 @@ erDiagram
         DateTime updatedAt
     }
 
+    %% Legacy compatibility only: EduNivel no longer creates or processes rows here.
     PAYMENT_REFUND {
         String id PK
         String paymentId FK
@@ -277,6 +279,16 @@ erDiagram
         DateTime updatedAt
     }
 
+    STORAGE_OBJECT_CLEANUP {
+        String id PK
+        String storageKey UK
+        Int attemptCount
+        DateTime lastAttemptAt optional
+        String lastError optional
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
     QUIZ {
         String id PK
         String resourceId FK UK
@@ -284,6 +296,21 @@ erDiagram
         Int maxAttempts optional
         Boolean shuffleQuestions
         Json questions
+    }
+
+    QUIZ_ATTEMPT {
+        String id PK
+        String userId FK
+        String quizId FK
+        QuizAttemptStatus status
+        Json questionsSnapshot
+        Json answers optional
+        Int questionCount
+        Int correctAnswers optional
+        Float percentage optional
+        Boolean passed optional
+        DateTime startedAt
+        DateTime submittedAt optional
     }
 
     YOUTUBE_VIDEO {
@@ -376,7 +403,7 @@ erDiagram
     USER ||--o{ ACCOUNT : "accounts (CASCADE)"
     USER ||--o{ SUBSCRIPTION : "subscriptions (CASCADE)"
     USER ||--o{ PAYMENT : "payments (RESTRICT)"
-    USER ||--o{ PAYMENT_REFUND : "requested refunds (RESTRICT)"
+    USER ||--o{ PAYMENT_REFUND : "legacy payment_refund (RESTRICT)"
     USER ||--o{ RESOURCE_PROGRESS : "progress (CASCADE)"
     USER ||--o{ SAVED_RESOURCE : "saved resources (CASCADE)"
     USER ||--o{ MODULE : "created modules (RESTRICT)"
@@ -390,6 +417,7 @@ erDiagram
     USER o|--o| USER_INVITATION : "accepted invitation (SET NULL)"
     USER ||--o{ ADMIN_AUDIT_LOG : "actor (RESTRICT)"
     USER ||--o{ ADMIN_AUDIT_LOG : "target (RESTRICT)"
+    USER ||--o{ QUIZ_ATTEMPT : "quiz attempts (CASCADE)"
 
     LEVEL ||--o{ SUBJECT : "subjects (CASCADE)"
     LEVEL ||--o{ SUBSCRIPTION : "subscriptions (RESTRICT)"
@@ -400,12 +428,13 @@ erDiagram
     MODULE ||--o{ UPLOAD_INTENT : "upload intents (RESTRICT)"
 
     SUBSCRIPTION ||--o{ PAYMENT : "payments (SET NULL)"
-    PAYMENT ||--o{ PAYMENT_REFUND : "refunds (RESTRICT)"
+    PAYMENT ||--o{ PAYMENT_REFUND : "legacy payment_refund (RESTRICT)"
     RESOURCE ||--o{ RESOURCE_PROGRESS : "progress (CASCADE)"
     RESOURCE ||--o{ SAVED_RESOURCE : "saved by users (CASCADE)"
     UPLOAD_INTENT o|--o| RESOURCE : "confirmed resource (SET NULL)"
 
     RESOURCE ||--o| QUIZ : "specialization (CASCADE)"
+    QUIZ ||--o{ QUIZ_ATTEMPT : "attempts (CASCADE)"
     RESOURCE ||--o| YOUTUBE_VIDEO : "specialization (CASCADE)"
     RESOURCE ||--o| PDF_RESOURCE : "specialization (CASCADE)"
     RESOURCE ||--o| FILE_RESOURCE : "specialization (CASCADE)"
@@ -419,15 +448,16 @@ erDiagram
     %% SUBJECT: (levelId, name)
     %% RESOURCE_PROGRESS: (userId, resourceId)
     %% SAVED_RESOURCE: (userId, resourceId)
+    %% QUIZ_ATTEMPT indexes: (userId, quizId, startedAt), (quizId, status)
 
     %% Enums (not tables):
     %% Role = STUDENT | TEACHER | COLLABORATOR | ADMIN
     %% PlanCode = STUDENT_MONTHLY | STUDENT_YEARLY | TEACHER_MONTHLY | TEACHER_YEARLY
     %% SubscriptionProduct = STUDENT_PREMIUM | TEACHER_PREMIUM
     %% BillingInterval = MONTHLY | YEARLY
-    %% SubscriptionStatus = ACTIVE | CANCELED | EXPIRED | REFUNDED
-    %% PaymentStatus = INITIALIZING | PROCESSING | SUCCEEDED | FAILED | CANCELED | REFUNDED | REQUIRES_REVIEW
-    %% RefundStatus = REQUESTED | PENDING | SUCCEEDED | FAILED | REQUIRES_REVIEW | CANCELED
+    %% Legacy compatibility values retained while historical payment_refund rows exist:
+    %% SubscriptionStatus includes REFUNDED; PaymentStatus includes REFUNDED; RefundStatus is legacy-only.
+    %% ONVO read-only statuses refunded/partially_refunded map to Payment.REQUIRES_REVIEW.
     %% PaymentProvider = ONVO
     %% PaymentMethod = SINPE_MOBILE
     %% ProviderMode = TEST | LIVE
@@ -436,3 +466,4 @@ erDiagram
     %% ContentAudience = STUDENT | TEACHER | BOTH
     %% PublicationStatus = DRAFT | IN_REVIEW | CHANGES_REQUESTED | PUBLISHED | UNPUBLISHED
     %% UploadStatus = PENDING | PROCESSING | CONFIRMED | CLEANUP_PENDING | FAILED | EXPIRED
+    %% QuizAttemptStatus = IN_PROGRESS | SUBMITTED
