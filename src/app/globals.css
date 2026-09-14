@@ -19,6 +19,9 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-secondary: var(--secondary);
   --color-success: var(--success);
+  --color-success-fill: var(--success-fill);
+  --color-danger: var(--danger);
+  --color-accent-text: var(--accent-text);
 
   --font-size-hero: clamp(1.9rem, 4vw, 3.4rem);
   --font-size-section-title: clamp(1.6rem, 3vw, 2.4rem);
@@ -39,9 +42,12 @@
   --card: #ffffff;
   --border: #e2e8f0;
   --accent: #eab308;
+  --accent-text: #854d0e;
   --accent-foreground: #0f172a;
   --secondary: #7c3aed;
-  --success: #10b981;
+  --success: #047857;
+  --success-fill: #047857;
+  --danger: #b91c1c;
 }
 
 .dark {
@@ -54,9 +60,12 @@
   --card: rgba(255, 255, 255, 0.035);
   --border: rgba(255, 255, 255, 0.08);
   --accent: #facc15;
+  --accent-text: #fde047;
   --accent-foreground: #0f172a;
   --secondary: #8b5cf6;
-  --success: #34d399;
+  --success: #6ee7b7;
+  --success-fill: #047857;
+  --danger: #fca5a5;
 }
 
 .learner-dashboard {

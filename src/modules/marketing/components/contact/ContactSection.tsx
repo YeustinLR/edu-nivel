@@ -92,7 +92,7 @@ const topicStyles = {
     hover: "hover:border-secondary/30",
   },
   accent: {
-    icon: "bg-accent/15 text-accent",
+    icon: "bg-accent/15 text-accent-text",
     hover: "hover:border-accent/35",
   },
   success: {
@@ -132,8 +132,8 @@ export default function ContactSection() {
 
             <div className="mt-8 flex w-fit items-center gap-3 rounded-2xl border border-success/20 bg-success/5 px-4 py-3">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-40" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success-fill opacity-40" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success-fill" />
               </span>
               <div>
                 <p className="text-sm font-semibold text-foreground">
@@ -198,7 +198,7 @@ export default function ContactSection() {
                   aria-label="Conversar con EduNivel por WhatsApp, abre en una pestaña nueva"
                 >
                   <span className="flex min-w-0 items-center gap-4">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-success text-white shadow-md shadow-success/20">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-success-fill text-white shadow-md shadow-success/20">
                       <MessageCircle size={22} aria-hidden="true" />
                     </span>
                     <span>

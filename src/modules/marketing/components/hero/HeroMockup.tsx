@@ -39,7 +39,7 @@ export default function HeroMockup() {
 
         <div className="grid grid-cols-2 gap-2 mb-3">
           {[
-            { icon: <FileText size={13} className="text-accent" />, bg: "color-mix(in srgb, var(--accent) 18%, transparent)", l: "Evaluaciones", v: "3 pendientes" },
+            { icon: <FileText size={13} className="text-accent-text" />, bg: "color-mix(in srgb, var(--accent) 18%, transparent)", l: "Evaluaciones", v: "3 pendientes" },
             { icon: <Bell size={13} className="text-success" />, bg: "color-mix(in srgb, var(--success) 18%, transparent)", l: "Notificaciones", v: "2 nuevas" },
           ].map(({ icon, bg, l, v }) => (
             <div key={l} className="glass-card rounded-xl p-3 flex items-center gap-2">
@@ -68,7 +68,7 @@ export default function HeroMockup() {
       </div>
 
       <div className="floating-card bottom-card text-xxs">
-        <CheckCircle size={12} className="text-accent" />
+        <CheckCircle size={12} className="text-accent-text" />
         <span className="font-semibold">Racha de 5 días 🔥</span>
       </div>
     </div>

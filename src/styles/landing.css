@@ -102,6 +102,13 @@
   box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
+.btn-primary:focus-visible,
+.btn-outline:focus-visible,
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
 .shadow-hero-cta {
   box-shadow: 0 0 28px rgba(234, 179, 8, 0.28);
 }

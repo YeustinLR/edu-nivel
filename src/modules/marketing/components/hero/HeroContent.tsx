@@ -106,7 +106,7 @@ export default function HeroContent() {
         <span className="text-muted text-xs flex items-center gap-1">
           <Star
             size={11}
-            className="text-accent fill-accent"
+            className="fill-accent-text text-accent-text"
             aria-hidden="true"
           />
           {socialProof.note}

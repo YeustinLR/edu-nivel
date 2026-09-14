@@ -25,7 +25,7 @@ export function EduNivelLogo({
           size === "large" ? "text-[1.35rem]" : "text-lg"
         } font-extrabold tracking-[-0.02em] ${inverse ? "text-white" : "text-foreground"}`}
       >
-        Edu<span className="text-accent">Nivel</span>
+        Edu<span className={inverse ? "text-accent" : "text-accent-text"}>Nivel</span>
       </span>
     </span>
   );

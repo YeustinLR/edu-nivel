@@ -22,7 +22,7 @@ export default function Testimonials() {
             >
               <div className="flex mb-4">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={13} className="text-accent fill-accent" />
+                  <Star key={i} size={13} className="fill-accent-text text-accent-text" />
                 ))}
               </div>
               <p className="text-foreground-secondary mb-6 text-small" style={{ lineHeight: 1.75, fontStyle: "italic" }}>{texto}</p>
