@@ -425,6 +425,8 @@ model Payment {
   @@index([subscriptionId])
   @@index([providerStatus])
   @@index([createdAt])
+  @@index([providerMode, status, appliedAt])
+  @@index([providerMode, createdAt, id])
   @@map("payment")
 }
 
