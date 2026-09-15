@@ -7,7 +7,11 @@ import type {
   StudentResourceProgressActionResult,
   StudentResourceViewActionResult,
 } from "@/modules/content/types/student-resource-progress";
-import { getAuthorizedStudentResource } from "@/server/content/student-resource-access";
+import {
+  getAuthorizedStudentResource,
+  getAuthorizedTeacherResource,
+  type AuthorizedLearnerResourceResult,
+} from "@/server/content/student-resource-access";
 import { prisma } from "@/server/db/prisma";
 
 const resourceIdSchema = z.string().trim().min(1).max(191);
@@ -35,6 +39,26 @@ export async function recordStudentResourceViewedAction(
     return { status: "error", code: access.code };
   }
 
+  return recordResourceViewed(access);
+}
+
+export async function recordTeacherResourceViewedAction(
+  input: unknown,
+): Promise<StudentResourceViewActionResult> {
+  const parsed = resourceIdSchema.safeParse(input);
+  if (!parsed.success) return { status: "error", code: "INVALID_INPUT" };
+
+  const access = await getAuthorizedTeacherResource(parsed.data);
+  if (!access.allowed) {
+    return { status: "error", code: access.code };
+  }
+
+  return recordResourceViewed(access);
+}
+
+async function recordResourceViewed(
+  access: Extract<AuthorizedLearnerResourceResult, { allowed: true }>,
+): Promise<StudentResourceViewActionResult> {
   try {
     const now = new Date();
     await prisma.resourceProgress.upsert({

@@ -47,6 +47,7 @@ describe("createAdminUser", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           emailVerified: true,
+          emailVerifiedAt: expect.any(Date),
           adminCreatedAt: expect.any(Date),
           passwordChangeRequired: true,
           accounts: { create: expect.objectContaining({ password: "hashed-password" }) },

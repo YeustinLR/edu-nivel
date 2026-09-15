@@ -12,6 +12,7 @@ import {
   Role,
 } from "@/generated/prisma/client";
 import type { StartSinpePaymentInput } from "@/modules/payments/schemas/start-sinpe-payment.schema";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { getSubscriptionPlan } from "@/modules/subscriptions/config/plan-catalog";
 import { requireUser } from "@/server/auth/guards";
 import { prisma } from "@/server/db/prisma";
@@ -27,7 +28,6 @@ import {
   enforceCheckoutRateLimit,
 } from "@/server/payments/onvo/checkout-rate-limit";
 import {
-  providerModeFromEnvironment,
   reconcileOnvoPaymentIntent,
 } from "@/server/payments/onvo/reconcile";
 import { logOnvoPaymentEvent } from "@/server/payments/onvo/payment-log";
@@ -49,7 +49,7 @@ function getProviderMode(): ProviderMode {
     );
   }
 
-  return providerModeFromEnvironment(mode);
+  return providerModeForEnvironment(mode);
 }
 
 function toPaymentStatus(providerStatus: string): PaymentStatus {
@@ -82,7 +82,11 @@ async function updateMutableCheckout(
   return prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
 }
 
-async function findExistingCheckout(checkoutRequestId: string, userId: string) {
+async function findExistingCheckout(
+  checkoutRequestId: string,
+  userId: string,
+  providerMode: ProviderMode,
+) {
   const existing = await prisma.payment.findUnique({
     where: { checkoutRequestId },
   });
@@ -96,14 +100,26 @@ async function findExistingCheckout(checkoutRequestId: string, userId: string) {
     );
   }
 
+  if (existing.providerMode !== providerMode) {
+    throw new SinpeCheckoutError(
+      "CHECKOUT_REQUEST_CONFLICT",
+      "La solicitud de pago pertenece a otro entorno de cobro.",
+    );
+  }
+
   return existing;
 }
 
-async function findOpenLevelCheckout(userId: string, levelId: string) {
+async function findOpenLevelCheckout(
+  userId: string,
+  levelId: string,
+  providerMode: ProviderMode,
+) {
   return prisma.payment.findFirst({
     where: {
       userId,
       levelId,
+      providerMode,
       status: {
         in: [
           PaymentStatus.INITIALIZING,
@@ -118,6 +134,7 @@ async function findOpenLevelCheckout(userId: string, levelId: string) {
 
 export async function createSinpePayment(input: StartSinpePaymentInput) {
   const user = await requireUser();
+  const providerMode = getProviderMode();
 
   if (user.role !== Role.STUDENT && user.role !== Role.TEACHER) {
     throw new SinpeCheckoutError(
@@ -162,11 +179,16 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
   const existing = await findExistingCheckout(
     input.checkoutRequestId,
     user.id,
+    providerMode,
   );
 
   if (existing) return existing;
 
-  const openLevelCheckout = await findOpenLevelCheckout(user.id, level.id);
+  const openLevelCheckout = await findOpenLevelCheckout(
+    user.id,
+    level.id,
+    providerMode,
+  );
   if (openLevelCheckout) return openLevelCheckout;
 
   try {
@@ -197,7 +219,7 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
         expectedAmountMinor: plan.amountMinor,
         currency: plan.currency,
         provider: PaymentProvider.ONVO,
-        providerMode: getProviderMode(),
+        providerMode,
         method: PaymentMethod.SINPE_MOBILE,
         internalReference,
         checkoutRequestId: input.checkoutRequestId,
@@ -215,12 +237,14 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
       const concurrentCheckout = await findExistingCheckout(
         input.checkoutRequestId,
         user.id,
+        providerMode,
       );
       if (concurrentCheckout) return concurrentCheckout;
 
       const concurrentLevelCheckout = await findOpenLevelCheckout(
         user.id,
         level.id,
+        providerMode,
       );
       if (concurrentLevelCheckout) return concurrentLevelCheckout;
     }

@@ -5,7 +5,7 @@ import { getPremiumAccessDecision, requireRole } from "@/server/auth/guards";
 import { getVisibleLearnerResourceTreeWhere } from "@/server/content/learner-content-access";
 import { prisma } from "@/server/db/prisma";
 
-export type AuthorizedStudentResourceResult =
+export type AuthorizedLearnerResourceResult =
   | {
       allowed: true;
       userId: string;
@@ -19,8 +19,21 @@ export type AuthorizedStudentResourceResult =
 
 export async function getAuthorizedStudentResource(
   resourceId: string,
-): Promise<AuthorizedStudentResourceResult> {
-  const user = await requireRole(Role.STUDENT);
+): Promise<AuthorizedLearnerResourceResult> {
+  return getAuthorizedLearnerResource(resourceId, Role.STUDENT);
+}
+
+export async function getAuthorizedTeacherResource(
+  resourceId: string,
+): Promise<AuthorizedLearnerResourceResult> {
+  return getAuthorizedLearnerResource(resourceId, Role.TEACHER);
+}
+
+async function getAuthorizedLearnerResource(
+  resourceId: string,
+  role: typeof Role.STUDENT | typeof Role.TEACHER,
+): Promise<AuthorizedLearnerResourceResult> {
+  const user = await requireRole(role);
   if (!user.selectedLevelId) {
     return { allowed: false, code: "CONTENT_ACCESS_REQUIRED" };
   }
@@ -32,7 +45,7 @@ export async function getAuthorizedStudentResource(
 
   const resource = await prisma.resource.findFirst({
     where: getVisibleLearnerResourceTreeWhere({
-      role: Role.STUDENT,
+      role,
       levelId: user.selectedLevelId,
       resourceId,
     }),

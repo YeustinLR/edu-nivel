@@ -2,6 +2,7 @@ import type {
   PaymentMethod,
   PaymentStatus,
   PlanCode,
+  ProviderMode,
   Role,
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
@@ -43,6 +44,7 @@ export type LearnerSubscriptionPaymentSummary = {
   currency: string;
   method: PaymentMethod;
   confirmedAt: string | null;
+  providerMode: ProviderMode;
 };
 
 export type LearnerPendingPaymentItem = {
@@ -54,6 +56,7 @@ export type LearnerPendingPaymentItem = {
   expectedAmountMinor: number;
   currency: string;
   createdAt: string;
+  providerMode: ProviderMode;
   href: string;
 };
 
@@ -68,6 +71,7 @@ export type LearnerPaymentHistoryItem = {
   method: PaymentMethod;
   createdAt: string;
   confirmedAt: string | null;
+  providerMode: ProviderMode;
   href: string;
 };
 
@@ -85,6 +89,7 @@ export type LearnerSubscriptionOverview = {
   availableLevelCount: number;
   activeCount: number;
   paymentHistory: LearnerPaymentHistory;
+  paymentMode: ProviderMode;
 };
 
 export type LearnerSubscriptionCheckoutLevel = {

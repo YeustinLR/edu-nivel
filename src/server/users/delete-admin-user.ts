@@ -80,6 +80,7 @@ export async function deleteAdminUser(
             name: "Usuario eliminado",
             email: `${target.id}@deleted.invalid`,
             emailVerified: false,
+            emailVerifiedAt: null,
             image: null,
             birthDate: null,
             ageDeclared: null,

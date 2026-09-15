@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PaymentStatus, Role, SubscriptionProduct } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import {
   educationStageForLevel,
   getStudentExploreAccess,
@@ -35,6 +36,7 @@ export async function getStudentExploreData({
   requestedSubjectId?: string;
 }): Promise<StudentExploreData> {
   const user = await requireRole(Role.STUDENT);
+  const paymentMode = providerModeForEnvironment(process.env.ONVO_ENV);
   const [levelRows, subscriptions, pendingPayments] = await Promise.all([
     getPublishedStudentCatalog(),
     prisma.subscription.findMany({
@@ -51,6 +53,7 @@ export async function getStudentExploreData({
         currentPeriodEnd: true,
         payments: {
           where: {
+            providerMode: paymentMode,
             status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
             appliedAt: { not: null },
           },
@@ -63,6 +66,7 @@ export async function getStudentExploreData({
       where: {
         userId: user.id,
         product: SubscriptionProduct.STUDENT_PREMIUM,
+        providerMode: paymentMode,
         status: { in: openPaymentStatuses },
       },
       orderBy: { createdAt: "desc" },

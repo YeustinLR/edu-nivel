@@ -8,6 +8,7 @@ import {
   SubscriptionProduct,
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import {
   APPLIED_ACCESS_PAYMENT_STATUSES,
   evaluatePremiumAccess,
@@ -85,6 +86,7 @@ export const getLearnerSubscriptionOverview = cache(
   ): Promise<LearnerSubscriptionOverview> => {
     const user = await requireRole(role);
     const product = requiredProduct(role);
+    const paymentMode = providerModeForEnvironment(process.env.ONVO_ENV);
     const now = new Date();
     const safePaymentPage = Math.max(1, Math.trunc(paymentPage));
     const [
@@ -112,6 +114,7 @@ export const getLearnerSubscriptionOverview = cache(
             },
             payments: {
               where: {
+                providerMode: paymentMode,
                 status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
                 appliedAt: { not: null },
               },
@@ -125,6 +128,7 @@ export const getLearnerSubscriptionOverview = cache(
                 currency: true,
                 method: true,
                 confirmedAt: true,
+                providerMode: true,
               },
             },
           },
@@ -133,6 +137,7 @@ export const getLearnerSubscriptionOverview = cache(
           where: {
             userId: user.id,
             product,
+            providerMode: paymentMode,
             status: { in: openPaymentStatuses },
           },
           orderBy: { createdAt: "desc" },
@@ -144,10 +149,13 @@ export const getLearnerSubscriptionOverview = cache(
             expectedAmountMinor: true,
             currency: true,
             createdAt: true,
+            providerMode: true,
             level: { select: { levelNumber: true } },
           },
         }),
-        prisma.payment.count({ where: { userId: user.id, product } }),
+        prisma.payment.count({
+          where: { userId: user.id, product, providerMode: paymentMode },
+        }),
         prisma.level.count({
           where: {
             isActive: true,
@@ -156,6 +164,7 @@ export const getLearnerSubscriptionOverview = cache(
             payments: {
               none: {
                 userId: user.id,
+                providerMode: paymentMode,
                 status: { in: openPaymentStatuses },
               },
             },
@@ -168,7 +177,7 @@ export const getLearnerSubscriptionOverview = cache(
     );
     const effectivePaymentPage = Math.min(safePaymentPage, totalPages);
     const paymentHistory = await prisma.payment.findMany({
-      where: { userId: user.id, product },
+      where: { userId: user.id, product, providerMode: paymentMode },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (effectivePaymentPage - 1) * LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
       take: LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
@@ -182,6 +191,7 @@ export const getLearnerSubscriptionOverview = cache(
         method: true,
         createdAt: true,
         confirmedAt: true,
+        providerMode: true,
         level: { select: { levelNumber: true } },
       },
     });
@@ -196,6 +206,7 @@ export const getLearnerSubscriptionOverview = cache(
         expectedAmountMinor: payment.expectedAmountMinor,
         currency: payment.currency,
         createdAt: payment.createdAt.toISOString(),
+        providerMode: payment.providerMode,
         href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
       }),
     );
@@ -251,6 +262,7 @@ export const getLearnerSubscriptionOverview = cache(
                 currency: latestPayment.currency,
                 method: latestPayment.method,
                 confirmedAt: latestPayment.confirmedAt?.toISOString() ?? null,
+                providerMode: latestPayment.providerMode,
               }
             : null,
           openPayment: pendingByLevelId.get(subscription.levelId) ?? null,
@@ -270,6 +282,7 @@ export const getLearnerSubscriptionOverview = cache(
         method: payment.method,
         createdAt: payment.createdAt.toISOString(),
         confirmedAt: payment.confirmedAt?.toISOString() ?? null,
+        providerMode: payment.providerMode,
         href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
       }),
     );
@@ -286,6 +299,7 @@ export const getLearnerSubscriptionOverview = cache(
         totalItems: paymentHistoryCount,
         totalPages,
       },
+      paymentMode,
     };
   },
 );
@@ -294,6 +308,7 @@ export async function getLearnerAvailableSubscriptionLevels(
   role: LearnerSubscriptionRole,
 ): Promise<LearnerSubscriptionCheckoutLevel[]> {
   const user = await requireRole(role);
+  const paymentMode = providerModeForEnvironment(process.env.ONVO_ENV);
   return prisma.level.findMany({
     where: {
       isActive: true,
@@ -302,6 +317,7 @@ export async function getLearnerAvailableSubscriptionLevels(
       payments: {
         none: {
           userId: user.id,
+          providerMode: paymentMode,
           status: { in: openPaymentStatuses },
         },
       },

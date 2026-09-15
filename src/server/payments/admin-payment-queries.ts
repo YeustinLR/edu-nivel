@@ -16,6 +16,7 @@ import {
   paymentMetricPercentage,
   startOfCostaRicaMonth,
 } from "@/modules/payments/domain/admin-payment-reporting";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import {
   adminPaymentStatusValues,
   type ParsedAdminPaymentsSearchParams,
@@ -81,7 +82,7 @@ export type AdminPaymentsSummary = {
 export function adminPaymentsProviderMode(
   onvoEnvironment: "test" | "live" | undefined,
 ) {
-  return onvoEnvironment === "live" ? ProviderMode.LIVE : ProviderMode.TEST;
+  return providerModeForEnvironment(onvoEnvironment);
 }
 
 function metric(current: number, previous: number): AdminPaymentMetric {

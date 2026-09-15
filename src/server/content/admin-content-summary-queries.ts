@@ -39,10 +39,22 @@ export const getAdminContentSummary = cache(
         where: { publicationStatus: PublicationStatus.IN_REVIEW },
       }),
       prisma.module.count({
-        where: { publicationStatus: PublicationStatus.PUBLISHED },
+        where: {
+          isActive: true,
+          publicationStatus: PublicationStatus.PUBLISHED,
+          subject: { isActive: true, level: { isActive: true } },
+        },
       }),
       prisma.resource.count({
-        where: { publicationStatus: PublicationStatus.PUBLISHED },
+        where: {
+          isActive: true,
+          publicationStatus: PublicationStatus.PUBLISHED,
+          module: {
+            isActive: true,
+            publicationStatus: PublicationStatus.PUBLISHED,
+            subject: { isActive: true, level: { isActive: true } },
+          },
+        },
       }),
     ]);
 

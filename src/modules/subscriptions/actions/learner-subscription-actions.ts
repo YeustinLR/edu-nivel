@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import {
   Role,
 } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import {
   startSinpePaymentSchema,
   startLearnerRenewalPaymentSchema,
@@ -240,6 +241,7 @@ async function selectSubscriptionLevel(
       level: { select: { id: true, isActive: true } },
       payments: {
         where: {
+          providerMode: providerModeForEnvironment(process.env.ONVO_ENV),
           status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
           appliedAt: { not: null },
         },

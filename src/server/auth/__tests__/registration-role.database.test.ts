@@ -5,10 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 import { Role } from "@/generated/prisma/client";
 import { PUBLIC_REGISTRATION_ROLES } from "@/modules/auth/lib/registration-role";
 
+const mocks = vi.hoisted(() => ({
+  sendVerificationOTP: vi.fn(),
+}));
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/server/mail/send-verification-otp", () => ({
-  sendVerificationOTP: vi.fn(),
+  sendVerificationOTP: mocks.sendVerificationOTP,
 }));
 
 const RUN_DATABASE_INTEGRATION =
@@ -59,6 +63,7 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               email,
               role: role === "STUDENT" ? Role.STUDENT : Role.TEACHER,
               emailVerified: false,
+              emailVerifiedAt: null,
             });
           }
 
@@ -126,10 +131,31 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           ).resolves.toBeNull();
 
           const verifiedStudentEmail = emails[0]!;
-          await prisma.user.update({
-            where: { email: verifiedStudentEmail },
-            data: { emailVerified: true },
+          await auth.api.sendVerificationOTP({
+            body: {
+              email: verifiedStudentEmail,
+              type: "email-verification",
+            },
           });
+          const otpCall = mocks.sendVerificationOTP.mock.calls.findLast(
+            ([data]) => data.email === verifiedStudentEmail,
+          );
+          expect(otpCall).toBeDefined();
+          const verificationStartedAt = new Date();
+          await auth.api.verifyEmailOTP({
+            body: {
+              email: verifiedStudentEmail,
+              otp: otpCall![0].otp,
+            },
+          });
+          const verifiedUser = await prisma.user.findUniqueOrThrow({
+            where: { email: verifiedStudentEmail },
+          });
+          expect(verifiedUser.emailVerified).toBe(true);
+          expect(verifiedUser.emailVerifiedAt).toBeInstanceOf(Date);
+          expect(verifiedUser.emailVerifiedAt!.getTime()).toBeGreaterThanOrEqual(
+            verificationStartedAt.getTime(),
+          );
 
           const signInResult = await auth.api.signInEmail({
             returnHeaders: true,

@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { ProviderMode } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { eligibleUserSelect, eligibleUserWhere, isNotificationUserEligible, MAX_NOTIFICATION_RECIPIENTS, reminderKey, renewalWhere } from "@/modules/notifications/domain/notifications";
 import { notificationCommandSchema, type NotificationCommand } from "@/modules/notifications/schemas/notification.schema";
 import { prisma } from "@/server/db/prisma";
@@ -32,9 +34,15 @@ export function canonicalCommand(input: NotificationCommand) {
 
 export type NotificationDb = Prisma.TransactionClient;
 
-export async function pendingPaymentExclusions(db: NotificationDb): Promise<Prisma.SubscriptionWhereInput> {
+export async function pendingPaymentExclusions(
+  db: NotificationDb,
+  providerMode: ProviderMode = providerModeForEnvironment(process.env.ONVO_ENV),
+): Promise<Prisma.SubscriptionWhereInput> {
   const pairs = await db.payment.findMany({
-    where: { status: { in: ["INITIALIZING", "PROCESSING", "REQUIRES_REVIEW"] } },
+    where: {
+      providerMode,
+      status: { in: ["INITIALIZING", "PROCESSING", "REQUIRES_REVIEW"] },
+    },
     distinct: ["userId", "levelId"], select: { userId: true, levelId: true },
   });
   return pairs.length ? { NOT: { OR: pairs } } : {};

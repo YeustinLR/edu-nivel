@@ -19,6 +19,7 @@ import {
   type MetricComparison,
 } from "@/modules/dashboard/domain/admin-dashboard";
 import { APPLIED_ACCESS_PAYMENT_STATUSES } from "@/modules/subscriptions/domain/premium-access";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import {
   eligibleUserWhere,
   reminderKey,
@@ -46,7 +47,7 @@ export type AdminDashboardSummary = {
   metrics: {
     collected: MetricComparison;
     paidAccesses: MetricComparison;
-    newVerifiedUsers: MetricComparison;
+    emailVerifications: MetricComparison;
     activeLearners: MetricComparison;
   };
   collectionTrend: CollectionTrendBucket[];
@@ -62,7 +63,7 @@ export type AdminDashboardSummary = {
 export function dashboardProviderMode(
   onvoEnvironment: "test" | "live" | undefined,
 ) {
-  return onvoEnvironment === "live" ? ProviderMode.LIVE : ProviderMode.TEST;
+  return providerModeForEnvironment(onvoEnvironment);
 }
 
 function paymentAmount(payment: {
@@ -102,7 +103,7 @@ async function countRenewalsNeedingReminder(
     : {};
   const candidates = await prisma.subscription.findMany({
     where: {
-      AND: [renewalWhere(now), withoutPendingPayment],
+      AND: [renewalWhere(now, paymentMode), withoutPendingPayment],
       payments: {
         some: {
           providerMode: paymentMode,
@@ -144,8 +145,8 @@ export async function getAdminDashboardSummary(
     expiredInvitations,
     paymentRows,
     paidAccesses,
-    currentNewUsers,
-    previousNewUsers,
+    currentEmailVerifications,
+    previousEmailVerifications,
     currentActiveLearners,
     previousActiveLearners,
     publishedModules,
@@ -219,7 +220,7 @@ export async function getAdminDashboardSummary(
         AND: [
           activeUserFilter,
           {
-            createdAt: {
+            emailVerifiedAt: {
               gte: periods.current30Days.start,
               lt: periods.current30Days.end,
             },
@@ -233,7 +234,7 @@ export async function getAdminDashboardSummary(
         AND: [
           activeUserFilter,
           {
-            createdAt: {
+            emailVerifiedAt: {
               gte: periods.previous30Days.start,
               lt: periods.previous30Days.end,
             },
@@ -343,9 +344,9 @@ export async function getAdminDashboardSummary(
         previous: collectedInPeriod(paymentEvents, periods.previous30Days),
       },
       paidAccesses: { current: paidAccesses, previous: null },
-      newVerifiedUsers: {
-        current: currentNewUsers,
-        previous: previousNewUsers,
+      emailVerifications: {
+        current: currentEmailVerifications,
+        previous: previousEmailVerifications,
       },
       activeLearners: {
         current: currentActiveLearners.length,

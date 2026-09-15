@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { Role } from "@/generated/prisma/enums";
+import { ProviderMode, Role } from "@/generated/prisma/enums";
 import { formatCRC } from "@/lib/currency";
 import { formatLearnerLevel } from "@/modules/dashboard/domain/learner-presentation";
 import { OtherSubscriptionLevels } from "@/modules/subscriptions/components/OtherSubscriptionLevels";
@@ -157,6 +157,22 @@ export function LearnerSubscriptionManager({
           </Link>
         ) : null}
       </header>
+
+      {data.paymentMode === ProviderMode.TEST ? (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <p>
+            <strong>Modo de prueba.</strong> Los montos y pagos de esta pantalla
+            son simulados y no representan dinero real.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <div

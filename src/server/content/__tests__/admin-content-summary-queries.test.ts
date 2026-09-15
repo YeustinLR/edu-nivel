@@ -41,5 +41,23 @@ describe("admin content summary", () => {
     expect(mocks.moduleCount).toHaveBeenNthCalledWith(2, {
       where: { publicationStatus: "IN_REVIEW" },
     });
+    expect(mocks.moduleCount).toHaveBeenNthCalledWith(3, {
+      where: {
+        isActive: true,
+        publicationStatus: "PUBLISHED",
+        subject: { isActive: true, level: { isActive: true } },
+      },
+    });
+    expect(mocks.resourceCount).toHaveBeenNthCalledWith(2, {
+      where: {
+        isActive: true,
+        publicationStatus: "PUBLISHED",
+        module: {
+          isActive: true,
+          publicationStatus: "PUBLISHED",
+          subject: { isActive: true, level: { isActive: true } },
+        },
+      },
+    });
   });
 });

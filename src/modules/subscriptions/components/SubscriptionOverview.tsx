@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { Role } from "@/generated/prisma/enums";
+import { ProviderMode, Role } from "@/generated/prisma/enums";
 import { formatCRC } from "@/lib/currency";
 import { formatLearnerLevel } from "@/modules/dashboard/domain/learner-presentation";
 import {
@@ -168,7 +168,10 @@ export function SubscriptionOverview({
             label={item.canStudy ? "Acceso hasta" : "Fecha de finalización"}
             value={formatSubscriptionDate(item.currentPeriodEnd)}
           />
-          <Detail label="Último pago" value={paidAmount} />
+          <Detail
+            label="Último pago"
+            value={`${paidAmount}${latestPayment?.providerMode === ProviderMode.TEST ? " · Prueba" : ""}`}
+          />
           <Detail
             label="Método"
             value={

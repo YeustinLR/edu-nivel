@@ -126,7 +126,22 @@ describe("admin dashboard queries", () => {
 
     expect(result.metrics.collected).toEqual({ current: 10_000, previous: 4_000 });
     expect(result.metrics.paidAccesses).toEqual({ current: 7, previous: null });
-    expect(result.metrics.newVerifiedUsers).toEqual({ current: 8, previous: 5 });
+    expect(result.metrics.emailVerifications).toEqual({ current: 8, previous: 5 });
+    expect(mocks.userCount).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              emailVerifiedAt: {
+                gte: new Date("2026-08-11T18:00:00.000Z"),
+                lt: now,
+              },
+            }),
+          ]),
+        }),
+      }),
+    );
     expect(result.metrics.activeLearners).toEqual({ current: 3, previous: 1 });
     expect(result.contentHealth).toEqual({
       publishedModules: 10,

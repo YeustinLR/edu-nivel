@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { getPremiumAccessDecision } from "@/server/auth/guards";
 
@@ -16,6 +17,8 @@ const denialMessages: Record<string, string> = {
 };
 
 export default async function PremiumTestPage() {
+  if (process.env.NODE_ENV === "production") notFound();
+
   const { decision, subscription } = await getPremiumAccessDecision();
 
   if (!decision.allowed || !subscription) {

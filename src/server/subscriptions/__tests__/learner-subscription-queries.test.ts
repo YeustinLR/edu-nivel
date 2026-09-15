@@ -5,6 +5,7 @@ import {
   PlanCode,
   Role,
   PaymentMethod,
+  ProviderMode,
   SubscriptionProduct,
   SubscriptionStatus,
 } from "@/generated/prisma/enums";
@@ -67,6 +68,7 @@ function subscription(input: {
               currency: "CRC",
               method: PaymentMethod.SINPE_MOBILE,
               confirmedAt: new Date("2026-08-10T12:00:00.000Z"),
+              providerMode: ProviderMode.TEST,
             },
           ],
   };
@@ -123,11 +125,26 @@ describe("getLearnerSubscriptionOverview", () => {
     const result = await getLearnerSubscriptionOverview(Role.STUDENT);
 
     expect(mocks.requireRole).toHaveBeenCalledWith(Role.STUDENT);
+    expect(mocks.subscriptionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          payments: expect.objectContaining({
+            where: expect.objectContaining({
+              providerMode: ProviderMode.TEST,
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(mocks.paymentCount).toHaveBeenCalledWith({
+      where: expect.objectContaining({ providerMode: ProviderMode.TEST }),
+    });
     expect(mocks.levelCount).toHaveBeenCalledWith({
       where: expect.objectContaining({
         payments: {
           none: {
             userId: "student-1",
+            providerMode: ProviderMode.TEST,
             status: {
               in: [
                 PaymentStatus.INITIALIZING,

@@ -13,6 +13,7 @@ import {
 import { getSubscriptionPlan } from "@/modules/subscriptions/config/plan-catalog";
 import { resolveSubscriptionPeriod } from "@/modules/subscriptions/domain/subscription-period";
 import { verifyOnvoPaymentIntent } from "@/modules/payments/domain/verify-onvo-payment";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { prisma } from "@/server/db/prisma";
 import { getOnvoPaymentIntent } from "@/server/payments/onvo/client";
 import type { OnvoPaymentIntent } from "@/server/payments/onvo/schemas";
@@ -417,5 +418,5 @@ export async function reconcileOnvoPaymentIntent(
 export function providerModeFromEnvironment(
   mode: "test" | "live",
 ): ProviderMode {
-  return mode === "test" ? ProviderMode.TEST : ProviderMode.LIVE;
+  return providerModeForEnvironment(mode);
 }

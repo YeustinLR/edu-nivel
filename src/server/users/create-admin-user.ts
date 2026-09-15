@@ -62,6 +62,7 @@ export async function createAdminUser(
             name: input.name,
             email: input.email,
             emailVerified: true,
+            emailVerifiedAt: now,
             role: input.role,
             selectedLevelId,
             adminCreatedAt: now,

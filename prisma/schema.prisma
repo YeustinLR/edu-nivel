@@ -150,6 +150,7 @@ model User {
   name                   String
   email                  String    @unique
   emailVerified          Boolean   @default(false)
+  emailVerifiedAt        DateTime?
   image                  String?
   birthDate              DateTime?
   ageDeclared            Int?
@@ -193,6 +194,7 @@ model User {
   quizAttempts           QuizAttempt[]
 
   @@index([deletedAt])
+  @@index([emailVerifiedAt])
   @@map("user")
 }
 

@@ -2,7 +2,7 @@
 
 import { BookOpen, ChevronDown, ExternalLink, Lightbulb } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ResourceType } from "@/generated/prisma/enums";
 import {
@@ -12,6 +12,7 @@ import { ModuleResourcePanel } from "@/modules/content/components/shared/ModuleR
 import { PdfCanvasViewer } from "@/modules/content/components/shared/PdfCanvasViewer";
 import { YouTubeEmbed } from "@/modules/content/components/shared/YouTubeEmbed";
 import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
+import { recordTeacherResourceViewedAction } from "@/modules/content/actions/student-resource-progress-actions";
 
 export type LearnerModuleResource = {
   id: string;
@@ -37,13 +38,32 @@ function ResourcePresentation({
   onOpenPdf,
   onClosePdf,
   student,
+  trackTeacherView,
+  visible,
 }: {
   resource: LearnerModuleResource;
   openPdfId: string | null;
   onOpenPdf: (resourceId: string) => void;
   onClosePdf: () => void;
   student: boolean;
+  trackTeacherView: boolean;
+  visible: boolean;
 }) {
+  const viewRecorded = useRef(false);
+
+  useEffect(() => {
+    if (!trackTeacherView || !visible || viewRecorded.current) return;
+
+    viewRecorded.current = true;
+    void recordTeacherResourceViewedAction(resource.id)
+      .then((result) => {
+        if (result.status === "error") viewRecorded.current = false;
+      })
+      .catch(() => {
+        viewRecorded.current = false;
+      });
+  }, [resource.id, trackTeacherView, visible]);
+
   const surfaceClass = student
     ? "rounded-2xl border border-[var(--student-border)] bg-[var(--student-panel)] p-5 shadow-[0_5px_22px_rgba(15,23,42,0.035)]"
     : "rounded-xl border border-border bg-background p-4";
@@ -184,9 +204,11 @@ function ResourcePresentation({
 export function LearnerSubjectModules({
   modules,
   variant = "default",
+  trackTeacherViews = false,
 }: {
   modules: LearnerSubjectModule[];
   variant?: "default" | "learner";
+  trackTeacherViews?: boolean;
 }) {
   const student = variant === "learner";
   const [selectedModuleId, setSelectedModuleId] = useState("");
@@ -284,6 +306,8 @@ export function LearnerSubjectModules({
                           onOpenPdf={setOpenPdfId}
                           onClosePdf={() => setOpenPdfId(null)}
                           student={student}
+                          trackTeacherView={trackTeacherViews}
+                          visible={isOpen}
                         />
                       ))}
                     </div>

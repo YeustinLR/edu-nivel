@@ -10,7 +10,7 @@ import {
   getPlanIntervalLabel,
   paymentStatusPresentation,
 } from "@/modules/subscriptions/lib/learner-subscription-presentation";
-import type { PaymentStatus } from "@/generated/prisma/enums";
+import { ProviderMode, type PaymentStatus } from "@/generated/prisma/enums";
 import type { LearnerPaymentHistory } from "@/modules/subscriptions/types/learner-subscription";
 
 const toneClass = {
@@ -72,6 +72,11 @@ export function PaymentHistory({ history }: { history: LearnerPaymentHistory }) 
                         {getPlanIntervalLabel(payment.planCode)} · {formatLearnerLevel(payment.levelNumber)}
                       </Link>
                       <p className="mt-0.5 text-xs text-[var(--subscription-muted)]">{getPaymentMethodLabel(payment.method)}</p>
+                      {payment.providerMode === ProviderMode.TEST ? (
+                        <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          Operación de prueba
+                        </p>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-[var(--subscription-text)]">{formatCRC(amountMinorToCRC(payment.receivedAmountMinor ?? payment.expectedAmountMinor))}</td>
                     <td className="px-4 py-3 text-right"><PaymentBadge status={payment.status} /></td>
@@ -90,6 +95,11 @@ export function PaymentHistory({ history }: { history: LearnerPaymentHistory }) 
                       {getPlanIntervalLabel(payment.planCode)} · {formatLearnerLevel(payment.levelNumber)}
                     </Link>
                     <p className="mt-1 text-xs text-[var(--subscription-muted)]">{formatSubscriptionDate(payment.confirmedAt ?? payment.createdAt)} · {getPaymentMethodLabel(payment.method)}</p>
+                    {payment.providerMode === ProviderMode.TEST ? (
+                      <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        Operación de prueba
+                      </p>
+                    ) : null}
                   </div>
                   <PaymentBadge status={payment.status} />
                 </div>

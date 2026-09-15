@@ -16,12 +16,10 @@ import {
   ResourceTypeBadge,
   ResourceTypeIcon,
 } from "@/modules/content/components/admin/ContentBadges";
+import { ContentPagination } from "@/modules/content/components/admin/ContentPagination";
 import { ModuleAudienceSelector } from "@/modules/content/components/shared/ModuleAudienceSelector";
 import { ModuleResourcePanel } from "@/modules/content/components/shared/ModuleResourcePanel";
-import {
-  moduleMatchesAudienceSelection,
-  type ModuleAudienceSelection,
-} from "@/modules/content/domain/content-audience";
+import type { ModuleAudienceSelection } from "@/modules/content/domain/content-audience";
 import type { CollaboratorTeamModule } from "@/server/content/collaborator-content-queries";
 
 function TeamModuleMetadata({ module }: { module: CollaboratorTeamModule }) {
@@ -49,22 +47,31 @@ function EmptyTeamState({ message }: { message: string }) {
 
 export function CollaboratorTeamCatalog({
   modules,
+  pagination,
+  hrefByAudience,
+  previousHref,
+  nextHref,
 }: {
   modules: CollaboratorTeamModule[];
+  pagination: {
+    audience: ModuleAudienceSelection;
+    page: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  hrefByAudience: Record<ModuleAudienceSelection, string>;
+  previousHref?: string;
+  nextHref?: string;
 }) {
-  const [audience, setAudience] =
-    useState<ModuleAudienceSelection>("STUDENT");
   const [selectedModuleId, setSelectedModuleId] = useState("");
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
-  const audienceModules = modules.filter((module) =>
-    moduleMatchesAudienceSelection(module.audience, audience),
-  );
   const visibleModules = selectedModuleId
-    ? audienceModules.filter((module) => module.id === selectedModuleId)
-    : audienceModules;
+    ? modules.filter((module) => module.id === selectedModuleId)
+    : modules;
 
   return (
     <section
+      id="team-catalog"
       aria-labelledby="team-modules-heading"
       className="overflow-hidden rounded-xl border border-border bg-card"
     >
@@ -79,23 +86,23 @@ export function CollaboratorTeamCatalog({
                 Catálogo del equipo
               </h2>
               <span className="text-xs text-muted">
-                {audienceModules.length}{" "}
-                {audienceModules.length === 1 ? "módulo" : "módulos"}
+                {pagination.totalItems}{" "}
+                {pagination.totalItems === 1 ? "módulo" : "módulos"}
               </span>
             </div>
             <p className="mt-0.5 text-xs text-muted">
               El contenido en preparación muestra únicamente sus metadatos.
             </p>
+            <p className="mt-1 text-xs text-muted">
+              Página {pagination.page} de {pagination.totalPages} · mostrando{" "}
+              {modules.length} de {pagination.totalItems}.
+            </p>
           </div>
           {modules.length > 0 ? (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <ModuleAudienceSelector
-                value={audience}
-                onValueChange={(nextAudience) => {
-                  setAudience(nextAudience);
-                  setSelectedModuleId("");
-                  setOpenModuleId(null);
-                }}
+                value={pagination.audience}
+                hrefByAudience={hrefByAudience}
               />
               <label className="block sm:w-64">
                 <span className="sr-only">Filtrar por módulo</span>
@@ -109,7 +116,7 @@ export function CollaboratorTeamCatalog({
                   className="min-h-11 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-normal text-foreground outline-none transition-colors focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20 sm:min-h-9"
                 >
                   <option value="">Todos los módulos</option>
-                  {audienceModules.map((module, index) => (
+                  {modules.map((module, index) => (
                     <option key={module.id} value={module.id}>
                       Módulo {index + 1} — {module.title}
                     </option>
@@ -122,13 +129,12 @@ export function CollaboratorTeamCatalog({
       </div>
 
       {modules.length === 0 ? (
-        <EmptyTeamState message="Todavía no hay contenido creado por el equipo" />
-      ) : visibleModules.length === 0 ? (
         <EmptyTeamState
-          message={`No hay módulos del equipo para ${audience === "STUDENT" ? "estudiantes" : "docentes"}`}
+          message={`No hay módulos del equipo para ${pagination.audience === "STUDENT" ? "estudiantes" : "docentes"}`}
         />
       ) : (
-        <ul className="divide-y divide-border">
+        <>
+          <ul className="divide-y divide-border">
           {visibleModules.map((module) => {
             const isOpen = openModuleId === module.id;
             const panelId = `team-module-${module.id}`;
@@ -189,7 +195,7 @@ export function CollaboratorTeamCatalog({
                             Recursos
                           </h4>
                           <span className="text-xs text-muted">
-                            {module.resources.length}
+                            {module._count.resources}
                           </span>
                         </div>
                         {module.resources.length > 0 ? (
@@ -232,6 +238,12 @@ export function CollaboratorTeamCatalog({
                             Este módulo todavía no tiene recursos publicados.
                           </div>
                         )}
+                        {module._count.resources > module.resources.length ? (
+                          <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                            Hay {module._count.resources - module.resources.length}{" "}
+                            recursos publicados adicionales en este módulo.
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <p className="flex items-start gap-2 text-xs leading-5 text-muted">
@@ -248,7 +260,19 @@ export function CollaboratorTeamCatalog({
               </li>
             );
           })}
-        </ul>
+          </ul>
+          {pagination.totalPages > 1 ? (
+            <div className="flex justify-end border-t border-border px-4 py-3 sm:px-5">
+              <ContentPagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                previousHref={previousHref}
+                nextHref={nextHref}
+                ariaLabel="Paginación del catálogo del equipo"
+              />
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );

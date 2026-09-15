@@ -102,6 +102,7 @@ export async function LearnerContent({
               <LearnerSubjectModules
                 modules={modules.filter((module) => module.subject.id === subject.id)}
                 variant={learner ? "learner" : "default"}
+                trackTeacherViews={role === Role.TEACHER}
               />
             </section>
           ))}

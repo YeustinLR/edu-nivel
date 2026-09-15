@@ -15,6 +15,7 @@ import { formatCRC } from "@/lib/currency";
 import { formatLearnerLevel } from "@/modules/dashboard/domain/learner-presentation";
 import { reconcileSinpePaymentAction } from "@/modules/payments/actions/reconcile-sinpe-payment";
 import { CopyValueButton } from "@/modules/payments/components/CopyValueButton";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { PaymentStatusPoller } from "@/modules/payments/components/PaymentStatusPoller";
 import { PaymentStatusTimeline } from "@/modules/payments/components/PaymentStatusTimeline";
 import { StalePaymentCancellation } from "@/modules/payments/components/StalePaymentCancellation";
@@ -92,9 +93,12 @@ export default async function PaymentStatusPage({
       },
       select: { id: true },
     }));
-  const isPending =
+  const belongsToCurrentMode =
+    payment.providerMode === providerModeForEnvironment(env.ONVO_ENV);
+  const isPending = belongsToCurrentMode && (
     payment.status === PaymentStatus.INITIALIZING ||
-    payment.status === PaymentStatus.PROCESSING;
+    payment.status === PaymentStatus.PROCESSING
+  );
   const isStale = isStaleSinpePayment(payment);
   const pollingDeadlineAt =
     payment.createdAt.getTime() + SINPE_STALE_AFTER_MS;
@@ -151,18 +155,34 @@ export default async function PaymentStatusPage({
         <CheckoutStepper currentStep={isSuccess ? 4 : 3} />
       </div>
 
+      {!belongsToCurrentMode ? (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          Esta operación pertenece a otro entorno de cobro y no habilita acceso
+          en el modo actual.
+        </div>
+      ) : null}
+
       {isSuccess ? (
         <section className="grid overflow-hidden rounded-[1.35rem] border border-[var(--subscription-border)] bg-[var(--subscription-panel)] shadow-[0_10px_35px_rgba(15,23,42,0.05)] lg:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)]">
           <div className="flex flex-col items-center justify-center border-b border-[var(--subscription-border)] bg-emerald-50/70 p-6 text-center dark:bg-emerald-500/5 lg:border-b-0 lg:border-r">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_10px_28px_rgba(16,185,129,0.22)]">
               <Check aria-hidden="true" className="h-8 w-8" strokeWidth={3} />
             </span>
-            <h1 className="mt-4 text-2xl font-extrabold tracking-[-0.035em] text-[var(--subscription-text)] sm:text-3xl">{status.title}</h1>
+            <h1 className="mt-4 text-2xl font-extrabold tracking-[-0.035em] text-[var(--subscription-text)] sm:text-3xl">{belongsToCurrentMode ? status.title : "Pago registrado en otro entorno"}</h1>
             <p className="mt-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-300">
-              {formatLearnerLevel(payment.level.levelNumber)} ya está desbloqueado
+              {belongsToCurrentMode
+                ? `${formatLearnerLevel(payment.level.levelNumber)} ya está desbloqueado`
+                : `${formatLearnerLevel(payment.level.levelNumber)} no está desbloqueado por esta operación`}
             </p>
             <div className="mt-5 flex w-full max-w-xs flex-col gap-2.5">
-              {existingSubscription ? (
+              {existingSubscription && belongsToCurrentMode ? (
                 <form action={selectAction}>
                   <input type="hidden" name="subscriptionId" value={existingSubscription.id} />
                   <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--subscription-accent)] px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(23,104,229,0.18)]">
@@ -179,6 +199,18 @@ export default async function PaymentStatusPage({
           <div className="p-5 text-left sm:p-6">
             <h2 className="font-bold text-[var(--subscription-text)]">Resumen de tu compra</h2>
             <p className="mt-1 text-sm text-[var(--subscription-muted)]">Detalles confirmados de la operación.</p>
+            {isTestMode ? (
+              <div
+                role="status"
+                className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100"
+              >
+                <AlertTriangle
+                  aria-hidden="true"
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                Pago de prueba: este monto no representa dinero real.
+              </div>
+            ) : null}
             <dl className="mt-4 divide-y divide-[var(--subscription-border)] rounded-xl border border-[var(--subscription-border)] px-4">
               <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Nivel</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{formatLearnerLevel(payment.level.levelNumber)}</dd></div>
               <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Acceso</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{getPlanIntervalLabel(payment.planCode)}</dd></div>
@@ -297,7 +329,7 @@ export default async function PaymentStatusPage({
               ) : null}
 
               <div className="flex flex-col gap-2.5">
-                {(isPending || payment.status === PaymentStatus.REQUIRES_REVIEW) ? (
+                {(isPending || (belongsToCurrentMode && payment.status === PaymentStatus.REQUIRES_REVIEW)) ? (
                   <form action={reconcileSinpePaymentAction}>
                     <input type="hidden" name="paymentId" value={payment.id} />
                     <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--subscription-border)] px-4 text-sm font-bold text-[var(--subscription-text)] hover:bg-[var(--subscription-soft)]">

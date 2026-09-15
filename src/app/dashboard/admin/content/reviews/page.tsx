@@ -28,11 +28,13 @@ export default async function AdminReviewsPage({
   searchParams: Promise<{ kind?: string | string[]; q?: string | string[]; author?: string | string[]; audience?: string | string[]; type?: string | string[]; page?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const kind = "resources" as const;
+  const kind = params.kind === "modules" ? "modules" : "resources";
   const query = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const authorId = typeof params.author === "string" ? params.author : undefined;
   const audience = enumValue(params.audience, Object.values(ContentAudience));
-  const resourceType = enumValue(params.type, Object.values(ResourceType));
+  const resourceType = kind === "resources"
+    ? enumValue(params.type, Object.values(ResourceType))
+    : undefined;
   const requestedPage = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const result = await getAdminReviewQueue({ kind, query, authorId, audience, resourceType, page, pageSize: PAGE_SIZE });
@@ -53,9 +55,26 @@ export default async function AdminReviewsPage({
     <div className="space-y-6">
       <ContentPageHeader
         title="Bandeja de revisiones"
-        description="Evalúa los recursos enviados por colaboradores antes de publicarlos."
+        description="Evalúa los módulos y recursos enviados al flujo editorial antes de publicarlos."
         breadcrumbs={[{ label: "Contenido", href: "/dashboard/admin/content" }, { label: "Revisiones" }]}
       />
+
+      <nav aria-label="Tipo de contenido en revisión" className="flex gap-2">
+        <Link
+          href="/dashboard/admin/content/reviews?kind=resources"
+          aria-current={kind === "resources" ? "page" : undefined}
+          className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm font-semibold ${kind === "resources" ? "border-secondary bg-secondary text-white" : "border-border bg-card text-foreground hover:bg-surface"}`}
+        >
+          Recursos
+        </Link>
+        <Link
+          href="/dashboard/admin/content/reviews?kind=modules"
+          aria-current={kind === "modules" ? "page" : undefined}
+          className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm font-semibold ${kind === "modules" ? "border-secondary bg-secondary text-white" : "border-border bg-card text-foreground hover:bg-surface"}`}
+        >
+          Módulos
+        </Link>
+      </nav>
 
       <section className="overflow-hidden rounded-xl border border-border bg-card" aria-labelledby="reviews-list-heading">
         <div className="border-b border-border p-4 sm:p-5">
@@ -66,7 +85,9 @@ export default async function AdminReviewsPage({
             <UrlSearchField parameter="q" initialValue={query} label="Buscar" placeholder="Título o descripción" />
             <UrlSelectFilter parameter="author" value={authorId} label="Autor" allLabel="Todos los autores" options={result.authors.map((author) => ({ value: author.id, label: author.name }))} />
             <UrlSelectFilter parameter="audience" value={audience} label="Audiencia" allLabel="Todas las audiencias" options={audienceOptions} />
-            <UrlSelectFilter parameter="type" value={resourceType} label="Tipo" allLabel="Todos los tipos" options={resourceTypeOptions} />
+            {kind === "resources" ? (
+              <UrlSelectFilter parameter="type" value={resourceType} label="Tipo" allLabel="Todos los tipos" options={resourceTypeOptions} />
+            ) : null}
           </div>
         </div>
 
@@ -76,7 +97,7 @@ export default async function AdminReviewsPage({
               {result.items.map((item) => (
                 <li key={item.id}>
                   <Link
-                    href={`/dashboard/admin/content/reviews/resources/${encodeURIComponent(item.id)}`}
+                    href={`/dashboard/admin/content/reviews/${kind}/${encodeURIComponent(item.id)}`}
                     className="flex items-center gap-3 px-4 py-4 hover:bg-surface/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-secondary sm:px-5"
                   >
                     <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 sm:inline-flex dark:text-amber-300"><ClipboardCheck aria-hidden="true" className="h-5 w-5" /></span>

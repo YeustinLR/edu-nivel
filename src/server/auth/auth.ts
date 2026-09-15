@@ -25,6 +25,7 @@ import { z } from "zod";
 
 import { env } from "@/config/env";
 import { isAllowedDeclaredAge } from "@/modules/auth/lib/age";
+import { withEmailVerificationTimestamp } from "@/modules/auth/lib/email-verification-timestamp";
 import { isUserCurrentlySuspended } from "@/modules/users/domain/user-suspension";
 import { AUTH_OTP_EXPIRES_SECONDS, AUTH_OTP_LENGTH } from "@/modules/auth/lib/otp";
 import {
@@ -120,6 +121,12 @@ export const auth = betterAuth({
         input: false,
       },
       ageVerifiedAt: {
+        type: "date",
+        required: false,
+        returned: false,
+        input: false,
+      },
+      emailVerifiedAt: {
         type: "date",
         required: false,
         returned: false,
@@ -296,6 +303,9 @@ export const auth = betterAuth({
               termsAcceptedAt: now,
               privacyAcceptedAt: now,
               ageVerifiedAt: now,
+              ...(user.emailVerified === true
+                ? { emailVerifiedAt: now }
+                : {}),
               invitationPending,
               ...(invitedLevelId !== undefined
                 ? { selectedLevelId: invitedLevelId }
@@ -308,6 +318,12 @@ export const auth = betterAuth({
             context,
             user: { id: user.id, email: user.email, role: String(user.role) },
           });
+        },
+      },
+      update: {
+        async before(user) {
+          const data = withEmailVerificationTimestamp(user);
+          return data ? { data } : undefined;
         },
       },
     },

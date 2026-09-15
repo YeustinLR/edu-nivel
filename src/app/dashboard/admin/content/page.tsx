@@ -171,13 +171,13 @@ export default async function AdminContentOverviewPage({
           <Metric
             label="Pendientes"
             value={summary.pendingReview.total}
-            detail={`${summary.pendingReview.resources} recursos de colaboradores esperan revisión.`}
+            detail={`${summary.pendingReview.modules} módulos y ${summary.pendingReview.resources} recursos esperan revisión.`}
             icon={Clock3}
           />
           <Metric
             label="Publicados"
             value={summary.publishedContent.total}
-            detail={`${summary.publishedContent.modules} módulos y ${summary.publishedContent.resources} recursos publicados.`}
+            detail={`${summary.publishedContent.modules} módulos y ${summary.publishedContent.resources} recursos publicados y visibles.`}
             icon={CircleCheck}
           />
         </div>

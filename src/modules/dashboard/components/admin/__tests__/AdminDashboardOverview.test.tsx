@@ -23,7 +23,7 @@ function summary(overrides?: Partial<AdminDashboardSummary>): AdminDashboardSumm
     metrics: {
       collected: { current: 0, previous: 0 },
       paidAccesses: { current: 0, previous: null },
-      newVerifiedUsers: { current: 0, previous: 0 },
+      emailVerifications: { current: 0, previous: 0 },
       activeLearners: { current: 0, previous: 0 },
     },
     collectionTrend: [{ start: new Date("2026-09-07T06:00:00.000Z"), end: now, amountMinor: 0 }],

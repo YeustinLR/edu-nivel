@@ -499,18 +499,18 @@ export function AdminDashboardOverview({ summary }: { summary: AdminDashboardSum
             icon={TrendingUp}
           />
           <MetricCard
-            title="Nuevos usuarios verificados"
-            value={numberFormatter.format(summary.metrics.newVerifiedUsers.current)}
-            metric={summary.metrics.newVerifiedUsers}
-            period="Últimos 30 días"
+            title="Correos verificados"
+            value={numberFormatter.format(summary.metrics.emailVerifications.current)}
+            metric={summary.metrics.emailVerifications}
+            period="Verificados en los últimos 30 días"
             comparisonPeriod="período anterior"
             icon={Users}
           />
           <MetricCard
-            title="Usuarios activos"
+            title="Usuarios con recursos vistos"
             value={numberFormatter.format(summary.metrics.activeLearners.current)}
             metric={summary.metrics.activeLearners}
-            period="Últimos 7 días"
+            period="Estudiantes y docentes · 7 días"
             comparisonPeriod="período anterior"
             icon={FileCheck2}
           />

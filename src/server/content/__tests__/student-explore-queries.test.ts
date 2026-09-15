@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PaymentStatus, ResourceType, Role } from "@/generated/prisma/enums";
+import { PaymentStatus, ProviderMode, ResourceType, Role } from "@/generated/prisma/enums";
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -73,10 +73,24 @@ describe("student explore queries", () => {
     expect(mocks.requireRole).toHaveBeenCalledWith(Role.STUDENT);
     expect(mocks.getPublishedStudentCatalog).toHaveBeenCalledOnce();
     expect(mocks.subscriptionFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: "student-1" }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "student-1" }),
+        select: expect.objectContaining({
+          payments: expect.objectContaining({
+            where: expect.objectContaining({
+              providerMode: ProviderMode.TEST,
+            }),
+          }),
+        }),
+      }),
     );
     expect(mocks.paymentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: "student-1" }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "student-1",
+          providerMode: ProviderMode.TEST,
+        }),
+      }),
     );
   });
 

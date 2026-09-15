@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   PaymentStatus,
+  ProviderMode,
   Role,
   SubscriptionProduct,
   SubscriptionStatus,
@@ -93,7 +94,8 @@ describe("getPremiumAccessDecision", () => {
       include: {
         payments: {
           where: {
-          status: { in: [PaymentStatus.SUCCEEDED, PaymentStatus.REQUIRES_REVIEW] },
+            providerMode: ProviderMode.TEST,
+            status: { in: [PaymentStatus.SUCCEEDED, PaymentStatus.REQUIRES_REVIEW] },
             appliedAt: { not: null },
           },
           select: { id: true },

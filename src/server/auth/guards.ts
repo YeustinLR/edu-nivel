@@ -35,6 +35,7 @@ import {
   getRequiredSubscriptionProduct,
   type PremiumAccessDecision,
 } from "@/modules/subscriptions/domain/premium-access";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { getDashboardPathForRole } from "@/modules/auth/lib/dashboard-path";
 import { isUserCurrentlySuspended } from "@/modules/users/domain/user-suspension";
 import { auth } from "@/server/auth/auth";
@@ -288,6 +289,7 @@ export async function getPremiumAccessDecision(
     include: {
       payments: {
         where: {
+          providerMode: providerModeForEnvironment(process.env.ONVO_ENV),
           status: { in: [...APPLIED_ACCESS_PAYMENT_STATUSES] },
           appliedAt: { not: null },
         },

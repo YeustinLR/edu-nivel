@@ -29,6 +29,7 @@ vi.mock("@/server/db/prisma", () => ({
 
 import {
   recordStudentResourceViewedAction,
+  recordTeacherResourceViewedAction,
   setStudentResourceCompletedAction,
 } from "@/modules/content/actions/student-resource-progress-actions";
 
@@ -87,6 +88,40 @@ describe("student resource progress actions", () => {
     });
     expect(result).toEqual({ status: "success" });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("records teacher views against teacher-visible resources", async () => {
+    mocks.requireRole.mockResolvedValue({
+      id: "teacher-1",
+      role: Role.TEACHER,
+      selectedLevelId: "level-7",
+    });
+
+    const result = await recordTeacherResourceViewedAction("resource-1");
+
+    expect(mocks.requireRole).toHaveBeenCalledWith(Role.TEACHER);
+    expect(mocks.resourceFindFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: "resource-1",
+        module: expect.objectContaining({
+          audience: {
+            in: [ContentAudience.TEACHER, ContentAudience.BOTH],
+          },
+        }),
+      }),
+      select: { id: true },
+    });
+    expect(mocks.progressUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_resourceId: {
+            userId: "teacher-1",
+            resourceId: "resource-1",
+          },
+        },
+      }),
+    );
+    expect(result).toEqual({ status: "success" });
   });
 
   it("marks completion atomically and revalidates learner surfaces", async () => {

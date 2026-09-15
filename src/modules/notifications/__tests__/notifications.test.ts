@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ProviderMode } from "@/generated/prisma/enums";
 import { eligibleUserWhere, isNotificationUserEligible, NOTIFICATION_PREVIEW_EXCERPT_CHARACTERS, notificationPage, notificationPreviewExcerpt, reminderKey, RENEWAL_WINDOW_MS, renewalWhere, type NotificationUser } from "@/modules/notifications/domain/notifications";
 import {
   notificationPanelModeForViewport,
@@ -23,6 +24,10 @@ describe("notification eligibility and contracts", () => {
   });
   it("uses the same period key regardless of the input timezone", () => expect(reminderKey("s", new Date("2026-09-07T06:00:00-06:00"))).toBe("s:2026-09-07T12:00:00.000Z"));
   it("includes the exact seven-day boundary", () => expect(renewalWhere(now)).toMatchObject({ currentPeriodEnd: { lte: new Date(now.getTime() + RENEWAL_WINDOW_MS) } }));
+  it("scopes renewal eligibility to the configured payment mode", () =>
+    expect(renewalWhere(now, ProviderMode.LIVE)).toMatchObject({
+      payments: { some: { providerMode: ProviderMode.LIVE } },
+    }));
   it.each([undefined, "-1", "0", "1.2", "Infinity", "99999999999999999999", ["2"]])("normalizes malformed pagination %j", value => expect(notificationPage(value)).toBe(1));
   it("creates compact, Unicode-safe notification previews", () => {
     expect(notificationPreviewExcerpt("  Primera línea\n\n segunda   línea  ")).toBe("Primera línea segunda línea");

@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { eligibleUserWhere, isRenewableSubscriptionStatus, NOTIFICATION_PAGE_SIZE, notificationPage, notificationTypeLabels, reminderKey, renewalWhere } from "@/modules/notifications/domain/notifications";
 import { requireRole, requireUser } from "@/server/auth/guards";
 import { prisma } from "@/server/db/prisma";
@@ -170,6 +171,6 @@ export async function getNotificationRenewalDestination(userId: string, role: st
   const sub = recipient?.subscription;
   const product = role === "STUDENT" ? "STUDENT_PREMIUM" : role === "TEACHER" ? "TEACHER_PREMIUM" : null;
   if (!sub || sub.userId !== userId || sub.product !== product || !sub.level.isActive || !sub.level.requiresSubscription || !isRenewableSubscriptionStatus(sub.status) || sub.currentPeriodEnd.getTime() !== recipient?.periodEndSnapshot?.getTime()) return "/dashboard/notifications?notice=obsolete";
-  const pending = await client.payment.findFirst({ where: { userId, levelId: sub.levelId, status: { in: ["INITIALIZING", "PROCESSING", "REQUIRES_REVIEW"] } }, orderBy: { createdAt: "desc" }, select: { id: true } });
+  const pending = await client.payment.findFirst({ where: { userId, levelId: sub.levelId, providerMode: providerModeForEnvironment(process.env.ONVO_ENV), status: { in: ["INITIALIZING", "PROCESSING", "REQUIRES_REVIEW"] } }, orderBy: { createdAt: "desc" }, select: { id: true } });
   return pending ? `/dashboard/subscription/payments/${encodeURIComponent(pending.id)}` : `/dashboard/subscription/renew/${encodeURIComponent(sub.id)}`;
 }

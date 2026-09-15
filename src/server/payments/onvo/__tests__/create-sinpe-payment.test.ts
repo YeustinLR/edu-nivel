@@ -202,11 +202,30 @@ describe("createSinpePayment authorization and checkout ownership", () => {
     expect(createIntentMock).not.toHaveBeenCalled();
   });
 
+  it("rejects reusing a checkout request from another provider mode", async () => {
+    paymentFindUniqueMock.mockResolvedValue({
+      ...localPayment(),
+      providerMode: ProviderMode.LIVE,
+    });
+
+    await expect(createSinpePayment(input)).rejects.toMatchObject({
+      code: "CHECKOUT_REQUEST_CONFLICT",
+    });
+    expect(paymentCreateMock).not.toHaveBeenCalled();
+  });
+
   it("reuses an open payment for the same user and level", async () => {
     const openPayment = localPayment();
     paymentFindFirstMock.mockResolvedValue(openPayment);
 
     await expect(createSinpePayment(input)).resolves.toBe(openPayment);
+    expect(paymentFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          providerMode: ProviderMode.TEST,
+        }),
+      }),
+    );
     expect(paymentCreateMock).not.toHaveBeenCalled();
     expect(createIntentMock).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { Role, SubscriptionStatus } from "@/generated/prisma/enums";
+import { ProviderMode, Role, SubscriptionStatus } from "@/generated/prisma/enums";
+import { providerModeForEnvironment } from "@/modules/payments/domain/provider-mode";
 import { isUserCurrentlySuspended } from "@/modules/users/domain/user-suspension";
 
 export const MAX_NOTIFICATION_RECIPIENTS = 10_000;
@@ -40,13 +41,22 @@ export function eligibleUserWhere(now = new Date()): Prisma.UserWhereInput {
   };
 }
 
-export function renewalWhere(now = new Date()): Prisma.SubscriptionWhereInput {
+export function renewalWhere(
+  now = new Date(),
+  providerMode: ProviderMode = providerModeForEnvironment(process.env.ONVO_ENV),
+): Prisma.SubscriptionWhereInput {
   return {
     user: eligibleUserWhere(now),
     status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED, SubscriptionStatus.CANCELED] },
     currentPeriodEnd: { lte: new Date(now.getTime() + RENEWAL_WINDOW_MS) },
     level: { isActive: true, requiresSubscription: true },
-    payments: { some: { status: "SUCCEEDED", appliedAt: { not: null } } },
+    payments: {
+      some: {
+        providerMode,
+        status: "SUCCEEDED",
+        appliedAt: { not: null },
+      },
+    },
     OR: [
       { product: "STUDENT_PREMIUM", user: { role: Role.STUDENT } },
       { product: "TEACHER_PREMIUM", user: { role: Role.TEACHER } },
