@@ -20,7 +20,7 @@ export async function AdminReviewDetailPage({ reviewId }: { reviewId: string }) 
   const detail = await getAdminReviewDetail(filters, reviewId);
   if (!detail) notFound();
 
-  const resourceDetail = await getResourceContentDetail({ resourceId: detail.id, expectedModuleId: detail.parentId, actor: admin });
+  const resourceDetail = await getResourceContentDetail({ resourceId: detail.id, expectedModuleId: detail.parentId, actor: admin, preferRevision: true });
   const reviewsHref = "/dashboard/admin/content/reviews";
   const reviewHref = (id: string) => `/dashboard/admin/content/reviews/resources/${encodeURIComponent(id)}`;
 

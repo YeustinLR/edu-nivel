@@ -22,6 +22,7 @@ export type LearnerResourceSummary = {
   moduleTitle: string;
   estimatedMinutes: number | null;
   durationSeconds: number | null;
+  youtubeVideoId: string | null;
   startedAt: string | null;
   lastViewedAt: string | null;
   completed: boolean;
@@ -58,12 +59,14 @@ export type LearnerDashboardData = {
     levelNumber: number;
     description: string | null;
     requiresSubscription: boolean;
+    isActive: boolean;
   }>;
   selectedLevel: {
     id: string;
     levelNumber: number;
     description: string | null;
     requiresSubscription: boolean;
+    isActive: boolean;
   } | null;
   access: {
     status: LearnerAccessStatus;

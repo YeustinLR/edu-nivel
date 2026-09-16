@@ -77,6 +77,7 @@ describe("published academic catalog cache", () => {
         levelNumber: true,
         description: true,
         requiresSubscription: true,
+        isActive: true,
       },
     });
   });

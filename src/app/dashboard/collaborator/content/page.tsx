@@ -48,7 +48,7 @@ export default async function CollaboratorContentPage({
       <ContentPageHeader
         eyebrow="Colaboración editorial"
         title="Mis contenidos"
-        description="Publica tus módulos directamente y envía únicamente sus recursos a revisión cuando estén listos."
+        description="Continúa tus borradores y revisiones personales; usa el catálogo para trabajar con todo el contenido del equipo."
         actions={
           <>
             <Link href="/dashboard/collaborator/content/resources/new" className={secondaryActionClass}><FilePlus2 aria-hidden="true" className="h-4 w-4" />Añadir recurso</Link>

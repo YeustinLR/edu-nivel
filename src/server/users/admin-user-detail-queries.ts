@@ -134,6 +134,7 @@ export async function getAdminUserDetail(
           status: true,
           expectedAmountMinor: true,
           createdAt: true,
+          levelNumberSnapshot: true,
           level: { select: { levelNumber: true } },
         },
       },
@@ -186,7 +187,8 @@ export async function getAdminUserDetail(
       planCode: payment.planCode,
       status: payment.status,
       expectedAmountMinor: payment.expectedAmountMinor,
-      levelNumber: payment.level.levelNumber,
+      levelNumber:
+        payment.level?.levelNumber ?? payment.levelNumberSnapshot ?? 0,
       createdAt: payment.createdAt,
     })),
   };

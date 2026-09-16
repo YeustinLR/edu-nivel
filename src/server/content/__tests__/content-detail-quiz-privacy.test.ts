@@ -4,12 +4,13 @@ import { PublicationStatus, ResourceType, Role } from "@/generated/prisma/enums"
 
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
+  revisionFindUnique: vi.fn(),
   isR2UploadEnabled: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/db/prisma", () => ({
-  prisma: { resource: { findFirst: mocks.findFirst } },
+  prisma: { resource: { findFirst: mocks.findFirst }, contentRevision: { findUnique: mocks.revisionFindUnique } },
 }));
 vi.mock("@/server/storage/r2", () => ({
   isR2UploadEnabled: mocks.isR2UploadEnabled,
@@ -23,6 +24,7 @@ describe("resource quiz detail privacy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isR2UploadEnabled.mockReturnValue(false);
+    mocks.revisionFindUnique.mockResolvedValue(null);
     mocks.findFirst.mockResolvedValue({
       id: "resource-quiz",
       moduleId: "module-1",
@@ -73,7 +75,7 @@ describe("resource quiz detail privacy", () => {
     });
   });
 
-  it("does not serialize a published quiz answer key to a non-owner collaborator", async () => {
+  it("lets a global collaborator edit a team quiz", async () => {
     const resource = await getResourceContentDetail({
       resourceId: "resource-quiz",
       actor: { id: "collaborator-1", role: Role.COLLABORATOR },
@@ -81,9 +83,8 @@ describe("resource quiz detail privacy", () => {
 
     expect(resource?.quiz).toMatchObject({
       questionCount: 1,
-      questions: [],
+      questions: expect.arrayContaining([expect.objectContaining({ correctOptionId })]),
     });
-    expect(JSON.stringify(resource)).not.toContain("correctOptionId");
-    expect(JSON.stringify(resource)).not.toContain(correctOptionId);
+    expect(JSON.stringify(resource)).toContain(correctOptionId);
   });
 });

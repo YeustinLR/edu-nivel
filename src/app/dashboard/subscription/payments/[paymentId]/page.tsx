@@ -84,15 +84,21 @@ export default async function PaymentStatusPage({
     },
   });
   if (!payment) notFound();
+  const levelNumber = payment.level?.levelNumber ?? payment.levelNumberSnapshot;
+  const levelLabel = levelNumber
+    ? formatLearnerLevel(levelNumber)
+    : "Nivel eliminado";
 
   const existingSubscription =
     payment.subscription ??
-    (await prisma.subscription.findUnique({
-      where: {
-        userId_levelId: { userId: user.id, levelId: payment.levelId },
-      },
-      select: { id: true },
-    }));
+    (payment.levelId
+      ? await prisma.subscription.findUnique({
+          where: {
+            userId_levelId: { userId: user.id, levelId: payment.levelId },
+          },
+          select: { id: true },
+        })
+      : null);
   const belongsToCurrentMode =
     payment.providerMode === providerModeForEnvironment(env.ONVO_ENV);
   const isPending = belongsToCurrentMode && (
@@ -130,7 +136,9 @@ export default async function PaymentStatusPage({
       : status;
   const retryHref = existingSubscription
     ? `/dashboard/subscription/renew/${encodeURIComponent(existingSubscription.id)}?plan=${encodeURIComponent(payment.planCode)}`
-    : `/dashboard/subscription/new?level=${encodeURIComponent(payment.levelId)}&plan=${encodeURIComponent(payment.planCode)}`;
+    : payment.levelId
+      ? `/dashboard/subscription/new?level=${encodeURIComponent(payment.levelId)}&plan=${encodeURIComponent(payment.planCode)}`
+      : "/dashboard/subscription";
   const themeClass =
     user.role === Role.TEACHER
       ? "teacher-subscription-theme"
@@ -178,8 +186,8 @@ export default async function PaymentStatusPage({
             <h1 className="mt-4 text-2xl font-extrabold tracking-[-0.035em] text-[var(--subscription-text)] sm:text-3xl">{belongsToCurrentMode ? status.title : "Pago registrado en otro entorno"}</h1>
             <p className="mt-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-300">
               {belongsToCurrentMode
-                ? `${formatLearnerLevel(payment.level.levelNumber)} ya está desbloqueado`
-                : `${formatLearnerLevel(payment.level.levelNumber)} no está desbloqueado por esta operación`}
+                ? `${levelLabel} ya está desbloqueado`
+                : `${levelLabel} no está desbloqueado por esta operación`}
             </p>
             <div className="mt-5 flex w-full max-w-xs flex-col gap-2.5">
               {existingSubscription && belongsToCurrentMode ? (
@@ -212,7 +220,7 @@ export default async function PaymentStatusPage({
               </div>
             ) : null}
             <dl className="mt-4 divide-y divide-[var(--subscription-border)] rounded-xl border border-[var(--subscription-border)] px-4">
-              <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Nivel</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{formatLearnerLevel(payment.level.levelNumber)}</dd></div>
+              <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Nivel</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{levelLabel}</dd></div>
               <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Acceso</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{getPlanIntervalLabel(payment.planCode)}</dd></div>
               <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Monto pagado</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{amount}</dd></div>
               <div className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-[var(--subscription-muted)]">Fecha</dt><dd className="text-right font-bold text-[var(--subscription-text)]">{formatSubscriptionDateTime(payment.confirmedAt ?? payment.appliedAt ?? payment.updatedAt)}</dd></div>

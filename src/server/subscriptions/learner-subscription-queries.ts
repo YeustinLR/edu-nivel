@@ -57,7 +57,6 @@ function effectiveStatus(
   },
   expectedProduct: SubscriptionProduct,
   hasConfirmedPayment: boolean,
-  isLevelActive: boolean,
   now: Date,
 ): LearnerSubscriptionEffectiveStatus {
   if (subscription.status === SubscriptionStatus.CANCELED) return "CANCELED";
@@ -67,7 +66,6 @@ function effectiveStatus(
   ) {
     return "EXPIRED";
   }
-  if (!isLevelActive) return "INACTIVE";
   if (
     subscription.status === SubscriptionStatus.ACTIVE &&
     subscription.product === expectedProduct &&
@@ -183,6 +181,7 @@ export const getLearnerSubscriptionOverview = cache(
       take: LEARNER_PAYMENT_HISTORY_PAGE_SIZE,
       select: {
         id: true,
+        levelNumberSnapshot: true,
         planCode: true,
         status: true,
         expectedAmountMinor: true,
@@ -196,19 +195,22 @@ export const getLearnerSubscriptionOverview = cache(
       },
     });
 
-    const pendingItems: LearnerPendingPaymentItem[] = pendingPayments.map(
-      (payment) => ({
-        id: payment.id,
-        levelId: payment.levelId,
-        levelNumber: payment.level.levelNumber,
-        planCode: payment.planCode,
-        status: payment.status as LearnerPendingPaymentItem["status"],
-        expectedAmountMinor: payment.expectedAmountMinor,
-        currency: payment.currency,
-        createdAt: payment.createdAt.toISOString(),
-        providerMode: payment.providerMode,
-        href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
-      }),
+    const pendingItems: LearnerPendingPaymentItem[] = pendingPayments.flatMap(
+      (payment) =>
+        payment.levelId && payment.level
+          ? [{
+              id: payment.id,
+              levelId: payment.levelId,
+              levelNumber: payment.level.levelNumber,
+              planCode: payment.planCode,
+              status: payment.status as LearnerPendingPaymentItem["status"],
+              expectedAmountMinor: payment.expectedAmountMinor,
+              currency: payment.currency,
+              createdAt: payment.createdAt.toISOString(),
+              providerMode: payment.providerMode,
+              href: `/dashboard/subscription/payments/${encodeURIComponent(payment.id)}`,
+            }]
+          : [],
     );
     const pendingByLevelId = new Map(
       pendingItems.map((payment) => [payment.levelId, payment]),
@@ -222,23 +224,20 @@ export const getLearnerSubscriptionOverview = cache(
           subscription,
           product,
           hasConfirmedPayment,
-          subscription.level.isActive,
           now,
         );
-        const canStudy =
-          subscription.level.isActive &&
-          evaluatePremiumAccess({
-            role: user.role,
-            emailVerified: user.emailVerified,
-            subscription: {
-              product: subscription.product,
-              status: subscription.status,
-              currentPeriodStart: subscription.currentPeriodStart,
-              currentPeriodEnd: subscription.currentPeriodEnd,
-              hasConfirmedPayment,
-            },
-            now,
-          }).allowed;
+        const canStudy = evaluatePremiumAccess({
+          role: user.role,
+          emailVerified: user.emailVerified,
+          subscription: {
+            product: subscription.product,
+            status: subscription.status,
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            hasConfirmedPayment,
+          },
+          now,
+        }).allowed;
         return {
           id: subscription.id,
           level: subscription.level,
@@ -273,7 +272,8 @@ export const getLearnerSubscriptionOverview = cache(
     const historyItems: LearnerPaymentHistoryItem[] = paymentHistory.map(
       (payment) => ({
         id: payment.id,
-        levelNumber: payment.level.levelNumber,
+        levelNumber:
+          payment.level?.levelNumber ?? payment.levelNumberSnapshot ?? 0,
         planCode: payment.planCode,
         status: payment.status,
         expectedAmountMinor: payment.expectedAmountMinor,

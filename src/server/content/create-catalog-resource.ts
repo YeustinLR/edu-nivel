@@ -58,6 +58,7 @@ export const getResourceCreationContext = cache(
             },
           },
         },
+        revisions: { take: 1, select: { status: true } },
       },
     }),
 );
@@ -165,6 +166,10 @@ function buildResourceData(
     publicationStatus,
     submittedForReviewAt:
       publicationStatus === PublicationStatus.IN_REVIEW ? now : null,
+    submittedBy:
+      publicationStatus === PublicationStatus.IN_REVIEW
+        ? { connect: { id: actorId } }
+        : undefined,
     publishedAt:
       publicationStatus === PublicationStatus.PUBLISHED ? now : null,
     publishedBy:
@@ -173,6 +178,7 @@ function buildResourceData(
         : undefined,
     module: { connect: { id: input.moduleId } },
     createdBy: { connect: { id: actorId } },
+    updatedBy: { connect: { id: actorId } },
     youtubeVideo:
       input.resourceType === ResourceType.YOUTUBE
         ? {
@@ -235,6 +241,7 @@ export async function createCatalogStructuredResource(
       subject: {
         select: { isActive: true, level: { select: { isActive: true } } },
       },
+      revisions: { take: 1, select: { status: true } },
     },
   });
 
@@ -266,7 +273,10 @@ export async function createCatalogStructuredResource(
     );
   }
 
-  if (!canCreateResource(actor, moduleRecord)) {
+  if (
+    moduleRecord.revisions?.[0]?.status === "IN_REVIEW" ||
+    !canCreateResource(actor, moduleRecord)
+  ) {
     throw new ResourceCreationError(
       "MODULE_NOT_EDITABLE",
       "No puedes añadir recursos en el estado editorial actual del módulo.",

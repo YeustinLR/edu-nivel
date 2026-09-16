@@ -23,7 +23,11 @@ describe("WorkspaceResourceList", () => {
             information: null,
             canEdit: false,
             canArchive: true,
-            canReactivate: false,
+    canReactivate: false,
+    canSubmitForReview: false,
+    canApprove: false,
+    revisionStatus: null,
+    lastEditorName: "Ana",
           },
         ]}
         totalResourceCount={1}
@@ -46,5 +50,8 @@ describe("WorkspaceResourceList", () => {
     expect(html).toContain("group-hover/preview:opacity-100");
     expect(html).toContain("group-focus-within/preview:opacity-100");
     expect(html).toContain("Vista previa");
+    expect(html).toContain("Mover arriba");
+    expect(html).toContain("Mover abajo");
+    expect(html).toContain('draggable="true"');
   });
 });

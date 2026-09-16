@@ -43,7 +43,9 @@ export const adminResourceAttachments: ResourceAttachmentKind[] = [
 ];
 
 export const collaboratorResourceAttachments: ResourceAttachmentKind[] = [
+  "YOUTUBE",
   "UPLOAD",
+  "LINK",
 ];
 
 export function ResourceAttachmentChoices({

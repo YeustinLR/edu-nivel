@@ -128,7 +128,12 @@ export async function updateModuleContentAction(
     revalidateContentPages(
       result.affectsPublishedContent ? "published" : "authoring",
     );
-    return { status: "success", message: "El módulo fue actualizado." };
+    return {
+      status: "success",
+      message: result.createdRevision
+        ? "La revisión del módulo fue guardada sin modificar la versión publicada."
+        : "El módulo fue actualizado.",
+    };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values));
     if (known) return known;
@@ -152,7 +157,12 @@ export async function updateResourceContentAction(
     revalidateContentPages(
       result.affectsPublishedContent ? "published" : "authoring",
     );
-    return { status: "success", message: "El recurso fue actualizado." };
+    return {
+      status: "success",
+      message: result.createdRevision
+        ? "La revisión del recurso fue guardada sin modificar la versión publicada."
+        : "El recurso fue actualizado.",
+    };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values));
     if (known) return known;

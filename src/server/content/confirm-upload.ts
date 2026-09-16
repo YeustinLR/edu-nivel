@@ -201,10 +201,15 @@ export async function confirmContentUpload(uploadId: string) {
           content: normalizeResourceContentForStorage(intent.content),
           estimatedMinutes: intent.estimatedMinutes,
           createdById: intent.createdById,
+          updatedById: intent.createdById,
           publicationStatus: intent.targetPublicationStatus,
           submittedForReviewAt:
             intent.targetPublicationStatus === PublicationStatus.IN_REVIEW
               ? now
+              : null,
+          submittedById:
+            intent.targetPublicationStatus === PublicationStatus.IN_REVIEW
+              ? intent.createdById
               : null,
           publishedById:
             intent.targetPublicationStatus === PublicationStatus.PUBLISHED

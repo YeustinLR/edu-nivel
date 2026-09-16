@@ -9,18 +9,11 @@ import {
   LibraryBig,
   Microscope,
   Pi,
-  Play,
   Ruler,
 } from "lucide-react";
 
-import {
-  ResourceTypeIcon,
-  resourceTypeLabels,
-} from "@/modules/content/components/admin/ContentBadges";
-import {
-  formatResourceDuration,
-  resourceTone,
-} from "@/modules/dashboard/domain/learner-presentation";
+import { ResourceThumbnail } from "@/modules/dashboard/components/learner/ResourceThumbnail";
+import { formatResourceDuration } from "@/modules/dashboard/domain/learner-presentation";
 import type {
   LearnerResourceSummary,
   LearnerSubjectSummary,
@@ -40,14 +33,6 @@ const subjectVisuals: SubjectVisual[] = [
   { Icon: FlaskConical, Decoration: Microscope, className: "border-emerald-200/70 bg-[#f0f9ed] dark:border-emerald-400/15 dark:bg-emerald-500/10", iconClassName: "bg-emerald-600 text-white shadow-emerald-500/20", decorationClassName: "text-emerald-500/20" },
   { Icon: Globe2, Decoration: Globe2, className: "border-amber-200/70 bg-[#fff8e9] dark:border-amber-400/15 dark:bg-amber-500/10", iconClassName: "bg-amber-500 text-white shadow-amber-500/20", decorationClassName: "text-amber-500/20" },
 ];
-
-const resourceToneClasses = {
-  blue: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  rose: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
-  green: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  violet: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
-  amber: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-};
 
 function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -145,24 +130,34 @@ export function LearnerResourceCard({
 }: {
   resource: LearnerResourceSummary;
 }) {
-  const tone = resourceTone(resource.type);
   const duration = formatResourceDuration(
     resource.estimatedMinutes,
     resource.durationSeconds,
   );
 
   return (
-    <Link href={resource.href} className="group grid min-h-[156px] grid-cols-[112px_1fr] gap-4 rounded-[1.25rem] border border-[var(--student-border)] bg-[var(--student-panel)] p-3 shadow-[0_5px_22px_rgba(15,23,42,0.035)] transition hover:-translate-y-0.5 hover:border-blue-300/70 hover:shadow-[0_12px_32px_rgba(15,23,42,0.08)] sm:grid-cols-[38%_1fr]">
-      <div className={`relative flex min-h-28 items-center justify-center overflow-hidden rounded-2xl ${resourceToneClasses[tone]}`}>
-        <ResourceTypeIcon type={resource.type} className="h-12 w-12 opacity-90" />
-        {resource.type === "YOUTUBE" ? <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/80 text-white"><Play aria-hidden="true" className="h-4 w-4 fill-current" /></span> : null}
-      </div>
-      <div className="flex min-w-0 flex-col py-1">
-        <span className={`w-fit rounded-full px-2.5 py-1 text-[0.68rem] font-extrabold uppercase tracking-wide ${resourceToneClasses[tone]}`}>{resourceTypeLabels[resource.type]}</span>
-        <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-5 text-[var(--student-text)] group-hover:text-[var(--student-blue)]">{resource.title}</h3>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-2 text-xs text-[var(--student-muted)]">
-          <span className="truncate">{resource.subjectName}</span>
-          {duration ? <span className="shrink-0">{duration}</span> : null}
+    <Link
+      href={resource.href}
+      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.25rem] border border-[var(--student-border)] bg-[var(--student-panel)] shadow-[0_5px_22px_rgba(15,23,42,0.035)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-blue-300/70 hover:shadow-[0_14px_36px_rgba(15,23,42,0.1)] focus-visible:border-[var(--student-blue)] focus-visible:ring-4 focus-visible:ring-blue-500/10 motion-reduce:transform-none motion-reduce:transition-none"
+    >
+      <ResourceThumbnail
+        type={resource.type}
+        title={resource.title}
+        youtubeVideoId={resource.youtubeVideoId}
+        duration={duration}
+      />
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <h3 className="line-clamp-2 text-base font-extrabold leading-6 text-[var(--student-text)] transition-colors group-hover:text-[var(--student-blue)] motion-reduce:transition-none">
+          {resource.title}
+        </h3>
+        <p className="mt-1 line-clamp-1 text-xs font-medium text-[var(--student-muted)]">
+          {resource.moduleTitle}
+        </p>
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4 text-xs text-[var(--student-muted)]">
+          <span className="line-clamp-1 font-semibold">{resource.subjectName}</span>
+          {duration ? (
+            <span className="shrink-0 font-medium tabular-nums">{duration}</span>
+          ) : null}
         </div>
       </div>
     </Link>

@@ -52,7 +52,7 @@ export function getVisibleLearnerResourceTreeWhere({
         ...(subjectId ? { id: subjectId } : {}),
         levelId,
         isActive: true,
-        level: { id: levelId, isActive: true },
+        level: { id: levelId },
       },
     },
   } as const;

@@ -46,12 +46,12 @@ describe("applyEditorialTransition", () => {
     mocks.resourceUpdateMany.mockResolvedValue({ count: 1 });
   });
 
-  it("permite al propietario publicar un módulo directamente", async () => {
+  it("permite que un colaborador envíe a revisión un módulo de cualquier autor", async () => {
     await applyEditorialTransition({
       targetType: "module",
       targetId: "module-1",
-      transition: "PUBLISH_DIRECT",
-      actor: { id: "collaborator-1", role: Role.COLLABORATOR },
+      transition: "SUBMIT_FOR_REVIEW",
+      actor: { id: "collaborator-2", role: Role.COLLABORATOR },
     });
 
     expect(mocks.moduleUpdateMany).toHaveBeenCalledWith({
@@ -60,9 +60,8 @@ describe("applyEditorialTransition", () => {
         publicationStatus: PublicationStatus.DRAFT,
       }),
       data: expect.objectContaining({
-        publicationStatus: PublicationStatus.PUBLISHED,
-        publishedById: "collaborator-1",
-        publishedAt: expect.any(Date),
+        publicationStatus: PublicationStatus.IN_REVIEW,
+        submittedForReviewAt: expect.any(Date),
         reviewedById: null,
       }),
     });

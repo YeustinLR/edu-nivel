@@ -18,20 +18,22 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
   "content updates with PostgreSQL",
   () => {
     it(
-      "enforces authorship, editorial state, dependencies and optimistic concurrency",
+      "enforces global collaboration, safe revisions, dependencies and optimistic concurrency",
       async () => {
         const { config } = await import("dotenv");
         config({ path: [".env.local", ".env"], quiet: true });
 
-        const [{ prisma }, updates, availability] = await Promise.all([
+        const [{ prisma }, updates, availability, editorial] = await Promise.all([
           import("@/server/db/prisma"),
           import("@/server/content/update-content"),
           import("@/server/content/set-content-availability"),
+          import("@/server/content/apply-editorial-transition"),
         ]);
         const unique = randomUUID();
         const marker = `db-content-update-${unique}`;
         const adminId = `${marker}-admin`;
         const collaboratorId = `${marker}-collaborator`;
+        const collaboratorBId = `${marker}-collaborator-b`;
         const levelNumber =
           1_700_000_000 + Number.parseInt(unique.slice(0, 6), 16);
         let levelId: string | undefined;
@@ -50,6 +52,13 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 id: collaboratorId,
                 name: "Content Update Collaborator",
                 email: `${collaboratorId}@example.com`,
+                emailVerified: true,
+                role: Role.COLLABORATOR,
+              },
+              {
+                id: collaboratorBId,
+                name: "Content Update Collaborator B",
+                email: `${collaboratorBId}@example.com`,
                 emailVerified: true,
                 role: Role.COLLABORATOR,
               },
@@ -171,13 +180,26 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               {
                 id: adminModule.id,
                 expectedUpdatedAt: adminModule.updatedAt.toISOString(),
-                title: `Intento ajeno ${marker}`,
+                title: `Edición colaborativa ${marker}`,
                 description: undefined,
                 audience: ContentAudience.BOTH,
               },
-              { id: collaboratorId, role: Role.COLLABORATOR },
+              { id: collaboratorBId, role: Role.COLLABORATOR },
             ),
-          ).rejects.toMatchObject({ code: "FORBIDDEN" });
+          ).resolves.toEqual({
+            affectsPublishedContent: false,
+            createdRevision: false,
+          });
+          await expect(
+            prisma.module.findUniqueOrThrow({
+              where: { id: adminModule.id },
+              select: { title: true, createdById: true, updatedById: true },
+            }),
+          ).resolves.toEqual({
+            title: `Edición colaborativa ${marker}`,
+            createdById: adminId,
+            updatedById: collaboratorBId,
+          });
 
           const publishedAdminModule = await prisma.module.update({
             where: { id: adminModule.id },
@@ -195,7 +217,10 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
               },
               { id: adminId, role: Role.ADMIN },
             ),
-          ).resolves.toEqual({ affectsPublishedContent: true });
+          ).resolves.toEqual({
+            affectsPublishedContent: true,
+            createdRevision: false,
+          });
 
           await updates.updateCatalogResource(
             {
@@ -333,10 +358,162 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             ),
           ).rejects.toMatchObject({ code: "INVALID_RESOURCE_DATA" });
 
-          await prisma.resource.update({
+          const publishedContent = await prisma.resource.update({
             where: { id: contentResource.id },
             data: { publicationStatus: "PUBLISHED" },
           });
+
+          await expect(
+            updates.updateCatalogResource(
+              {
+                id: contentResource.id,
+                expectedUpdatedAt: publishedContent.updatedAt.toISOString(),
+                resourceType: ResourceType.NOTE,
+                title: `Revisión publicada ${marker}`,
+                instructions: "Versión todavía no aprobada",
+                content: "El estudiante aún no debe ver este texto",
+                estimatedMinutes: 12,
+              },
+              { id: collaboratorBId, role: Role.COLLABORATOR },
+            ),
+          ).resolves.toEqual({
+            affectsPublishedContent: false,
+            createdRevision: true,
+          });
+
+          const firstRevision = await prisma.contentRevision.findUniqueOrThrow({
+            where: { resourceId: contentResource.id },
+          });
+          await expect(
+            prisma.resource.findUniqueOrThrow({
+              where: { id: contentResource.id },
+              select: { title: true, content: true, publicationStatus: true },
+            }),
+          ).resolves.toEqual({
+            title: `Contenido actualizado ${marker}`,
+            content: normalizeResourceContentForStorage(
+              "Contenido persistido de la lección",
+            ),
+            publicationStatus: "PUBLISHED",
+          });
+
+          await updates.updateCatalogResource(
+            {
+              id: contentResource.id,
+              expectedUpdatedAt: firstRevision.updatedAt.toISOString(),
+              resourceType: ResourceType.NOTE,
+              title: `Revisión ajustada ${marker}`,
+              instructions: "Ajustada por A",
+              content: "Contenido de la revisión ajustada",
+              estimatedMinutes: 9,
+            },
+            { id: collaboratorId, role: Role.COLLABORATOR },
+          );
+          await expect(
+            updates.updateCatalogResource(
+              {
+                id: contentResource.id,
+                expectedUpdatedAt: firstRevision.updatedAt.toISOString(),
+                resourceType: ResourceType.NOTE,
+                title: `Sobrescritura silenciosa ${marker}`,
+                instructions: undefined,
+                content: "No debe guardarse",
+                estimatedMinutes: 10,
+              },
+              { id: collaboratorBId, role: Role.COLLABORATOR },
+            ),
+          ).rejects.toMatchObject({ code: "EDIT_CONFLICT" });
+
+          await editorial.applyEditorialTransition({
+            targetType: "resource",
+            targetId: contentResource.id,
+            transition: "SUBMIT_FOR_REVIEW",
+            actor: { id: collaboratorId, role: Role.COLLABORATOR },
+          });
+          const submittedRevision =
+            await prisma.contentRevision.findUniqueOrThrow({
+              where: { resourceId: contentResource.id },
+            });
+          expect(submittedRevision.submittedById).toBe(collaboratorId);
+          await expect(
+            updates.updateCatalogResource(
+              {
+                id: contentResource.id,
+                expectedUpdatedAt: submittedRevision.updatedAt.toISOString(),
+                resourceType: ResourceType.NOTE,
+                title: `Edición bloqueada ${marker}`,
+                instructions: undefined,
+                content: "No debe guardarse",
+              },
+              { id: collaboratorBId, role: Role.COLLABORATOR },
+            ),
+          ).rejects.toMatchObject({ code: "INVALID_STATE" });
+
+          await editorial.applyEditorialTransition({
+            targetType: "resource",
+            targetId: contentResource.id,
+            transition: "REQUEST_CHANGES",
+            reviewNote: "Aclara la explicación.",
+            actor: { id: adminId, role: Role.ADMIN },
+          });
+          await expect(
+            prisma.resource.findUniqueOrThrow({
+              where: { id: contentResource.id },
+              select: { title: true },
+            }),
+          ).resolves.toEqual({ title: `Contenido actualizado ${marker}` });
+
+          const requestedRevision =
+            await prisma.contentRevision.findUniqueOrThrow({
+              where: { resourceId: contentResource.id },
+            });
+          await updates.updateCatalogResource(
+            {
+              id: contentResource.id,
+              expectedUpdatedAt: requestedRevision.updatedAt.toISOString(),
+              resourceType: ResourceType.NOTE,
+              title: `Revisión corregida ${marker}`,
+              instructions: "Corrección final",
+              content: "Contenido aprobado de la revisión",
+              estimatedMinutes: 11,
+            },
+            { id: collaboratorBId, role: Role.COLLABORATOR },
+          );
+          await editorial.applyEditorialTransition({
+            targetType: "resource",
+            targetId: contentResource.id,
+            transition: "SUBMIT_FOR_REVIEW",
+            actor: { id: collaboratorBId, role: Role.COLLABORATOR },
+          });
+          await editorial.applyEditorialTransition({
+            targetType: "resource",
+            targetId: contentResource.id,
+            transition: "PUBLISH",
+            actor: { id: adminId, role: Role.ADMIN },
+          });
+          await expect(
+            prisma.resource.findUniqueOrThrow({
+              where: { id: contentResource.id },
+              select: {
+                title: true,
+                content: true,
+                publicationStatus: true,
+                updatedById: true,
+                reviewedById: true,
+                revisions: { select: { id: true } },
+              },
+            }),
+          ).resolves.toEqual({
+            title: `Revisión corregida ${marker}`,
+            content: normalizeResourceContentForStorage(
+              "Contenido aprobado de la revisión",
+            ),
+            publicationStatus: "PUBLISHED",
+            updatedById: collaboratorBId,
+            reviewedById: adminId,
+            revisions: [],
+          });
+
           const currentModule = await prisma.module.findUniqueOrThrow({
             where: { id: ownedModule.id },
             select: { updatedAt: true },
@@ -356,8 +533,13 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           if (levelId) {
             await prisma.level.deleteMany({ where: { id: levelId } });
           }
+          await prisma.contentAuditLog.deleteMany({
+            where: {
+              actorId: { in: [adminId, collaboratorId, collaboratorBId] },
+            },
+          });
           await prisma.user.deleteMany({
-            where: { id: { in: [adminId, collaboratorId] } },
+            where: { id: { in: [adminId, collaboratorId, collaboratorBId] } },
           });
         }
       },

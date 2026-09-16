@@ -32,11 +32,11 @@ export const editorialTransitionRules: Record<
   Record<EditorialTransition, EditorialTransitionRule>
 > = {
   module: {
-    SUBMIT_FOR_REVIEW: { from: [], to: PublicationStatus.IN_REVIEW },
-    WITHDRAW_REVIEW: { from: [], to: PublicationStatus.DRAFT },
+    SUBMIT_FOR_REVIEW: { from: editableStates, to: PublicationStatus.IN_REVIEW },
+    WITHDRAW_REVIEW: { from: [PublicationStatus.IN_REVIEW], to: PublicationStatus.DRAFT },
     PUBLISH_DIRECT: { from: editableStates, to: PublicationStatus.PUBLISHED },
-    PUBLISH: { from: [], to: PublicationStatus.PUBLISHED },
-    REQUEST_CHANGES: { from: [], to: PublicationStatus.CHANGES_REQUESTED },
+    PUBLISH: { from: [PublicationStatus.IN_REVIEW], to: PublicationStatus.PUBLISHED },
+    REQUEST_CHANGES: { from: [PublicationStatus.IN_REVIEW], to: PublicationStatus.CHANGES_REQUESTED },
     UNPUBLISH: {
       from: [PublicationStatus.PUBLISHED],
       to: PublicationStatus.UNPUBLISHED,
@@ -88,6 +88,9 @@ export function getAdminEditorialTransitions(
 ): EditorialTransition[] {
   if (targetType === "module") {
     if (isEditableState(status)) return ["PUBLISH_DIRECT"];
+    if (status === PublicationStatus.IN_REVIEW) {
+      return ["PUBLISH", "REQUEST_CHANGES", "WITHDRAW_REVIEW"];
+    }
     return status === PublicationStatus.PUBLISHED ? ["UNPUBLISH"] : [];
   }
 
@@ -102,10 +105,6 @@ export function getCollaboratorEditorialTransitions(
   targetType: EditorialContentType,
   status: PublicationStatus,
 ): EditorialTransition[] {
-  if (targetType === "module") {
-    return isEditableState(status) ? ["PUBLISH_DIRECT"] : [];
-  }
-
   if (isEditableState(status)) return ["SUBMIT_FOR_REVIEW"];
   return status === PublicationStatus.IN_REVIEW ? ["WITHDRAW_REVIEW"] : [];
 }

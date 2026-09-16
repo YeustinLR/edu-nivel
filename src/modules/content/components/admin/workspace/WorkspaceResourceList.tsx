@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { PublicationStatus, ResourceType } from "@/generated/prisma/enums";
+import { ResourceType } from "@/generated/prisma/enums";
 import {
   PublicationStatusBadge,
   ResourceTypeBadge,
@@ -48,6 +48,7 @@ export function WorkspaceResourceList({
   onAvailability,
   onMove,
   onDrop,
+  editorialLabel = () => undefined,
 }: {
   moduleId: string;
   resources: AdminSubjectWorkspaceResource[];
@@ -62,6 +63,7 @@ export function WorkspaceResourceList({
   onAvailability: (moduleId: string, resource: AdminSubjectWorkspaceResource) => void;
   onMove: (moduleId: string, resourceId: string, direction: -1 | 1) => void;
   onDrop: (moduleId: string, sourceId: string, targetId: string) => void;
+  editorialLabel?: (resource: AdminSubjectWorkspaceResource) => string | undefined;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -160,7 +162,7 @@ export function WorkspaceResourceList({
               <time dateTime={resource.updatedAt} title={new Date(resource.updatedAt).toLocaleString("es-CR")}>
                 {formatRelativeWorkspaceDate(resource.updatedAt, now)}
               </time>
-              <span className="block truncate">{resource.authorName}</span>
+              <span className="block truncate">{resource.lastEditorName}</span>
             </span>
 
             <div className="flex items-center justify-end gap-1 max-lg:col-start-1 max-lg:row-start-2 max-lg:justify-start">
@@ -196,7 +198,7 @@ export function WorkspaceResourceList({
                 label={`Más opciones para ${resource.title}`}
                 placement="down"
               >
-                  {resource.isActive ? (
+                  {resource.isActive && editorialLabel(resource) ? (
                     <button
                       type="button"
                       disabled={pending}
@@ -204,9 +206,7 @@ export function WorkspaceResourceList({
                       className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-50"
                     >
                       <Send aria-hidden="true" className="h-4 w-4" />
-                      {resource.publicationStatus === PublicationStatus.PUBLISHED
-                        ? "Despublicar"
-                        : "Publicar"}
+                      {editorialLabel(resource)}
                     </button>
                   ) : null}
                   {(resource.isActive ? resource.canArchive : resource.canReactivate) ? (
@@ -224,10 +224,10 @@ export function WorkspaceResourceList({
                       {resource.isActive ? "Archivar" : "Reactivar"}
                     </button>
                   ) : null}
-                  <div className="my-1 border-t border-border" />
+                  {canReorder ? <><div className="my-1 border-t border-border" />
                   <button
                     type="button"
-                    disabled={!canReorder || pending || index === 0}
+                    disabled={pending || index === 0}
                     onClick={() => onMove(moduleId, resource.id, -1)}
                     className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40"
                   >
@@ -236,13 +236,13 @@ export function WorkspaceResourceList({
                   </button>
                   <button
                     type="button"
-                    disabled={!canReorder || pending || index === resources.length - 1}
+                    disabled={pending || index === resources.length - 1}
                     onClick={() => onMove(moduleId, resource.id, 1)}
                     className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40"
                   >
                     <ArrowDown aria-hidden="true" className="h-4 w-4" />
                     Mover abajo
-                  </button>
+                  </button></> : null}
               </WorkspaceActionMenu>
             </div>
           </li>

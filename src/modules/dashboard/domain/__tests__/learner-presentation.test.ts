@@ -4,6 +4,7 @@ import { ResourceType } from "@/generated/prisma/enums";
 import {
   formatResourceDuration,
   formatLearnerLevel,
+  getYoutubeThumbnailUrl,
   resourceTone,
 } from "@/modules/dashboard/domain/learner-presentation";
 
@@ -17,6 +18,14 @@ describe("learner presentation helpers", () => {
     expect(formatResourceDuration(null, 525)).toBe("8:45");
     expect(formatResourceDuration(12, null)).toBe("12 min");
     expect(formatResourceDuration(null, null)).toBeNull();
+  });
+
+  it("builds thumbnails only from valid YouTube video identifiers", () => {
+    expect(getYoutubeThumbnailUrl("dQw4w9WgXcQ")).toBe(
+      "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    );
+    expect(getYoutubeThumbnailUrl(null)).toBeNull();
+    expect(getYoutubeThumbnailUrl("invalid/id")).toBeNull();
   });
 
   it("assigns a consistent visual tone by resource type", () => {

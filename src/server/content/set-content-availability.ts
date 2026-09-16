@@ -66,29 +66,6 @@ export async function setCatalogContentAvailability(
       throw new ContentUpdateError("NOT_FOUND", "El nivel ya no existe.");
     }
     if (level.isActive === input.isActive) return { affectsPublishedContent };
-
-    if (!input.isActive) {
-      const protectedContent = await prisma.module.findFirst({
-        where: {
-          subject: { levelId: input.id },
-          OR: [
-            { publicationStatus: { in: [...protectedStatuses] } },
-            {
-              resources: {
-                some: { publicationStatus: { in: [...protectedStatuses] } },
-              },
-            },
-          ],
-        },
-        select: { id: true },
-      });
-      if (protectedContent) {
-        throw new ContentUpdateError(
-          "DEPENDENCY_BLOCKED",
-          "Despublica o retira de revisión el contenido del nivel antes de archivarlo.",
-        );
-      }
-    }
   } else if (input.type === "subject") {
     assertCatalogManager(actor);
     const subject = await prisma.subject.findUnique({

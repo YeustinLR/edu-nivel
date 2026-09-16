@@ -5,6 +5,7 @@ import type {
   PublicationStatus,
   ResourceType,
   Role,
+  ContentRevisionStatus,
 } from "@/generated/prisma/enums";
 import {
   canArchiveEditorialContent,
@@ -16,6 +17,10 @@ import {
 import { prisma } from "@/server/db/prisma";
 import { isR2UploadEnabled } from "@/server/storage/r2";
 import { quizQuestionsSchema, type QuizQuestion } from "@/modules/content/domain/quiz";
+import {
+  getModuleContentRevision,
+  getResourceContentRevision,
+} from "@/server/content/content-revisions";
 
 export type ContentDetailActor = { id: string; role: Role };
 
@@ -38,6 +43,8 @@ export type ResourceContentDetail = {
   canEdit: boolean;
   canArchive: boolean;
   canReactivate: boolean;
+  revisionStatus: ContentRevisionStatus | null;
+  lastEditorName: string;
   youtube: {
     videoId: string;
     duration: number | null;
@@ -114,6 +121,8 @@ export type ModuleEditorData = {
   canEdit: boolean;
   canArchive: boolean;
   canReactivate: boolean;
+  revisionStatus: ContentRevisionStatus | null;
+  lastEditorName: string;
 };
 
 export async function getLevelEditorData(
@@ -172,6 +181,7 @@ export async function getModuleEditorData(
       isActive: true,
       updatedAt: true,
       createdBy: { select: { name: true } },
+      updatedBy: { select: { name: true } },
       subject: {
         select: { isActive: true, level: { select: { isActive: true } } },
       },
@@ -179,27 +189,37 @@ export async function getModuleEditorData(
   });
 
   if (!moduleRecord) return null;
+  const revision = moduleRecord.publicationStatus === "PUBLISHED"
+    ? await getModuleContentRevision(moduleId)
+    : null;
+  const workingRevision = actor.role === "COLLABORATOR" ? revision : null;
   const permissionTarget = {
+    createdById: moduleRecord.createdById,
+    publicationStatus: workingRevision?.status ?? moduleRecord.publicationStatus,
+  };
+  const basePermissionTarget = {
     createdById: moduleRecord.createdById,
     publicationStatus: moduleRecord.publicationStatus,
   };
 
   return {
     id: moduleRecord.id,
-    title: moduleRecord.title,
-    description: moduleRecord.description,
-    audience: moduleRecord.audience,
+    title: workingRevision?.payload.title ?? moduleRecord.title,
+    description: workingRevision?.payload.description ?? moduleRecord.description,
+    audience: workingRevision?.payload.audience ?? moduleRecord.audience,
     publicationStatus: moduleRecord.publicationStatus,
     createdById: moduleRecord.createdById,
     authorName: moduleRecord.createdBy.name,
     isActive: moduleRecord.isActive,
-    updatedAt: moduleRecord.updatedAt,
+    updatedAt: workingRevision?.updatedAt ?? moduleRecord.updatedAt,
     canEdit: canEditModuleContent(actor, permissionTarget),
-    canArchive: canArchiveEditorialContent(actor, permissionTarget),
+    canArchive: canArchiveEditorialContent(actor, basePermissionTarget),
     canReactivate:
       canReactivateEditorialContent(actor, permissionTarget) &&
       moduleRecord.subject.isActive &&
       moduleRecord.subject.level.isActive,
+    revisionStatus: revision?.status ?? null,
+    lastEditorName: revision?.updatedBy.name ?? moduleRecord.updatedBy?.name ?? moduleRecord.createdBy.name,
   };
 }
 
@@ -208,11 +228,13 @@ export async function getResourceContentDetail({
   expectedModuleId,
   expectedSubjectId,
   actor,
+  preferRevision = false,
 }: {
   resourceId: string;
   expectedModuleId?: string;
   expectedSubjectId?: string;
   actor: ContentDetailActor;
+  preferRevision?: boolean;
 }): Promise<ResourceContentDetail | null> {
   const resource = await prisma.resource.findFirst({
     where: {
@@ -236,6 +258,7 @@ export async function getResourceContentDetail({
       createdById: true,
       updatedAt: true,
       createdBy: { select: { name: true } },
+      updatedBy: { select: { name: true } },
       module: {
         select: {
           title: true,
@@ -303,6 +326,13 @@ export async function getResourceContentDetail({
 
   if (!resource) return null;
 
+  const revision = resource.publicationStatus === "PUBLISHED"
+    ? await getResourceContentRevision(resourceId)
+    : null;
+  const workingRevision = revision && (actor.role === "COLLABORATOR" || preferRevision)
+    ? revision
+    : null;
+
   const visibilityTarget = {
     createdById: resource.createdById,
     moduleCreatedById: resource.module.createdById,
@@ -318,6 +348,10 @@ export async function getResourceContentDetail({
 
   const permissionTarget = {
     createdById: resource.createdById,
+    publicationStatus: workingRevision?.status ?? resource.publicationStatus,
+  };
+  const basePermissionTarget = {
+    createdById: resource.createdById,
     publicationStatus: resource.publicationStatus,
   };
   const canEdit = canEditEditorialContent(actor, permissionTarget);
@@ -331,26 +365,40 @@ export async function getResourceContentDetail({
     moduleId: resource.moduleId,
     moduleTitle: resource.module.title,
     type: resource.type,
-    title: resource.title,
-    instructions: resource.instructions,
-    content: resource.content,
-    estimatedMinutes: resource.estimatedMinutes,
+    title: workingRevision?.payload.title ?? resource.title,
+    instructions: workingRevision?.payload.instructions ?? resource.instructions,
+    content: workingRevision?.payload.content ?? resource.content,
+    estimatedMinutes: workingRevision?.payload.estimatedMinutes ?? resource.estimatedMinutes,
     isRequired: resource.isRequired,
     publicationStatus: resource.publicationStatus,
     isActive: resource.isActive,
     createdById: resource.createdById,
     authorName: resource.createdBy.name,
-    updatedAt: resource.updatedAt,
+    updatedAt: workingRevision?.updatedAt ?? resource.updatedAt,
     protectedFileAccessEnabled: isR2UploadEnabled(),
     canEdit,
-    canArchive: canArchiveEditorialContent(actor, permissionTarget),
+    canArchive: canArchiveEditorialContent(actor, basePermissionTarget),
     canReactivate:
       canReactivateEditorialContent(actor, permissionTarget) &&
       resource.module.isActive &&
       resource.module.subject.isActive &&
       resource.module.subject.level.isActive,
-    youtube: resource.youtubeVideo,
-    link: resource.linkResource,
+    revisionStatus: revision?.status ?? null,
+    lastEditorName: revision?.updatedBy.name ?? resource.updatedBy?.name ?? resource.createdBy.name,
+    youtube: resource.youtubeVideo
+      ? {
+          ...resource.youtubeVideo,
+          videoId: workingRevision?.payload.videoId ?? resource.youtubeVideo.videoId,
+          startAt: workingRevision?.payload.startAt ?? resource.youtubeVideo.startAt,
+        }
+      : null,
+    link: resource.linkResource
+      ? {
+          ...resource.linkResource,
+          url: workingRevision?.payload.url ?? resource.linkResource.url,
+          openInNewTab: workingRevision?.payload.openInNewTab ?? resource.linkResource.openInNewTab,
+        }
+      : null,
     pdf: resource.pdfResource
       ? {
           ...resource.pdfResource,
@@ -360,6 +408,7 @@ export async function getResourceContentDetail({
     image: resource.imageResource
       ? {
           ...resource.imageResource,
+          altText: workingRevision?.payload.altText ?? resource.imageResource.altText,
           sizeBytes: serializeSize(resource.imageResource.sizeBytes),
         }
       : null,
@@ -378,11 +427,16 @@ export async function getResourceContentDetail({
     quiz: resource.quiz
       ? {
           ...resource.quiz,
-          questionCount: quizQuestions?.success ? quizQuestions.data.length : 0,
+          passingScore: workingRevision?.payload.passingScore ?? resource.quiz.passingScore,
+          maxAttempts: workingRevision?.payload.maxAttempts ?? resource.quiz.maxAttempts,
+          shuffleQuestions: workingRevision?.payload.shuffleQuestions ?? resource.quiz.shuffleQuestions,
+          questionCount: workingRevision?.payload.quizQuestions?.length ?? (quizQuestions?.success ? quizQuestions.data.length : 0),
           questions:
-            quizQuestions?.success && (actor.role === "ADMIN" || canEdit)
-              ? quizQuestions.data
-              : [],
+            workingRevision?.payload.quizQuestions
+              ? (workingRevision.payload.quizQuestions as QuizQuestion[])
+              : quizQuestions?.success && (actor.role === "ADMIN" || canEdit)
+                ? quizQuestions.data
+                : [],
         }
       : null,
     game: resource.gameResource,

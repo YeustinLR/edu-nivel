@@ -8,6 +8,7 @@ import type {
   CreateSubjectInput,
 } from "@/modules/content/schemas/admin-content-creation.schema";
 import { getModuleCreationStatus } from "@/modules/content/domain/content-creation";
+import { Role } from "@/generated/prisma/enums";
 import { prisma } from "@/server/db/prisma";
 
 export type CatalogCreationErrorCode =
@@ -110,6 +111,7 @@ export async function createCatalogSubject(input: CreateSubjectInput) {
 export async function createCatalogModule(
   input: CreateModuleInput,
   createdById: string,
+  creatorRole: Role = Role.ADMIN,
 ) {
   const subject = await prisma.subject.findUnique({
     where: { id: input.subjectId },
@@ -135,7 +137,13 @@ export async function createCatalogModule(
   }
 
   try {
-    const publicationStatus = getModuleCreationStatus(input.disposition);
+    const publicationStatus = getModuleCreationStatus(creatorRole, input.disposition);
+    if (!publicationStatus) {
+      throw new CatalogCreationError(
+        "SUBJECT_NOT_ACTIVE",
+        "Tu rol no puede crear módulos.",
+      );
+    }
     const now = publicationStatus === "PUBLISHED" ? new Date() : null;
     const moduleRecord = await prisma.module.create({
       data: {
@@ -144,7 +152,12 @@ export async function createCatalogModule(
         description: input.description ?? null,
         audience: input.audience,
         createdById,
+        updatedById: createdById,
         publicationStatus,
+        submittedForReviewAt:
+          publicationStatus === "IN_REVIEW" ? new Date() : null,
+        submittedById:
+          publicationStatus === "IN_REVIEW" ? createdById : null,
         publishedById: now ? createdById : null,
         publishedAt: now,
       },

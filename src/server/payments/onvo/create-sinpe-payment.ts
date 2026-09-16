@@ -211,6 +211,7 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
       data: {
         userId: user.id,
         levelId: level.id,
+        levelNumberSnapshot: level.levelNumber,
         planCode: plan.code as PlanCode,
         product: plan.product,
         billingInterval: plan.billingInterval,
@@ -262,7 +263,7 @@ export async function createSinpePayment(input: StartSinpePaymentInput) {
         internalReference: payment.internalReference,
         userId: payment.userId,
         planCode: payment.planCode,
-        levelId: payment.levelId,
+        levelId: level.id,
       },
     });
 

@@ -21,6 +21,11 @@ import {
   ContentImageReferenceError,
   syncResourceContentImages,
 } from "@/server/content/content-image-references";
+import {
+  ContentRevisionError,
+  savePublishedModuleRevision,
+  savePublishedResourceRevision,
+} from "@/server/content/content-revisions";
 
 export type ContentUpdateErrorCode =
   | "NOT_FOUND"
@@ -72,16 +77,6 @@ function assertEditable(
   actor: ContentUpdateActor,
   target: { createdById: string; publicationStatus: Parameters<typeof canEditEditorialContent>[1]["publicationStatus"] },
 ) {
-  if (
-    actor.role === "COLLABORATOR" &&
-    target.createdById !== actor.id
-  ) {
-    throw new ContentUpdateError(
-      "FORBIDDEN",
-      "Solo puedes editar contenido creado por ti.",
-    );
-  }
-
   if (!canEditEditorialContent(actorForPolicy(actor), target)) {
     throw new ContentUpdateError(
       "INVALID_STATE",
@@ -96,14 +91,20 @@ function assertModuleEditable(
 ) {
   if (!canEditModuleContent(actorForPolicy(actor), target)) {
     throw new ContentUpdateError(
-      actor.role === "COLLABORATOR" && target.createdById !== actor.id
-        ? "FORBIDDEN"
-        : "INVALID_STATE",
-      actor.role === "COLLABORATOR" && target.createdById !== actor.id
-        ? "Solo puedes editar módulos creados por ti."
-        : "El módulo no puede editarse en su estado actual.",
+      "INVALID_STATE",
+      "El módulo no puede editarse en su estado actual.",
     );
   }
+}
+
+function translateRevisionError(error: unknown): never {
+  if (error instanceof ContentRevisionError) {
+    const code = error.code === "REVIEW_NOTE_REQUIRED"
+      ? "INVALID_STATE"
+      : error.code;
+    throw new ContentUpdateError(code, error.message);
+  }
+  throw error;
 }
 
 async function assertSingleUpdate(
@@ -209,6 +210,18 @@ export async function updateCatalogModule(
   }
   assertModuleEditable(actor, moduleRecord);
 
+  if (
+    actor.role === "COLLABORATOR" &&
+    moduleRecord.publicationStatus === "PUBLISHED"
+  ) {
+    try {
+      await savePublishedModuleRevision(input, actor);
+      return { affectsPublishedContent: false, createdRevision: true };
+    } catch (error) {
+      translateRevisionError(error);
+    }
+  }
+
   try {
     const updated = await prisma.module.updateMany({
       where: {
@@ -220,6 +233,7 @@ export async function updateCatalogModule(
         title: input.title,
         description: input.description ?? null,
         audience: input.audience,
+        updatedById: actor.id,
       },
     });
 
@@ -244,6 +258,7 @@ export async function updateCatalogModule(
   return {
     affectsPublishedContent:
       moduleRecord.publicationStatus === "PUBLISHED",
+    createdRevision: false,
   };
 }
 
@@ -282,6 +297,18 @@ export async function updateCatalogResource(
     throw new ContentUpdateError("NOT_FOUND", "El recurso ya no existe.");
   }
   assertEditable(actor, resource);
+
+  if (
+    actor.role === "COLLABORATOR" &&
+    resource.publicationStatus === "PUBLISHED"
+  ) {
+    try {
+      await savePublishedResourceRevision(input, actor);
+      return { affectsPublishedContent: false, createdRevision: true };
+    } catch (error) {
+      translateRevisionError(error);
+    }
+  }
 
   if (resource.type !== input.resourceType) {
     throw new ContentUpdateError(
@@ -333,6 +360,7 @@ export async function updateCatalogResource(
           instructions: input.instructions ?? null,
           content: input.content?.trim() || null,
           estimatedMinutes: input.estimatedMinutes ?? null,
+          updatedById: actor.id,
         },
       });
     } catch (error) {
@@ -418,5 +446,5 @@ export async function updateCatalogResource(
     }
   });
 
-  return { affectsPublishedContent: false };
+  return { affectsPublishedContent: false, createdRevision: false };
 }

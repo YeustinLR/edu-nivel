@@ -25,7 +25,7 @@ export async function createModuleAction(formData: FormData) {
     getCreateModuleFormValues(formData),
   );
 
-  const moduleRecord = await createCatalogModule(parsed, user.id);
+  const moduleRecord = await createCatalogModule(parsed, user.id, user.role);
   revalidateContentPages(
     moduleRecord.publicationStatus === "PUBLISHED" ? "published" : "authoring",
   );
@@ -39,13 +39,10 @@ export async function createModuleAction(formData: FormData) {
 export async function selectLevelAction(formData: FormData) {
   const user = await requireRole([Role.STUDENT, Role.TEACHER]);
   const levelId = idSchema.parse(formData.get("levelId"));
-  const level = await prisma.level.findUnique({
-    where: { id: levelId },
-    select: { isActive: true },
-  });
+  const access = await getPremiumAccessDecision(levelId);
 
-  if (!level?.isActive) {
-    throw new Error("El nivel seleccionado no está disponible.");
+  if (!access.decision.allowed) {
+    throw new Error("No tienes acceso vigente al nivel seleccionado.");
   }
 
   await prisma.user.update({
@@ -53,6 +50,18 @@ export async function selectLevelAction(formData: FormData) {
     data: { selectedLevelId: levelId },
   });
   revalidateLearnerSelectionPages(user.role);
+  const requestedReturnTo = formData.get("returnTo");
+  const roleRoot =
+    user.role === Role.STUDENT
+      ? "/dashboard/student"
+      : "/dashboard/teacher";
+  const allowedReturnPaths = new Set([roleRoot, `${roleRoot}/content`]);
+  const returnTo =
+    typeof requestedReturnTo === "string" &&
+    allowedReturnPaths.has(requestedReturnTo)
+      ? requestedReturnTo
+      : roleRoot;
+  redirect(returnTo);
 }
 
 export async function enterStudentLevelAction(formData: FormData) {

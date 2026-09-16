@@ -263,7 +263,7 @@ export async function getPremiumAccessDecision(
     select: { isActive: true, requiresSubscription: true },
   });
 
-  if (!level?.isActive) {
+  if (!level) {
     return {
       user,
       subscription: null,
@@ -275,7 +275,9 @@ export async function getPremiumAccessDecision(
     return {
       user,
       subscription: null,
-      decision: { allowed: true },
+      decision: level.isActive
+        ? { allowed: true }
+        : { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
     };
   }
 

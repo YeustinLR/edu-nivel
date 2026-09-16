@@ -281,7 +281,7 @@ describe("admin structured resource creation action", () => {
     expect(mocks.createCatalogStructuredResource).not.toHaveBeenCalled();
   });
 
-  it("does not grant structured attachments to a collaborator", async () => {
+  it("lets a collaborator submit structured attachments through review", async () => {
     mocks.requireRole.mockResolvedValue({
       id: "collaborator-1",
       role: Role.COLLABORATOR,
@@ -292,11 +292,11 @@ describe("admin structured resource creation action", () => {
       youtubeFormData(),
     );
 
-    expect(mocks.createCatalogStructuredResource).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      status: "error",
-      message: "Tu rol solo puede crear contenido o cuestionarios desde este formulario.",
-    });
+    expect(mocks.createCatalogStructuredResource).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceType: ResourceType.YOUTUBE }),
+      { id: "collaborator-1", role: Role.COLLABORATOR },
+    );
+    expect(result.status).toBe("success");
   });
 
   it("maps a non-editable module to the contextual field", async () => {

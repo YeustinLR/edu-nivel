@@ -13,6 +13,8 @@ import {
 describe("editorial workflow", () => {
   it.each([
     ["module", PublicationStatus.DRAFT, "PUBLISH_DIRECT"],
+    ["module", PublicationStatus.DRAFT, "SUBMIT_FOR_REVIEW"],
+    ["module", PublicationStatus.IN_REVIEW, "PUBLISH"],
     ["module", PublicationStatus.PUBLISHED, "UNPUBLISH"],
     ["resource", PublicationStatus.DRAFT, "SUBMIT_FOR_REVIEW"],
     ["resource", PublicationStatus.DRAFT, "PUBLISH_DIRECT"],
@@ -24,22 +26,9 @@ describe("editorial workflow", () => {
     expect(isEditorialTransitionAllowed(type, status, transition)).toBe(true);
   });
 
-  it("never sends modules to review", () => {
-    for (const status of Object.values(PublicationStatus)) {
-      expect(
-        getCollaboratorEditorialTransitions("module", status),
-      ).not.toContain("SUBMIT_FOR_REVIEW");
-      expect(getAdminEditorialTransitions("module", status)).not.toContain(
-        "PUBLISH",
-      );
-      expect(
-        isEditorialTransitionAllowed(
-          "module",
-          status,
-          "SUBMIT_FOR_REVIEW",
-        ),
-      ).toBe(false);
-    }
+  it("sends collaborator modules through review", () => {
+    expect(getCollaboratorEditorialTransitions("module", PublicationStatus.DRAFT)).toEqual(["SUBMIT_FOR_REVIEW"]);
+    expect(getAdminEditorialTransitions("module", PublicationStatus.IN_REVIEW)).toContain("PUBLISH");
   });
 
   it("exposes direct publication to admins and resource review to collaborators", () => {
@@ -51,7 +40,7 @@ describe("editorial workflow", () => {
     ).toEqual(["SUBMIT_FOR_REVIEW"]);
     expect(
       getCollaboratorEditorialTransitions("module", PublicationStatus.DRAFT),
-    ).toEqual(["PUBLISH_DIRECT"]);
+    ).toEqual(["SUBMIT_FOR_REVIEW"]);
   });
 
   it("maps direct and reviewed publication to PUBLISHED", () => {

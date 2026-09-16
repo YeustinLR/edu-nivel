@@ -92,7 +92,7 @@ export async function getStudentContentWorkspace({
   if (!user.selectedLevelId) return { status: "NO_LEVEL" };
 
   const selectedLevel = await prisma.level.findFirst({
-    where: { id: user.selectedLevelId, isActive: true },
+    where: { id: user.selectedLevelId },
     select: {
       id: true,
       levelNumber: true,

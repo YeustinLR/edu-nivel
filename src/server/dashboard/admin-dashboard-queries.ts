@@ -97,9 +97,12 @@ async function countRenewalsNeedingReminder(
     distinct: ["userId", "levelId"],
     select: { userId: true, levelId: true },
   });
+  const activePendingPairs = pendingPairs.flatMap((pair) =>
+    pair.levelId ? [{ userId: pair.userId, levelId: pair.levelId }] : [],
+  );
 
-  const withoutPendingPayment: Prisma.SubscriptionWhereInput = pendingPairs.length
-    ? { NOT: { OR: pendingPairs } }
+  const withoutPendingPayment: Prisma.SubscriptionWhereInput = activePendingPairs.length
+    ? { NOT: { OR: activePendingPairs } }
     : {};
   const candidates = await prisma.subscription.findMany({
     where: {

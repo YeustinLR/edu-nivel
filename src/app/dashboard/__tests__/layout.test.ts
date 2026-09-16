@@ -37,6 +37,8 @@ vi.mock("@/modules/dashboard/components/layout/DashboardShell", () => ({
 }));
 
 import DashboardLayout from "@/app/dashboard/layout";
+import AdminLayout from "@/app/dashboard/admin/layout";
+import CollaboratorLayout from "@/app/dashboard/collaborator/layout";
 import StudentLayout from "@/app/dashboard/student/layout";
 
 describe("dashboard layouts", () => {
@@ -84,5 +86,19 @@ describe("dashboard layouts", () => {
 
     expect(requireExactRoleOrRedirectMock).toHaveBeenCalledWith(Role.STUDENT);
     expect(result).toBe("student-page");
+  });
+
+  it("keeps administrative and collaborator routes separated by exact role", async () => {
+    await expect(AdminLayout({ children: "admin-page" })).resolves.toBe(
+      "admin-page",
+    );
+    expect(requireExactRoleOrRedirectMock).toHaveBeenLastCalledWith(Role.ADMIN);
+
+    await expect(
+      CollaboratorLayout({ children: "collaborator-page" }),
+    ).resolves.toBe("collaborator-page");
+    expect(requireExactRoleOrRedirectMock).toHaveBeenLastCalledWith(
+      Role.COLLABORATOR,
+    );
   });
 });

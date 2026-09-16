@@ -33,6 +33,13 @@ export function formatResourceDuration(
   return null;
 }
 
+const youtubeVideoIdPattern = /^[A-Za-z0-9_-]{6,}$/;
+
+export function getYoutubeThumbnailUrl(videoId: string | null) {
+  if (!videoId || !youtubeVideoIdPattern.test(videoId)) return null;
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
 export function resourceTone(type: ResourceType) {
   if (type === "YOUTUBE" || type === "AUDIO") return "blue";
   if (type === "PDF" || type === "FILE") return "rose";

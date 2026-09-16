@@ -35,7 +35,10 @@ vi.mock("@/server/content/apply-editorial-transition", () => ({
   applyEditorialTransition: vi.fn(),
 }));
 
-import { enterStudentLevelAction } from "@/modules/content/actions/content-actions";
+import {
+  enterStudentLevelAction,
+  selectLevelAction,
+} from "@/modules/content/actions/content-actions";
 
 function formData() {
   const data = new FormData();
@@ -84,5 +87,43 @@ describe("enterStudentLevelAction", () => {
     );
     expect(mocks.userUpdate).not.toHaveBeenCalled();
     expect(mocks.revalidateLearnerSelectionPages).not.toHaveBeenCalled();
+  });
+});
+
+describe("selectLevelAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireRole.mockResolvedValue({ id: "student-1", role: Role.STUDENT });
+    mocks.userUpdate.mockResolvedValue({ id: "student-1" });
+  });
+
+  it("persists only an accessible level and reloads the learner dashboard", async () => {
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: true },
+    });
+    const data = formData();
+    data.set("returnTo", "/dashboard/student");
+
+    await expect(selectLevelAction(data)).rejects.toThrow(
+      "REDIRECT:/dashboard/student",
+    );
+
+    expect(mocks.getPremiumAccessDecision).toHaveBeenCalledWith("level-7");
+    expect(mocks.userUpdate).toHaveBeenCalledWith({
+      where: { id: "student-1" },
+      data: { selectedLevelId: "level-7" },
+    });
+  });
+
+  it("rejects a level without current access", async () => {
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_EXPIRED" },
+    });
+
+    await expect(selectLevelAction(formData())).rejects.toThrow(
+      "No tienes acceso vigente al nivel seleccionado.",
+    );
+    expect(mocks.userUpdate).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalled();
   });
 });

@@ -19,6 +19,7 @@ export async function syncResourceContentImages(
     resourceId: string;
     editorSessionId: string;
     actorId: string;
+    allowedActorIds?: string[];
     content: string | null | undefined;
     isNewResource?: boolean;
   },
@@ -38,7 +39,7 @@ export async function syncResourceContentImages(
     const available = await transaction.contentImage.findMany({
       where: {
         id: { in: additions },
-        createdById: input.actorId,
+        createdById: { in: input.allowedActorIds ?? [input.actorId] },
         editorSessionId: input.editorSessionId,
         status: { in: [UploadStatus.CONFIRMED, UploadStatus.CLEANUP_PENDING] },
         orphanExpiresAt: { gt: new Date() },

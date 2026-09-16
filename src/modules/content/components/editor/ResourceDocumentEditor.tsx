@@ -71,7 +71,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@teispace/next-themes";
 
 import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
 import {

@@ -512,7 +512,7 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
     });
   });
 
-  it("holds a confirmed payment for review if the level changed before application", async () => {
+  it("applies a payment that started before the level was archived", async () => {
     const payment = makePayment();
     txPaymentFindUniqueMock.mockResolvedValue({
       ...payment,
@@ -526,17 +526,9 @@ describe("reconcileOnvoPaymentIntent subscription application", () => {
 
     await expect(reconcileOnvoPaymentIntent("intent_monthly")).resolves.toEqual({
       paymentId: payment.id,
-      outcome: "REQUIRES_REVIEW",
+      outcome: "SUCCEEDED",
     });
-    expect(txPaymentUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: PaymentStatus.REQUIRES_REVIEW,
-          errorCode: "LEVEL_CHANGED_BEFORE_APPLICATION",
-        }),
-      }),
-    );
-    expect(txSubscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(txSubscriptionUpsertMock).toHaveBeenCalled();
   });
 
   it.each(["refunded", "partially_refunded"] as const)(

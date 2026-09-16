@@ -30,7 +30,6 @@ import {
 import { setContentAvailabilityAction } from "@/modules/content/actions/content-edit-actions";
 import { transitionEditorialContentAction } from "@/modules/content/actions/editorial-actions";
 import {
-  adminCatalogBreadcrumbs,
   ContentPageHeader,
   primaryActionClass,
   secondaryActionClass,
@@ -146,6 +145,7 @@ export function SubjectContentWorkspace({
   initialModuleId,
   initialResourceId,
   initialToast,
+  mode = "admin",
 }: {
   subject: SubjectWorkspaceContext;
   modules: AdminSubjectWorkspaceModule[];
@@ -153,6 +153,7 @@ export function SubjectContentWorkspace({
   initialModuleId?: string;
   initialResourceId?: string;
   initialToast?: string;
+  mode?: "admin" | "collaborator";
 }) {
   const router = useRouter();
   const [orderedModules, updateOptimisticOrder] = useOptimistic(
@@ -286,11 +287,15 @@ export function SubjectContentWorkspace({
   }, [displayedModules, search]);
 
   const searchActive = Boolean(search.trim());
+  const isAdmin = mode === "admin";
+  const contentRootHref = isAdmin
+    ? "/dashboard/admin/content"
+    : "/dashboard/collaborator/content";
   const canReorderModules = !searchActive;
   const canReorderResources = !searchActive;
-  const subjectResourceCreateHref = `/dashboard/admin/content/subjects/${encodeURIComponent(subject.id)}/resources/new`;
+  const subjectResourceCreateHref = `${contentRootHref}/subjects/${encodeURIComponent(subject.id)}/resources/new`;
   const moduleResourceCreateHref = (moduleId: string) =>
-    `/dashboard/admin/content/modules/${encodeURIComponent(moduleId)}/resources/new`;
+    `${contentRootHref}/modules/${encodeURIComponent(moduleId)}/resources/new`;
 
   const closeDrawer = useCallback(() => setDrawer(null), []);
   const handleSaved = useCallback(
@@ -342,19 +347,30 @@ export function SubjectContentWorkspace({
     parentId: string,
     publicationStatus: PublicationStatus,
   ) {
-    const transition =
-      publicationStatus === PublicationStatus.PUBLISHED
+    const transition = isAdmin
+      ? publicationStatus === PublicationStatus.PUBLISHED
         ? "UNPUBLISH"
         : publicationStatus === PublicationStatus.IN_REVIEW
           ? "PUBLISH"
-          : "PUBLISH_DIRECT";
-    const publishing = transition !== "UNPUBLISH";
+          : "PUBLISH_DIRECT"
+      : publicationStatus === PublicationStatus.IN_REVIEW
+        ? "WITHDRAW_REVIEW"
+        : "SUBMIT_FOR_REVIEW";
+    const publishing = transition !== "UNPUBLISH" && transition !== "WITHDRAW_REVIEW";
     setConfirmation({
-      title: publishing ? "¿Publicar contenido?" : "¿Despublicar contenido?",
+      title: transition === "SUBMIT_FOR_REVIEW"
+        ? "¿Enviar a revisión?"
+        : transition === "WITHDRAW_REVIEW"
+          ? "¿Retirar la revisión?"
+          : publishing ? "¿Publicar contenido?" : "¿Despublicar contenido?",
       description: publishing
         ? "El contenido quedará disponible según su audiencia y el acceso al nivel."
         : "Dejará de estar disponible para estudiantes y docentes.",
-      confirmLabel: publishing ? "Sí, publicar" : "Sí, despublicar",
+      confirmLabel: transition === "SUBMIT_FOR_REVIEW"
+        ? "Sí, enviar"
+        : transition === "WITHDRAW_REVIEW"
+          ? "Sí, retirar"
+          : publishing ? "Sí, publicar" : "Sí, despublicar",
       destructive: !publishing,
       action: () => {
         startTransition(async () => {
@@ -548,10 +564,11 @@ export function SubjectContentWorkspace({
         title={subject.name}
         description={subject.description ?? "Esta materia todavía no tiene una descripción."}
         breadcrumbs={[
-          ...adminCatalogBreadcrumbs,
+          { label: "Contenido", href: contentRootHref },
+          { label: "Catálogo", href: `${contentRootHref}/catalog` },
           {
             label: `Nivel ${subject.level.levelNumber}`,
-            href: `/dashboard/admin/content/levels/${encodeURIComponent(subject.level.id)}`,
+            href: `${contentRootHref}/levels/${encodeURIComponent(subject.level.id)}`,
           },
           { label: subject.name },
         ]}
@@ -562,9 +579,9 @@ export function SubjectContentWorkspace({
         }
         actions={
           <>
-            <Link href={`/dashboard/admin/content/subjects/${encodeURIComponent(subject.id)}/edit`} className={secondaryActionClass}>
+            {isAdmin ? <Link href={`${contentRootHref}/subjects/${encodeURIComponent(subject.id)}/edit`} className={secondaryActionClass}>
               <Pencil aria-hidden="true" className="h-4 w-4" /> Editar materia
-            </Link>
+            </Link> : null}
             {subject.isActive && subject.level.isActive ? (
               <>
                 <button type="button" onClick={() => setDrawer({ kind: "create-module" })} className={primaryActionClass}>
@@ -678,7 +695,7 @@ export function SubjectContentWorkspace({
                         } else showToast(result.message, "error");
                       })
                     }
-                    onModuleEditorial={() => runEditorial("module", moduleRecord.id, subject.id, moduleRecord.publicationStatus)}
+                    onModuleEditorial={() => runEditorial("module", moduleRecord.id, subject.id, (moduleRecord.revisionStatus ?? moduleRecord.publicationStatus) as PublicationStatus)}
                     onModuleAvailability={() => runAvailability("module", moduleRecord.id, moduleRecord.isActive, moduleRecord.updatedAt)}
                     onMoveModule={(direction) => {
                       const previous = orderedModules;
@@ -686,9 +703,9 @@ export function SubjectContentWorkspace({
                     }}
                     onPreviewResource={openResourcePreview}
                     onEditResource={(_moduleId, resourceId) =>
-                      router.push(`/dashboard/admin/content/resources/${encodeURIComponent(resourceId)}/edit`)
+                      router.push(`${contentRootHref}/resources/${encodeURIComponent(resourceId)}/edit`)
                     }
-                    onResourceEditorial={(moduleId, resource) => runEditorial("resource", resource.id, moduleId, resource.publicationStatus)}
+                    onResourceEditorial={(moduleId, resource) => runEditorial("resource", resource.id, moduleId, (resource.revisionStatus ?? resource.publicationStatus) as PublicationStatus)}
                     onResourceAvailability={(_moduleId, resource) => runAvailability("resource", resource.id, resource.isActive, resource.updatedAt)}
                     onMoveResource={(moduleId, resourceId, direction) => {
                       const owner = orderedModules.find((item) => item.id === moduleId);
@@ -700,6 +717,15 @@ export function SubjectContentWorkspace({
                       if (!owner) return;
                       persistResourceOrder(moduleId, moveItem(owner.resources, sourceId, targetId), owner.resources);
                     }}
+                    canDuplicate={isAdmin}
+                    moduleHref={`${contentRootHref}/modules/${encodeURIComponent(moduleRecord.id)}`}
+                    editorialLabel={
+                      moduleRecord.revisionStatus === "IN_REVIEW" || moduleRecord.publicationStatus === PublicationStatus.IN_REVIEW
+                        ? isAdmin ? "Revisar" : "Retirar revisión"
+                        : isAdmin
+                          ? moduleRecord.publicationStatus === PublicationStatus.PUBLISHED ? "Despublicar" : "Publicar"
+                          : moduleRecord.canSubmitForReview ? "Enviar a revisión" : undefined
+                    }
                   />
                 </div>
               );
@@ -724,6 +750,7 @@ export function SubjectContentWorkspace({
         {drawer?.kind === "create-module" ? (
           <CreateModuleForm
             subjectId={subject.id}
+            mode={mode}
             onCancel={closeDrawer}
             onSuccess={(moduleId, message) => {
               setOpenModuleIds((current) => new Set(current).add(moduleId));

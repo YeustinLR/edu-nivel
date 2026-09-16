@@ -157,14 +157,14 @@ describe("Learner subscription actions", () => {
     expect(mocks.userUpdate).not.toHaveBeenCalled();
   });
 
-  it("selects a level only when the owned subscription has valid paid access", async () => {
+  it("selects an archived level while the owned subscription has valid paid access", async () => {
     mocks.subscriptionFindFirst.mockResolvedValue({
       id: "sub-7",
       product: SubscriptionProduct.STUDENT_PREMIUM,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: new Date("2020-01-01T00:00:00.000Z"),
       currentPeriodEnd: new Date("2999-01-01T00:00:00.000Z"),
-      level: { id: "level-7", isActive: true },
+      level: { id: "level-7", isActive: false },
       payments: [{ id: "payment-7" }],
     });
     const formData = new FormData();

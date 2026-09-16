@@ -60,6 +60,9 @@ export function WorkspaceModuleCard({
   onResourceAvailability,
   onMoveResource,
   onDropResource,
+  canDuplicate,
+  editorialLabel,
+  moduleHref,
 }: {
   moduleRecord: AdminSubjectWorkspaceModule;
   position: number;
@@ -90,11 +93,13 @@ export function WorkspaceModuleCard({
   onResourceAvailability: (moduleId: string, resource: AdminSubjectWorkspaceResource) => void;
   onMoveResource: (moduleId: string, resourceId: string, direction: -1 | 1) => void;
   onDropResource: (moduleId: string, sourceId: string, targetId: string) => void;
+  canDuplicate: boolean;
+  editorialLabel?: string;
+  moduleHref: string;
 }) {
   const expanded = open;
   const panelId = `subject-workspace-module-${moduleRecord.id}`;
   const resourceCount = moduleRecord.resources.length;
-  const moduleHref = `/dashboard/admin/content/modules/${encodeURIComponent(moduleRecord.id)}`;
   const dragPreviewRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -209,7 +214,7 @@ export function WorkspaceModuleCard({
               {resourceCount} {resourceCount === 1 ? "recurso" : "recursos"}
             </span>
             <span className="hidden text-xs text-muted lg:inline">
-              Editado {formatRelativeWorkspaceDate(moduleRecord.updatedAt, now)} por {moduleRecord.authorName}
+              Editado {formatRelativeWorkspaceDate(moduleRecord.updatedAt, now)} por {moduleRecord.lastEditorName}
             </span>
           </span>
         </button>
@@ -248,6 +253,7 @@ export function WorkspaceModuleCard({
                 <FilePlus2 aria-hidden="true" className="h-4 w-4" /> Añadir recurso
               </button>
             ) : null}
+            {canDuplicate ? (
             <button
               type="button"
               disabled={pending}
@@ -256,10 +262,11 @@ export function WorkspaceModuleCard({
             >
               <Copy aria-hidden="true" className="h-4 w-4" /> Duplicar
             </button>
-            {moduleRecord.isActive && moduleRecord.publicationStatus !== PublicationStatus.IN_REVIEW ? (
+            ) : null}
+            {moduleRecord.isActive && editorialLabel ? (
               <button type="button" disabled={pending} onClick={onModuleEditorial} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-50">
                 <Send aria-hidden="true" className="h-4 w-4" />
-                {moduleRecord.publicationStatus === PublicationStatus.PUBLISHED ? "Despublicar" : "Publicar"}
+                {editorialLabel}
               </button>
             ) : null}
             {(moduleRecord.isActive ? moduleRecord.canArchive : moduleRecord.canReactivate) ? (
@@ -268,13 +275,13 @@ export function WorkspaceModuleCard({
                 {moduleRecord.isActive ? "Archivar" : "Reactivar"}
               </button>
             ) : null}
-            <div className="my-1 border-t border-border" />
-            <button type="button" disabled={!canReorderModules || pending || position === 1} onClick={() => onMoveModule(-1)} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40">
+            {canReorderModules ? <><div className="my-1 border-t border-border" />
+            <button type="button" disabled={pending || position === 1} onClick={() => onMoveModule(-1)} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40">
               <ArrowUp aria-hidden="true" className="h-4 w-4" /> Mover arriba
             </button>
-            <button type="button" disabled={!canReorderModules || pending || position === moduleCount} onClick={() => onMoveModule(1)} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40">
+            <button type="button" disabled={pending || position === moduleCount} onClick={() => onMoveModule(1)} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-surface-elevated disabled:opacity-40">
               <ArrowDown aria-hidden="true" className="h-4 w-4" /> Mover abajo
-            </button>
+            </button></> : null}
             <Link href={moduleHref} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-surface-elevated">
               <Settings aria-hidden="true" className="h-4 w-4" /> Opciones avanzadas
             </Link>
@@ -314,6 +321,13 @@ export function WorkspaceModuleCard({
             onAvailability={onResourceAvailability}
             onMove={onMoveResource}
             onDrop={onDropResource}
+            editorialLabel={(resource) =>
+              resource.revisionStatus === "IN_REVIEW" || resource.publicationStatus === PublicationStatus.IN_REVIEW
+                ? resource.canApprove ? "Publicar revisión" : "Retirar revisión"
+                : canDuplicate
+                  ? resource.publicationStatus === PublicationStatus.PUBLISHED ? "Despublicar" : "Publicar"
+                  : resource.canSubmitForReview ? "Enviar a revisión" : undefined
+            }
           />
         ) : (
           <p className="rounded-xl border border-dashed border-border bg-background px-4 py-7 text-center text-sm text-muted">

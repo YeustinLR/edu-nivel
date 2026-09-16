@@ -24,6 +24,7 @@ async function queryActiveAcademicLevels() {
       levelNumber: true,
       description: true,
       requiresSubscription: true,
+      isActive: true,
     },
   });
 }

@@ -26,7 +26,7 @@ function metadataMatches(
     id: string;
     internalReference: string;
     userId: string;
-    levelId: string;
+    levelId: string | null;
     planCode: string;
   },
 ) {
@@ -45,7 +45,12 @@ export async function recoverOnvoPaymentIntent(
 ): Promise<OrphanRecoveryOutcome> {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
 
-  if (!payment || payment.providerPaymentIntentId || payment.appliedAt) {
+  if (
+    !payment ||
+    !payment.levelId ||
+    payment.providerPaymentIntentId ||
+    payment.appliedAt
+  ) {
     return "NOT_DUE";
   }
 
@@ -156,6 +161,7 @@ export async function recoverOnvoPaymentIntentByProviderId(
 
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!payment) return "NOT_FOUND";
+  if (!payment.levelId) return "NOT_DUE";
   if (payment.providerPaymentIntentId === intent.id) {
     await reconcileOnvoPaymentIntent(intent.id);
     return "RECOVERED";

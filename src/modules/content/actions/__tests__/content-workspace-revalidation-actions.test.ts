@@ -61,6 +61,10 @@ describe("content workspace revalidation scope", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(mocks.requireRole).toHaveBeenCalledWith([
+      Role.ADMIN,
+      Role.COLLABORATOR,
+    ]);
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
@@ -72,6 +76,10 @@ describe("content workspace revalidation scope", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(mocks.requireRole).toHaveBeenCalledWith([
+      Role.ADMIN,
+      Role.COLLABORATOR,
+    ]);
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
@@ -103,7 +111,7 @@ describe("content workspace revalidation scope", () => {
       resourceId: "resource-draft",
     });
 
-    expect(mocks.requireRole).toHaveBeenCalledWith(Role.ADMIN);
+    expect(mocks.requireRole).toHaveBeenCalledWith([Role.ADMIN, Role.COLLABORATOR]);
     expect(mocks.getResourceContentDetail).toHaveBeenCalledWith({
       resourceId: "resource-draft",
       expectedModuleId: "module-1",

@@ -169,7 +169,11 @@ async function applySucceededPayment(
             return "ALREADY_APPLIED" as const;
           }
 
-          if (!payment.level.isActive || !payment.level.requiresSubscription) {
+          if (!payment.levelId || !payment.level) {
+            return "CANCELED" as const;
+          }
+
+          if (!payment.level.requiresSubscription) {
             await tx.payment.update({
               where: { id: payment.id },
               data: {
@@ -179,7 +183,7 @@ async function applySucceededPayment(
                 confirmedAt,
                 errorCode: "LEVEL_CHANGED_BEFORE_APPLICATION",
                 errorMessage:
-                  "El nivel cambio de disponibilidad antes de aplicar el pago.",
+                  "El nivel cambió su modalidad antes de aplicar el pago.",
               },
             });
             return "REQUIRES_REVIEW" as const;

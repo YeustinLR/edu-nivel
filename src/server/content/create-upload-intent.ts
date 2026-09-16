@@ -60,6 +60,7 @@ export async function createContentUploadIntent(
   const moduleRecord = await prisma.module.findUnique({
     where: { id: input.moduleId },
     include: {
+      revisions: { take: 1, select: { status: true } },
       subject: {
         select: {
           isActive: true,
@@ -85,6 +86,7 @@ export async function createContentUploadIntent(
   }
 
   if (
+    moduleRecord.revisions?.[0]?.status === "IN_REVIEW" ||
     !canCreateResource(user, {
       createdById: moduleRecord.createdById,
       publicationStatus: moduleRecord.publicationStatus,

@@ -36,11 +36,13 @@ const audienceIcons = {
 
 export function CreateModuleForm({
   subjectId,
+  mode = "admin",
   closeHref,
   onCancel,
   onSuccess,
 }: {
   subjectId: string;
+  mode?: "admin" | "collaborator";
   closeHref?: string;
   onCancel?: () => void;
   onSuccess?: (moduleId: string, message: string) => void;
@@ -162,7 +164,7 @@ export function CreateModuleForm({
         closeHref={closeHref}
         onCancel={onCancel}
         isPending={isPending}
-        submitLabel="Publicar módulo"
+        submitLabel={mode === "admin" ? "Publicar módulo" : "Enviar a revisión"}
         pendingLabel="Procesando…"
         submitName="disposition"
         submitValue="PUBLISH"

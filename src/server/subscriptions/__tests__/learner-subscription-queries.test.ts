@@ -199,7 +199,7 @@ describe("getLearnerSubscriptionOverview", () => {
     });
   });
 
-  it("does not count a disabled level as active access", async () => {
+  it("keeps paid access active for an archived level but prevents renewal", async () => {
     const disabled = subscription({
       id: "sub-7",
       levelId: "level-7",
@@ -212,10 +212,11 @@ describe("getLearnerSubscriptionOverview", () => {
     const result = await getLearnerSubscriptionOverview(Role.STUDENT);
 
     expect(result.subscriptions[0]).toMatchObject({
-      effectiveStatus: "INACTIVE",
-      canStudy: false,
+      effectiveStatus: "ACTIVE",
+      canStudy: true,
+      canRenew: false,
     });
-    expect(result.activeCount).toBe(0);
+    expect(result.activeCount).toBe(1);
   });
 
   it("honors an explicitly expired persisted status", async () => {

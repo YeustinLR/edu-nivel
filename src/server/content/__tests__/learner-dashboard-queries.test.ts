@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   getPremiumAccessDecision: vi.fn(),
   getActiveAcademicLevels: vi.fn(),
+  getAccessibleLearnerLevels: vi.fn(),
   subjectFindMany: vi.fn(),
   progressFindMany: vi.fn(),
   savedFindMany: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock("@/server/auth/guards", () => ({
 }));
 vi.mock("@/server/content/published-academic-catalog-queries", () => ({
   getActiveAcademicLevels: mocks.getActiveAcademicLevels,
+}));
+vi.mock("@/server/subscriptions/learner-level-access-queries", () => ({
+  getAccessibleLearnerLevels: mocks.getAccessibleLearnerLevels,
 }));
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
@@ -50,6 +54,9 @@ describe("learner dashboard queries", () => {
     mocks.getActiveAcademicLevels.mockResolvedValue([
       { id: "level-7", levelNumber: 7, description: null, requiresSubscription: false },
     ]);
+    mocks.getAccessibleLearnerLevels.mockImplementation(async ({ levels }) =>
+      levels,
+    );
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: true },
       subscription: null,
@@ -107,6 +114,43 @@ describe("learner dashboard queries", () => {
       id: "resource-1",
       isProgressRecord: false,
       progressPercent: 0,
+    });
+  });
+
+  it("exposes the persisted YouTube video id for resource card thumbnails", async () => {
+    mocks.subjectFindMany.mockResolvedValue([
+      {
+        id: "subject-math",
+        name: "Matemáticas",
+        description: null,
+        modules: [
+          {
+            id: "module-fractions",
+            title: "Fracciones",
+            description: null,
+            resources: [
+              {
+                id: "resource-video",
+                title: "Fracciones en video",
+                type: ResourceType.YOUTUBE,
+                estimatedMinutes: null,
+                youtubeVideo: {
+                  videoId: "dQw4w9WgXcQ",
+                  duration: 525,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    const result = await getStudentDashboardData();
+
+    expect(result.availableResources[0]).toMatchObject({
+      id: "resource-video",
+      youtubeVideoId: "dQw4w9WgXcQ",
+      durationSeconds: 525,
     });
   });
 
@@ -214,6 +258,18 @@ describe("learner dashboard queries", () => {
     expect(mocks.subjectFindMany).not.toHaveBeenCalled();
     expect(mocks.progressFindMany).not.toHaveBeenCalled();
     expect(mocks.savedFindMany).not.toHaveBeenCalled();
+  });
+
+  it("does not retain a selected level that is no longer accessible", async () => {
+    mocks.getAccessibleLearnerLevels.mockResolvedValue([]);
+
+    const result = await getStudentDashboardData();
+
+    expect(result.levels).toEqual([]);
+    expect(result.selectedLevel).toBeNull();
+    expect(result.access.status).toBe("NO_LEVEL");
+    expect(mocks.getPremiumAccessDecision).not.toHaveBeenCalled();
+    expect(mocks.subjectFindMany).not.toHaveBeenCalled();
   });
 
   it("isolates the teacher audience and generates teacher routes", async () => {

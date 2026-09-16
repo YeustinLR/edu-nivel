@@ -64,7 +64,12 @@ export const navigationByRole: Record<string, NavGroup[]> = {
     {
       title: "Contenido",
       items: [
-        { label: "Panel", href: "/dashboard/collaborator", icon: LayoutDashboard },
+        { label: "Inicio", href: "/dashboard/collaborator", icon: LayoutDashboard },
+        {
+          label: "Catálogo",
+          href: "/dashboard/collaborator/content/catalog",
+          icon: BookOpen,
+        },
         {
           label: "Mis contenidos",
           href: "/dashboard/collaborator/content",

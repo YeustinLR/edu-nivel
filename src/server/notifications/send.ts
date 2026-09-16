@@ -45,7 +45,10 @@ export async function pendingPaymentExclusions(
     },
     distinct: ["userId", "levelId"], select: { userId: true, levelId: true },
   });
-  return pairs.length ? { NOT: { OR: pairs } } : {};
+  const activePairs = pairs.flatMap((pair) =>
+    pair.levelId ? [{ userId: pair.userId, levelId: pair.levelId }] : [],
+  );
+  return activePairs.length ? { NOT: { OR: activePairs } } : {};
 }
 
 function existingResult(existing: { id: string; sentById: string; payloadHash: string }, actorId: string, hash: string) {

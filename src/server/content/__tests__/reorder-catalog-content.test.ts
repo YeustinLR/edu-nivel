@@ -93,11 +93,43 @@ describe("catalog content reorder", () => {
     expect(mocks.resourceUpdate).not.toHaveBeenCalled();
   });
 
-  it("reserves reorder operations for administrators", async () => {
+  it("allows collaborators to reorder modules", async () => {
+    mocks.lockRows.mockResolvedValue([
+      { id: "module-1" },
+      { id: "module-2" },
+    ]);
+
+    await reorderCatalogModules(
+      { subjectId: "subject-1", moduleIds: ["module-2", "module-1"] },
+      { id: "collaborator-1", role: Role.COLLABORATOR },
+    );
+
+    expect(mocks.moduleUpdate).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows collaborators to reorder resources", async () => {
+    mocks.lockRows.mockResolvedValue([
+      { id: "resource-1" },
+      { id: "resource-2" },
+    ]);
+
+    await reorderCatalogResources(
+      {
+        subjectId: "subject-1",
+        moduleId: "module-1",
+        resourceIds: ["resource-2", "resource-1"],
+      },
+      { id: "collaborator-1", role: Role.COLLABORATOR },
+    );
+
+    expect(mocks.resourceUpdate).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects roles outside the editorial workspace", async () => {
     await expect(
       reorderCatalogModules(
         { subjectId: "subject-1", moduleIds: ["module-1"] },
-        { id: "collaborator-1", role: Role.COLLABORATOR },
+        { id: "student-1", role: Role.STUDENT },
       ),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(mocks.transaction).not.toHaveBeenCalled();

@@ -18,6 +18,7 @@ import {
 } from "@/server/content/learner-content-access";
 import { getActiveAcademicLevels } from "@/server/content/published-academic-catalog-queries";
 import { prisma } from "@/server/db/prisma";
+import { getAccessibleLearnerLevels } from "@/server/subscriptions/learner-level-access-queries";
 
 function contentHref(
   role: LearnerRole,
@@ -44,7 +45,12 @@ export const getLearnerDashboardData = cache(async (
   const user = await requireRole(role);
   const moduleWhere = getVisibleLearnerModuleWhere(role);
   const resourceWhere = getVisibleLearnerResourceWhere();
-  const levels = await getActiveAcademicLevels();
+  const catalogLevels = await getActiveAcademicLevels();
+  const levels = await getAccessibleLearnerLevels({
+    userId: user.id,
+    role,
+    levels: catalogLevels,
+  });
   const selectedLevel =
     levels.find((level) => level.id === user.selectedLevelId) ?? null;
 
@@ -113,7 +119,7 @@ export const getLearnerDashboardData = cache(async (
               title: true,
               estimatedMinutes: true,
               type: true,
-              youtubeVideo: { select: { duration: true } },
+              youtubeVideo: { select: { videoId: true, duration: true } },
             },
           },
         },
@@ -217,6 +223,7 @@ export const getLearnerDashboardData = cache(async (
       moduleTitle: context.moduleTitle,
       estimatedMinutes: context.resource.estimatedMinutes,
       durationSeconds: context.resource.youtubeVideo?.duration ?? null,
+      youtubeVideoId: context.resource.youtubeVideo?.videoId ?? null,
       startedAt: progress?.startedAt.toISOString() ?? null,
       lastViewedAt: progress?.lastViewedAt.toISOString() ?? null,
       completed: progress?.completed ?? false,

@@ -12,9 +12,16 @@ const mocks = vi.hoisted(() => ({
   resourceFindFirst: vi.fn(),
   levelFindUnique: vi.fn(),
   levelUpdateMany: vi.fn(),
+  savePublishedModuleRevision: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("@/server/content/content-revisions", () => ({
+  ContentRevisionError: class ContentRevisionError extends Error {},
+  savePublishedModuleRevision: mocks.savePublishedModuleRevision,
+  savePublishedResourceRevision: vi.fn(),
+}));
 
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
@@ -61,41 +68,38 @@ describe("content update service", () => {
     },
   );
 
-  it("updates a published module without changing its publication status", async () => {
+  it("creates a separate revision for a published module", async () => {
     mocks.moduleFindUnique.mockResolvedValue({
       createdById: "collaborator-1",
       publicationStatus: "PUBLISHED",
     });
     mocks.moduleUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.savePublishedModuleRevision.mockResolvedValue({ id: "revision-1" });
 
     await expect(
       updateCatalogModule(input, {
         id: "collaborator-1",
         role: "COLLABORATOR",
       }),
-    ).resolves.toEqual({ affectsPublishedContent: true });
-    expect(mocks.moduleUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ publicationStatus: "PUBLISHED" }),
-      }),
-    );
+    ).resolves.toEqual({ affectsPublishedContent: false, createdRevision: true });
+    expect(mocks.savePublishedModuleRevision).toHaveBeenCalled();
+    expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("prevents collaborators from editing another author's draft", async () => {
+  it("lets collaborators edit another author's draft", async () => {
     mocks.moduleFindUnique.mockResolvedValue({
       createdById: "collaborator-2",
       publicationStatus: "DRAFT",
     });
 
+    mocks.moduleUpdateMany.mockResolvedValue({ count: 1 });
     await expect(
       updateCatalogModule(input, {
         id: "collaborator-1",
         role: "COLLABORATOR",
       }),
-    ).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-    expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
+    ).resolves.toEqual({ affectsPublishedContent: false, createdRevision: false });
+    expect(mocks.moduleUpdateMany).toHaveBeenCalled();
   });
 
   it("updates an owned collaborator draft with optimistic concurrency", async () => {
@@ -110,7 +114,7 @@ describe("content update service", () => {
         id: "collaborator-1",
         role: "COLLABORATOR",
       }),
-    ).resolves.toEqual({ affectsPublishedContent: false });
+    ).resolves.toEqual({ affectsPublishedContent: false, createdRevision: false });
     expect(mocks.moduleUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -185,7 +189,7 @@ describe("content update service", () => {
     expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("does not let idempotency bypass ownership checks", async () => {
+  it("treats a teammate's repeated authorized archiving as idempotent", async () => {
     mocks.moduleFindUnique.mockResolvedValue({
       isActive: false,
       createdById: "collaborator-2",
@@ -203,13 +207,13 @@ describe("content update service", () => {
         },
         { id: "collaborator-1", role: "COLLABORATOR" },
       ),
-    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    ).resolves.toEqual({ affectsPublishedContent: false });
     expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("prevents archiving a level with protected editorial content", async () => {
-    mocks.levelFindUnique.mockResolvedValue({ id: "level-1" });
-    mocks.moduleFindFirst.mockResolvedValue({ id: "module-1" });
+  it("lets administrators archive a level with protected editorial content", async () => {
+    mocks.levelFindUnique.mockResolvedValue({ id: "level-1", isActive: true });
+    mocks.levelUpdateMany.mockResolvedValue({ count: 1 });
 
     await expect(
       setCatalogContentAvailability(
@@ -221,9 +225,14 @@ describe("content update service", () => {
         },
         { id: "admin-1", role: "ADMIN" },
       ),
-    ).rejects.toMatchObject({
-      code: "DEPENDENCY_BLOCKED",
+    ).resolves.toEqual({ affectsPublishedContent: true });
+    expect(mocks.moduleFindFirst).not.toHaveBeenCalled();
+    expect(mocks.levelUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "level-1",
+        updatedAt: new Date(input.expectedUpdatedAt),
+      },
+      data: { isActive: false },
     });
-    expect(mocks.levelUpdateMany).not.toHaveBeenCalled();
   });
 });

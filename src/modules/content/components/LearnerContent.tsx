@@ -13,6 +13,7 @@ import {
 } from "@/server/content/learner-content-access";
 import { getActiveAcademicLevels } from "@/server/content/published-academic-catalog-queries";
 import { prisma } from "@/server/db/prisma";
+import { getAccessibleLearnerLevels } from "@/server/subscriptions/learner-level-access-queries";
 
 export async function LearnerContent({
   role,
@@ -27,7 +28,12 @@ export async function LearnerContent({
 }) {
   const learner = presentation === "learner";
   const user = await requireUser();
-  const levels = await getActiveAcademicLevels();
+  const catalogLevels = await getActiveAcademicLevels();
+  const levels = await getAccessibleLearnerLevels({
+    userId: user.id,
+    role,
+    levels: catalogLevels,
+  });
   const selectedLevel = levels.find((level) => level.id === user.selectedLevelId) ?? null;
   const access = selectedLevel ? await getPremiumAccessDecision(selectedLevel.id) : null;
   const canOpen = Boolean(access?.decision.allowed);
@@ -83,7 +89,7 @@ export async function LearnerContent({
         />
       )}
 
-      <LearnerLevelSelector levels={levels} selectedLevelId={selectedLevel?.id} variant={learner ? "learner" : "default"} />
+      <LearnerLevelSelector levels={levels} selectedLevelId={selectedLevel?.id} role={role} variant={learner ? "learner" : "default"} />
 
       {selectedLevel && !canOpen ? (
         <section className={learner ? "rounded-2xl border border-blue-200/70 bg-[var(--student-blue-soft)] p-6 dark:border-blue-400/15" : "rounded-2xl border border-secondary/30 bg-secondary/10 p-6"}>

@@ -10,11 +10,20 @@ export type ContentCreationDisposition =
   (typeof contentCreationDispositions)[number];
 
 export function getModuleCreationStatus(
+  role: Role,
   disposition: ContentCreationDisposition,
 ) {
-  return disposition === "PUBLISH"
-    ? PublicationStatus.PUBLISHED
-    : PublicationStatus.DRAFT;
+  if (role === "ADMIN") {
+    return disposition === "PUBLISH"
+      ? PublicationStatus.PUBLISHED
+      : PublicationStatus.DRAFT;
+  }
+  if (role === "COLLABORATOR") {
+    return disposition === "PUBLISH" || disposition === "SUBMIT_FOR_REVIEW"
+      ? PublicationStatus.IN_REVIEW
+      : PublicationStatus.DRAFT;
+  }
+  return null;
 }
 
 export function getResourceCreationStatus(
@@ -39,4 +48,3 @@ export function getResourceCreationStatus(
 
   return null;
 }
-

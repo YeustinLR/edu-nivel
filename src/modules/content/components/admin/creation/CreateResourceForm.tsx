@@ -13,6 +13,8 @@ export function CreateResourceForm({
   modules,
   onCancel,
   onSuccess,
+  mode = "admin",
+  draftBaseHref,
 }: {
   moduleId?: string;
   requestId: string;
@@ -21,16 +23,18 @@ export function CreateResourceForm({
   modules?: ResourceModuleOption[];
   onCancel?: () => void;
   onSuccess?: (resourceId: string, message: string) => void;
+  mode?: "admin" | "collaborator";
+  draftBaseHref?: string;
 }) {
   return (
     <ResourceAttachmentForm
-      mode="admin"
+      mode={mode}
       fixedModuleId={moduleId}
       modules={modules}
       requestId={requestId}
       closeHref={closeHref}
       successHref={closeHref}
-      draftBaseHref="/dashboard/admin/content/resources"
+      draftBaseHref={draftBaseHref ?? "/dashboard/admin/content/resources"}
       draftPathSuffix="/edit"
       expectedSubjectId={subjectId}
       onCancel={onCancel}

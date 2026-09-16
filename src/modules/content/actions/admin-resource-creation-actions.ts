@@ -1,6 +1,6 @@
 "use server";
 
-import { ResourceType, Role } from "@/generated/prisma/enums";
+import { Role } from "@/generated/prisma/enums";
 import {
   createValidationError,
   toActionValues,
@@ -34,17 +34,6 @@ export async function createAdminStructuredResourceAction(
 
   try {
     const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
-    if (
-      actor.role === Role.COLLABORATOR &&
-      parsed.data.resourceType !== ResourceType.NOTE &&
-      parsed.data.resourceType !== ResourceType.QUIZ
-    ) {
-      return {
-        status: "error",
-        message: "Tu rol solo puede crear contenido o cuestionarios desde este formulario.",
-        values: actionValues,
-      };
-    }
     const resource = await createCatalogStructuredResource(parsed.data, actor);
     revalidateContentPages(
       parsed.data.disposition === "PUBLISH" ? "published" : "authoring",

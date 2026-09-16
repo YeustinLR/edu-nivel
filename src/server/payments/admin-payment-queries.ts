@@ -197,6 +197,7 @@ export async function getAdminPaymentsSummary(
           errorMessage: true,
           createdAt: true,
           appliedAt: true,
+          levelNumberSnapshot: true,
           user: { select: { name: true, email: true } },
           level: { select: { levelNumber: true } },
         },
@@ -268,7 +269,13 @@ export async function getAdminPaymentsSummary(
       ...summarize(rowFor(currentMonthKey, planCode)),
     })),
     history: {
-      items: payments,
+      items: payments.map(({ levelNumberSnapshot, ...payment }) => ({
+        ...payment,
+        level: {
+          levelNumber:
+            payment.level?.levelNumber ?? levelNumberSnapshot ?? 0,
+        },
+      })),
       totalItems,
       totalPages: Math.max(1, Math.ceil(totalItems / filters.pageSize)),
       page: filters.page,

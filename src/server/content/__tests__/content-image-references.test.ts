@@ -55,7 +55,7 @@ describe("syncResourceContentImages", () => {
     expect(tx.contentImage.findMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
         id: { in: [imageId] },
-        createdById: "author-1",
+        createdById: { in: ["author-1"] },
         editorSessionId: "session-1",
       }),
       select: { id: true },

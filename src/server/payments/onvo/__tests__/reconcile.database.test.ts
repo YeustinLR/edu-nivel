@@ -116,7 +116,10 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             },
           });
 
-          intents.set(payment.providerPaymentIntentId!, intentFor(payment));
+          intents.set(
+            payment.providerPaymentIntentId!,
+            intentFor({ ...payment, levelId: payment.levelId! }),
+          );
           return payment;
         }
 

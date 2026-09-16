@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useTheme } from "@teispace/next-themes";
 import { Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
@@ -41,7 +41,13 @@ export function ThemeToggle({ showLabel = true, tone = "default" }: ThemeToggleP
       ) : (
         <span className="h-4 w-4 shrink-0" aria-hidden="true" />
       )}
-      {showLabel ? (isDark ? "Modo claro" : "Modo oscuro") : null}
+      {showLabel
+        ? isHydrated
+          ? isDark
+            ? "Modo claro"
+            : "Modo oscuro"
+          : "Cambiar tema"
+        : null}
     </button>
   );
 }

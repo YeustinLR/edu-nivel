@@ -129,8 +129,8 @@ export async function createAdminModuleAction(
   }
 
   try {
-    const admin = await requireRole(Role.ADMIN);
-    const moduleRecord = await createCatalogModule(parsed.data, admin.id);
+    const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
+    const moduleRecord = await createCatalogModule(parsed.data, actor.id, actor.role);
     revalidateContentPages(
       moduleRecord.publicationStatus === "PUBLISHED"
         ? "published"
@@ -142,8 +142,13 @@ export async function createAdminModuleAction(
       message:
         moduleRecord.publicationStatus === "PUBLISHED"
           ? `El módulo ${moduleRecord.title} fue publicado.`
+          : moduleRecord.publicationStatus === "IN_REVIEW"
+            ? `El módulo ${moduleRecord.title} fue enviado a revisión.`
           : `El módulo ${moduleRecord.title} fue guardado como borrador.`,
-      destinationHref: `/dashboard/admin/content/modules/${encodeURIComponent(moduleRecord.id)}`,
+      destinationHref:
+        actor.role === Role.ADMIN
+          ? `/dashboard/admin/content/modules/${encodeURIComponent(moduleRecord.id)}`
+          : `/dashboard/collaborator/content/modules/${encodeURIComponent(moduleRecord.id)}`,
       destinationLabel: "Ver módulo creado",
       createdId: moduleRecord.id,
     };

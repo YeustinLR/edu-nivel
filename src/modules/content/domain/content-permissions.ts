@@ -113,12 +113,12 @@ export function canEditEditorialContent(
   actor: ContentPermissionActor,
   target: OwnedEditorialContent,
 ) {
-  if (!isEditablePublicationStatus(target.publicationStatus)) return false;
+  if (
+    !isEditablePublicationStatus(target.publicationStatus) &&
+    target.publicationStatus !== "PUBLISHED"
+  ) return false;
 
-  return (
-    actor.role === "ADMIN" ||
-    (actor.role === "COLLABORATOR" && target.createdById === actor.id)
-  );
+  return actor.role === "ADMIN" || actor.role === "COLLABORATOR";
 }
 
 export function canEditModuleContent(
@@ -129,10 +129,7 @@ export function canEditModuleContent(
     return false;
   }
 
-  return (
-    actor.role === "ADMIN" ||
-    (actor.role === "COLLABORATOR" && target.createdById === actor.id)
-  );
+  return actor.role === "ADMIN" || actor.role === "COLLABORATOR";
 }
 
 export function canCreateResource(
@@ -143,16 +140,19 @@ export function canCreateResource(
     return false;
   }
 
-  return (
-    actor.role === "ADMIN" ||
-    (actor.role === "COLLABORATOR" && target.createdById === actor.id)
-  );
+  return actor.role === "ADMIN" || actor.role === "COLLABORATOR";
 }
 
 export function canArchiveEditorialContent(
   actor: ContentPermissionActor,
   target: OwnedEditorialContent,
 ) {
+  if (
+    actor.role === "COLLABORATOR" &&
+    target.publicationStatus === "PUBLISHED"
+  ) {
+    return false;
+  }
   return canEditEditorialContent(actor, target);
 }
 
@@ -162,33 +162,37 @@ export function canReactivateEditorialContent(
 ) {
   if (actor.role === "ADMIN") return true;
 
-  return (
-    actor.role === "COLLABORATOR" &&
-    target.createdById === actor.id &&
-    isEditablePublicationStatus(target.publicationStatus)
-  );
+  return actor.role === "COLLABORATOR" && isEditablePublicationStatus(target.publicationStatus);
 }
 
 export function canViewContentBody(
   actor: ContentPermissionActor,
   target: ContentVisibilityTarget,
 ) {
+  if (!target) return false;
   if (actor.role === "ADMIN") return true;
 
-  if (actor.role !== "COLLABORATOR") return false;
-  if (
-    target.createdById === actor.id ||
-    target.moduleCreatedById === actor.id
-  ) {
-    return true;
-  }
+  if (actor.role === "COLLABORATOR") return true;
 
+  return false;
+}
+
+export function canSubmitEditorialContent(
+  actor: ContentPermissionActor,
+  target: OwnedEditorialContent,
+) {
   return (
-    target.isActive &&
-    target.moduleIsActive &&
-    target.subjectIsActive &&
-    target.levelIsActive &&
-    target.publicationStatus === "PUBLISHED" &&
-    target.modulePublicationStatus === "PUBLISHED"
+    actor.role === "COLLABORATOR" &&
+    isEditablePublicationStatus(target.publicationStatus)
+  );
+}
+
+export function canApproveEditorialContent(
+  actor: ContentPermissionActor,
+  target: OwnedEditorialContent,
+) {
+  return (
+    actor.role === "ADMIN" &&
+    target.publicationStatus === "IN_REVIEW"
   );
 }

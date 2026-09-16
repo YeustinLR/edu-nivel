@@ -3,22 +3,34 @@ import { ResourceCreationToast } from "@/modules/content/components/creation/Res
 import { EditResourceForm } from "@/modules/content/components/editor/EditResourceForm";
 import { ResourceContentView } from "@/modules/content/components/editor/ResourceContentView";
 import type { ResourceContentDetail } from "@/server/content/content-detail-queries";
+import { EditorialControls } from "@/modules/content/components/admin/editorial/EditorialControls";
+import { getCollaboratorEditorialTransitions } from "@/modules/content/domain/editorial-workflow";
+import type { PublicationStatus } from "@/generated/prisma/enums";
 
 export function CollaboratorResourcePanel({
   resource,
   initiallyEditing = false,
   creationNotice,
+  backHref = "/dashboard/collaborator/content",
 }: {
   resource: ResourceContentDetail;
   initiallyEditing?: boolean;
   creationNotice?: string;
+  backHref?: string;
 }) {
+  const effectiveStatus = (resource.revisionStatus ?? resource.publicationStatus) as PublicationStatus;
+  const transitions = getCollaboratorEditorialTransitions("resource", effectiveStatus);
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <ResourceContentView
         resource={resource}
-        backHref="/dashboard/collaborator/content"
+        backHref={backHref}
       />
+      {resource.revisionStatus ? (
+        <p role="status" className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 px-3 py-2 text-sm text-foreground">
+          Este recurso conserva su versión publicada mientras la revisión está {resource.revisionStatus === "IN_REVIEW" ? "pendiente" : "en preparación"}. Última edición: {resource.lastEditorName}.
+        </p>
+      ) : null}
       {resource.canEdit ? (
         <details
           id="resource-editor"
@@ -49,6 +61,11 @@ export function CollaboratorResourcePanel({
             />
           </div>
         </details>
+      ) : null}
+      {transitions.length > 0 ? (
+        <div className="mt-5 border-t border-border pt-4">
+          <EditorialControls targetType="resource" targetId={resource.id} parentId={resource.moduleId} transitions={transitions} targetTitle={resource.title} />
+        </div>
       ) : null}
       <ResourceCreationToast
         message={creationNotice}

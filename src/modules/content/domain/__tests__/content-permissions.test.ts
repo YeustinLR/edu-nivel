@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canApproveEditorialContent,
   canArchiveEditorialContent,
   canEditEditorialContent,
   canEditModuleContent,
   canCreateResource,
   canManageCatalogStructure,
   canReactivateEditorialContent,
+  canSubmitEditorialContent,
   canViewContentBody,
   getResourceCreationUnavailableReason,
   isEditablePublicationStatus,
@@ -116,6 +118,21 @@ describe("content permissions", () => {
     expect(canManageCatalogStructure(collaborator)).toBe(false);
   });
 
+  it("calculates review capabilities from both role and entity state", () => {
+    const draft = {
+      createdById: "another-user",
+      publicationStatus: "DRAFT" as const,
+    };
+    const review = { ...draft, publicationStatus: "IN_REVIEW" as const };
+    const published = { ...draft, publicationStatus: "PUBLISHED" as const };
+
+    expect(canSubmitEditorialContent(collaborator, draft)).toBe(true);
+    expect(canSubmitEditorialContent(collaborator, published)).toBe(false);
+    expect(canApproveEditorialContent(admin, review)).toBe(true);
+    expect(canApproveEditorialContent(admin, draft)).toBe(false);
+    expect(canApproveEditorialContent(collaborator, review)).toBe(false);
+  });
+
   it("lets administrators edit editable content regardless of authorship", () => {
     expect(
       canEditEditorialContent(admin, {
@@ -125,7 +142,7 @@ describe("content permissions", () => {
     ).toBe(true);
   });
 
-  it("lets collaborators edit and archive only their editable content", () => {
+  it("lets collaborators edit and archive team drafts", () => {
     const ownDraft = {
       createdById: collaborator.id,
       publicationStatus: "DRAFT" as const,
@@ -138,7 +155,7 @@ describe("content permissions", () => {
         ...ownDraft,
         createdById: "another-user",
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canArchiveEditorialContent(collaborator, {
         ...ownDraft,
@@ -147,12 +164,13 @@ describe("content permissions", () => {
     ).toBe(false);
   });
 
-  it("prevents both roles from editing content under review or published", () => {
-    for (const publicationStatus of ["IN_REVIEW", "PUBLISHED"] as const) {
-      const target = { createdById: collaborator.id, publicationStatus };
-      expect(canEditEditorialContent(admin, target)).toBe(false);
-      expect(canEditEditorialContent(collaborator, target)).toBe(false);
-    }
+  it("locks review rows but lets published content enter the revision flow", () => {
+    const review = { createdById: collaborator.id, publicationStatus: "IN_REVIEW" as const };
+    const published = { createdById: collaborator.id, publicationStatus: "PUBLISHED" as const };
+    expect(canEditEditorialContent(admin, review)).toBe(false);
+    expect(canEditEditorialContent(collaborator, review)).toBe(false);
+    expect(canEditEditorialContent(admin, published)).toBe(true);
+    expect(canEditEditorialContent(collaborator, published)).toBe(true);
   });
 
   it("lets administrators and owners edit published modules and add resources", () => {
@@ -170,7 +188,7 @@ describe("content permissions", () => {
         { id: "collaborator-2", role: "COLLABORATOR" },
         publishedModule,
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("allows admin recovery but limits collaborator reactivation to editable owned content", () => {
@@ -194,7 +212,7 @@ describe("content permissions", () => {
     ).toBe(false);
   });
 
-  it("shows collaborators their content and active published team content", () => {
+  it("shows collaborators the complete editorial team catalog", () => {
     const visibleTarget = {
       createdById: "another-user",
       moduleCreatedById: "module-author",
@@ -212,13 +230,13 @@ describe("content permissions", () => {
         ...visibleTarget,
         publicationStatus: "DRAFT",
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canViewContentBody(collaborator, {
         ...visibleTarget,
         isActive: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canViewContentBody(collaborator, {
         ...visibleTarget,

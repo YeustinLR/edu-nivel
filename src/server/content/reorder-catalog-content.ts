@@ -18,11 +18,11 @@ export class ContentReorderError extends Error {
   }
 }
 
-function assertAdmin(actor: { role: Role }) {
-  if (actor.role !== Role.ADMIN) {
+function assertContentEditor(actor: { role: Role }) {
+  if (actor.role !== Role.ADMIN && actor.role !== Role.COLLABORATOR) {
     throw new ContentReorderError(
       "FORBIDDEN",
-      "Solo un administrador puede reordenar el catálogo.",
+      "No tienes permisos para reordenar el catálogo.",
     );
   }
 }
@@ -37,7 +37,7 @@ export async function reorderCatalogModules(
   input: ReorderModulesInput,
   actor: { id: string; role: Role },
 ) {
-  assertAdmin(actor);
+  assertContentEditor(actor);
 
   try {
     await prisma.$transaction(
@@ -83,7 +83,7 @@ export async function reorderCatalogResources(
   input: ReorderResourcesInput,
   actor: { id: string; role: Role },
 ) {
-  assertAdmin(actor);
+  assertContentEditor(actor);
 
   try {
     await prisma.$transaction(

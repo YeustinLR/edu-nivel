@@ -4,6 +4,8 @@ import {
   type ContentAudience,
   type PublicationStatus,
   type ResourceType,
+  type ContentRevisionStatus,
+  Role,
 } from "@/generated/prisma/enums";
 import {
   getModuleAudiencesForSelection,
@@ -15,9 +17,15 @@ import {
   canEditEditorialContent,
   canEditModuleContent,
   canReactivateEditorialContent,
+  canSubmitEditorialContent,
+  canApproveEditorialContent,
   type ContentPermissionActor,
 } from "@/modules/content/domain/content-permissions";
 import { prisma } from "@/server/db/prisma";
+import {
+  asModuleRevisionPayload,
+  asResourceRevisionPayload,
+} from "@/server/content/content-revisions";
 
 export type AdminModuleRow = {
   id: string;
@@ -77,6 +85,10 @@ export type AdminSubjectWorkspaceResource = {
   canEdit: boolean;
   canArchive: boolean;
   canReactivate: boolean;
+  canSubmitForReview: boolean;
+  canApprove: boolean;
+  revisionStatus: ContentRevisionStatus | null;
+  lastEditorName: string;
 };
 
 export type AdminSubjectWorkspaceModule = {
@@ -93,6 +105,10 @@ export type AdminSubjectWorkspaceModule = {
   canAddResource: boolean;
   canArchive: boolean;
   canReactivate: boolean;
+  canSubmitForReview: boolean;
+  canApprove: boolean;
+  revisionStatus: ContentRevisionStatus | null;
+  lastEditorName: string;
   resources: AdminSubjectWorkspaceResource[];
 };
 
@@ -139,6 +155,16 @@ export async function getAdminSubjectContentWorkspace({
       updatedAt: true,
       createdById: true,
       createdBy: { select: { name: true } },
+      updatedBy: { select: { name: true } },
+      revisions: {
+        take: 1,
+        select: {
+          payload: true,
+          status: true,
+          updatedAt: true,
+          updatedBy: { select: { name: true } },
+        },
+      },
       resources: {
         orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
         select: {
@@ -152,6 +178,16 @@ export async function getAdminSubjectContentWorkspace({
           updatedAt: true,
           createdById: true,
           createdBy: { select: { name: true } },
+          updatedBy: { select: { name: true } },
+          revisions: {
+            take: 1,
+            select: {
+              payload: true,
+              status: true,
+              updatedAt: true,
+              updatedBy: { select: { name: true } },
+            },
+          },
           estimatedMinutes: true,
           youtubeVideo: { select: { duration: true } },
           pdfResource: { select: { sizeBytes: true, pageCount: true } },
@@ -168,31 +204,51 @@ export async function getAdminSubjectContentWorkspace({
   });
 
   return modules.map((moduleRecord) => {
+    const moduleRevision = moduleRecord.revisions[0];
+    const moduleRevisionPayload = moduleRevision && actor.role === Role.COLLABORATOR
+      ? asModuleRevisionPayload(moduleRevision.payload)
+      : null;
     const moduleTarget = {
+      createdById: moduleRecord.createdById,
+      publicationStatus: moduleRevision?.status ?? moduleRecord.publicationStatus,
+    };
+    const moduleBaseTarget = {
       createdById: moduleRecord.createdById,
       publicationStatus: moduleRecord.publicationStatus,
     };
 
     return {
       id: moduleRecord.id,
-      title: moduleRecord.title,
-      description: moduleRecord.description,
-      audience: moduleRecord.audience,
+      title: moduleRevisionPayload?.title ?? moduleRecord.title,
+      description: moduleRevisionPayload?.description ?? moduleRecord.description,
+      audience: moduleRevisionPayload?.audience ?? moduleRecord.audience,
       publicationStatus: moduleRecord.publicationStatus,
       isActive: moduleRecord.isActive,
       authorName: moduleRecord.createdBy.name,
-      updatedAt: moduleRecord.updatedAt.toISOString(),
+      updatedAt: (moduleRevision?.updatedAt ?? moduleRecord.updatedAt).toISOString(),
+      lastEditorName: moduleRevision?.updatedBy.name ?? moduleRecord.updatedBy?.name ?? moduleRecord.createdBy.name,
+      revisionStatus: moduleRevision?.status ?? null,
       order: moduleRecord.order,
       canEdit: canEditModuleContent(actor, moduleTarget),
       canAddResource:
         hierarchyIsActive &&
         moduleRecord.isActive &&
         canCreateResource(actor, moduleTarget),
-      canArchive: canArchiveEditorialContent(actor, moduleTarget),
+      canArchive: canArchiveEditorialContent(actor, moduleBaseTarget),
       canReactivate:
         hierarchyIsActive && canReactivateEditorialContent(actor, moduleTarget),
+      canSubmitForReview: canSubmitEditorialContent(actor, moduleTarget),
+      canApprove: canApproveEditorialContent(actor, moduleTarget),
       resources: moduleRecord.resources.map((resource) => {
+        const resourceRevision = resource.revisions[0];
+        const resourceRevisionPayload = resourceRevision && actor.role === Role.COLLABORATOR
+          ? asResourceRevisionPayload(resourceRevision.payload)
+          : null;
         const resourceTarget = {
+          createdById: resource.createdById,
+          publicationStatus: resourceRevision?.status ?? resource.publicationStatus,
+        };
+        const resourceBaseTarget = {
           createdById: resource.createdById,
           publicationStatus: resource.publicationStatus,
         };
@@ -216,21 +272,25 @@ export async function getAdminSubjectContentWorkspace({
 
         return {
           id: resource.id,
-          title: resource.title,
-          instructions: resource.instructions,
+          title: resourceRevisionPayload?.title ?? resource.title,
+          instructions: resourceRevisionPayload?.instructions ?? resource.instructions,
           type: resource.type,
           publicationStatus: resource.publicationStatus,
           isActive: resource.isActive,
           authorName: resource.createdBy.name,
-          updatedAt: resource.updatedAt.toISOString(),
+          updatedAt: (resourceRevision?.updatedAt ?? resource.updatedAt).toISOString(),
+          lastEditorName: resourceRevision?.updatedBy.name ?? resource.updatedBy?.name ?? resource.createdBy.name,
+          revisionStatus: resourceRevision?.status ?? null,
           order: resource.order,
           information,
           canEdit: canEditEditorialContent(actor, resourceTarget),
-          canArchive: canArchiveEditorialContent(actor, resourceTarget),
+          canArchive: canArchiveEditorialContent(actor, resourceBaseTarget),
           canReactivate:
             hierarchyIsActive &&
             moduleRecord.isActive &&
             canReactivateEditorialContent(actor, resourceTarget),
+          canSubmitForReview: canSubmitEditorialContent(actor, resourceTarget),
+          canApprove: canApproveEditorialContent(actor, resourceTarget),
         };
       }),
     };

@@ -251,7 +251,7 @@ async function selectSubscriptionLevel(
     },
   });
 
-  if (!subscription?.level.isActive) {
+  if (!subscription) {
     redirect("/dashboard/subscription");
   }
 

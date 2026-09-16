@@ -99,7 +99,7 @@ describe("setStudentResourceSavedAction", () => {
           subject: {
             levelId: "level-7",
             isActive: true,
-            level: { id: "level-7", isActive: true },
+            level: { id: "level-7" },
           },
         },
       },

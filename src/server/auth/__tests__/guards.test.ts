@@ -125,4 +125,30 @@ describe("getPremiumAccessDecision", () => {
       code: "SUBSCRIPTION_PAYMENT_UNCONFIRMED",
     });
   });
+
+  it("keeps paid access to an archived level until the subscription expires", async () => {
+    levelFindUniqueMock.mockResolvedValue({
+      isActive: false,
+      requiresSubscription: true,
+    });
+
+    const result = await getPremiumAccessDecision("level-1");
+
+    expect(result.decision).toEqual({ allowed: true });
+  });
+
+  it("does not expose an archived free level", async () => {
+    levelFindUniqueMock.mockResolvedValue({
+      isActive: false,
+      requiresSubscription: false,
+    });
+
+    const result = await getPremiumAccessDecision("level-1");
+
+    expect(result.decision).toEqual({
+      allowed: false,
+      code: "SUBSCRIPTION_REQUIRED",
+    });
+    expect(subscriptionFindUniqueMock).not.toHaveBeenCalled();
+  });
 });

@@ -109,7 +109,11 @@ describe("admin content creation actions", () => {
         getFormData(),
       );
 
-      expect(mocks.requireRole).toHaveBeenCalledWith(Role.ADMIN);
+      expect(mocks.requireRole).toHaveBeenCalledWith(
+        action === createAdminModuleAction
+          ? [Role.ADMIN, Role.COLLABORATOR]
+          : Role.ADMIN,
+      );
       expect(createMock).not.toHaveBeenCalled();
       expect(result).toMatchObject({
         status: "error",
@@ -211,6 +215,7 @@ describe("admin content creation actions", () => {
         disposition: "PUBLISH",
       },
       "admin-1",
+      Role.ADMIN,
     );
     expect(result).toMatchObject({
       status: "success",

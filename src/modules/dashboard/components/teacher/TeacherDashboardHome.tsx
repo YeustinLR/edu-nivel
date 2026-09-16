@@ -7,6 +7,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { Role } from "@/generated/prisma/enums";
 import {
   LearnerEmptyPanel,
   LearnerResourceCard,
@@ -64,8 +65,8 @@ function TeacherFocusCard({ data }: { data: LearnerDashboardData }) {
 export function TeacherDashboardHome({ data }: { data: LearnerDashboardData }) {
   return (
     <div className="space-y-7 lg:space-y-8">
-      <div className="grid gap-4 xl:grid-cols-[minmax(285px,0.34fr)_minmax(0,1fr)]">
-        <LearnerLevelCard data={data} />
+      <div className="grid gap-4 xl:grid-cols-[minmax(360px,0.52fr)_minmax(0,1fr)]">
+        <LearnerLevelCard data={data} role={Role.TEACHER} />
         <TeacherFocusCard data={data} />
       </div>
 

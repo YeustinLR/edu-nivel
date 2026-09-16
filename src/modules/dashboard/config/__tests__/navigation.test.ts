@@ -82,6 +82,25 @@ describe("learner dashboard navigation", () => {
     });
   });
 
+  it("gives collaborators catalog access without administrative links", () => {
+    expect(linksFor("COLLABORATOR")).toEqual([
+      { label: "Inicio", href: "/dashboard/collaborator" },
+      {
+        label: "Catálogo",
+        href: "/dashboard/collaborator/content/catalog",
+      },
+      {
+        label: "Mis contenidos",
+        href: "/dashboard/collaborator/content",
+      },
+    ]);
+    expect(
+      linksFor("COLLABORATOR").some(({ href }) =>
+        href.startsWith("/dashboard/admin"),
+      ),
+    ).toBe(false);
+  });
+
   it("groups administrative navigation by operational priority", () => {
     expect(navigationByRole.ADMIN.map((group) => group.title)).toEqual([
       "General",

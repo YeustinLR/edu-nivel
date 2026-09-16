@@ -131,6 +131,17 @@ enum PublicationStatus {
   UNPUBLISHED
 }
 
+enum ContentRevisionKind {
+  MODULE
+  RESOURCE
+}
+
+enum ContentRevisionStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+}
+
 enum UploadStatus {
   PENDING
   PROCESSING
@@ -178,9 +189,13 @@ model User {
   progress             ResourceProgress[]
   savedResources       SavedResource[]
   createdModules       Module[]           @relation("ModuleCreator")
+  updatedModules       Module[]           @relation("ModuleUpdater")
+  submittedModules     Module[]           @relation("ModuleSubmitter")
   reviewedModules      Module[]           @relation("ModuleReviewer")
   publishedModules     Module[]           @relation("ModulePublisher")
   createdResources     Resource[]         @relation("ResourceCreator")
+  updatedResources     Resource[]         @relation("ResourceUpdater")
+  submittedResources   Resource[]         @relation("ResourceSubmitter")
   reviewedResources    Resource[]         @relation("ResourceReviewer")
   publishedResources   Resource[]         @relation("ResourcePublisher")
   uploadIntents        UploadIntent[]
@@ -192,6 +207,11 @@ model User {
   notificationsSent    Notification[]    @relation("NotificationSender")
   notificationsReceived NotificationRecipient[]
   quizAttempts           QuizAttempt[]
+  contentRevisionsCreated   ContentRevision[]       @relation("ContentRevisionCreator")
+  contentRevisionsUpdated   ContentRevision[]       @relation("ContentRevisionUpdater")
+  contentRevisionsSubmitted ContentRevision[]       @relation("ContentRevisionSubmitter")
+  contentRevisionsReviewed  ContentRevision[]       @relation("ContentRevisionReviewer")
+  contentAuditEvents        ContentAuditLog[]       @relation("ContentAuditActor")
 
   @@index([deletedAt])
   @@index([emailVerifiedAt])
@@ -386,7 +406,8 @@ model NotificationRecipient {
 model Payment {
   id                       String              @id @default(cuid())
   userId                   String
-  levelId                  String
+  levelId                  String?
+  levelNumberSnapshot      Int?
   subscriptionId           String?
   planCode                 PlanCode
   product                  SubscriptionProduct
@@ -418,7 +439,7 @@ model Payment {
   updatedAt                DateTime            @updatedAt
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
-  level        Level           @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  level        Level?          @relation(fields: [levelId], references: [id], onDelete: SetNull)
   subscription Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   refunds      PaymentRefund[]
 
@@ -535,7 +556,11 @@ model Module {
   publicationStatus    PublicationStatus @default(DRAFT)
   createdById          String
   createdBy            User              @relation("ModuleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById          String?
+  updatedBy            User?             @relation("ModuleUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   submittedForReviewAt DateTime?
+  submittedById        String?
+  submittedBy          User?             @relation("ModuleSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
   reviewedById         String?
   reviewedBy           User?             @relation("ModuleReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt           DateTime?
@@ -550,10 +575,13 @@ model Module {
 
   resources     Resource[]
   uploadIntents UploadIntent[]
+  revisions     ContentRevision[] @relation("ModuleContentRevisions")
 
   @@unique([subjectId, title])
   @@index([subjectId])
   @@index([createdById])
+  @@index([updatedById])
+  @@index([submittedById])
   @@index([publicationStatus])
   @@index([audience])
   @@map("module")
@@ -571,7 +599,11 @@ model Resource {
   publicationStatus    PublicationStatus @default(DRAFT)
   createdById          String
   createdBy            User              @relation("ResourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById          String?
+  updatedBy            User?             @relation("ResourceUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   submittedForReviewAt DateTime?
+  submittedById        String?
+  submittedBy          User?             @relation("ResourceSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
   reviewedById         String?
   reviewedBy           User?             @relation("ResourceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt           DateTime?
@@ -596,6 +628,7 @@ model Resource {
   imageResource ImageResource?
   audioResource AudioResource?
   contentImages ResourceContentImage[]
+  revisions     ContentRevision[]      @relation("ResourceContentRevisions")
 
   progress ResourceProgress[]
   savedBy  SavedResource[]
@@ -603,8 +636,59 @@ model Resource {
   @@index([moduleId])
   @@index([type])
   @@index([createdById])
+  @@index([updatedById])
+  @@index([submittedById])
   @@index([publicationStatus])
   @@map("resource")
+}
+
+/// One active editorial revision may exist for a module or resource. Published
+/// rows remain untouched until an administrator approves the revision.
+model ContentRevision {
+  id            String                @id @default(cuid())
+  kind          ContentRevisionKind
+  status        ContentRevisionStatus @default(DRAFT)
+  moduleId      String?               @unique
+  module        Module?               @relation("ModuleContentRevisions", fields: [moduleId], references: [id], onDelete: Cascade)
+  resourceId    String?               @unique
+  resource      Resource?             @relation("ResourceContentRevisions", fields: [resourceId], references: [id], onDelete: Cascade)
+  payload       Json
+  baseUpdatedAt DateTime
+  createdById   String
+  createdBy     User                  @relation("ContentRevisionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById   String
+  updatedBy     User                  @relation("ContentRevisionUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  submittedById String?
+  submittedBy   User?                 @relation("ContentRevisionSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedAt   DateTime?
+  reviewedById  String?
+  reviewedBy    User?                 @relation("ContentRevisionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([kind, status, updatedAt])
+  @@index([createdById, status])
+  @@index([updatedById, updatedAt])
+  @@map("content_revision")
+}
+
+model ContentAuditLog {
+  id         String              @id @default(cuid())
+  actorId    String
+  actor      User                @relation("ContentAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  kind       ContentRevisionKind
+  entityId   String
+  action     String
+  revisionId String?
+  changes    Json?
+  createdAt  DateTime            @default(now())
+
+  @@index([entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("content_audit_log")
 }
 
 model UploadIntent {

@@ -8,6 +8,10 @@ import {
   type EditorialTransition,
 } from "@/modules/content/domain/editorial-workflow";
 import { prisma } from "@/server/db/prisma";
+import {
+  ContentRevisionError,
+  transitionPublishedRevision,
+} from "@/server/content/content-revisions";
 
 export type EditorialTargetType = "module" | "resource";
 
@@ -97,14 +101,11 @@ function assertTransitionPermission(
   if (actor.role === Role.ADMIN) return;
 
   const collaboratorTransition =
-    targetType === "module"
-      ? transition === "PUBLISH_DIRECT"
-      : transition === "SUBMIT_FOR_REVIEW" || transition === "WITHDRAW_REVIEW";
+    transition === "SUBMIT_FOR_REVIEW" || transition === "WITHDRAW_REVIEW";
 
   if (
     actor.role !== Role.COLLABORATOR ||
-    !collaboratorTransition ||
-    target.createdById !== actor.id
+    !collaboratorTransition
   ) {
     throw new EditorialTransitionError(
       "FORBIDDEN",
@@ -125,6 +126,7 @@ function getTransitionData(
       return {
         publicationStatus: PublicationStatus.IN_REVIEW,
         submittedForReviewAt: now,
+        submittedById: actor.id,
         reviewedById: null,
         reviewedAt: null,
         reviewNote: null,
@@ -133,11 +135,13 @@ function getTransitionData(
       return {
         publicationStatus: PublicationStatus.DRAFT,
         submittedForReviewAt: null,
+        submittedById: null,
       };
     case "PUBLISH_DIRECT":
       return {
         publicationStatus: PublicationStatus.PUBLISHED,
         submittedForReviewAt: null,
+        submittedById: null,
         reviewedById: null,
         reviewedAt: null,
         reviewNote: null,
@@ -199,6 +203,36 @@ export async function applyEditorialTransition({
   }
 
   assertTransitionPermission(actor, target, targetType, transition);
+
+  if (
+    target.publicationStatus === PublicationStatus.PUBLISHED &&
+    ["SUBMIT_FOR_REVIEW", "WITHDRAW_REVIEW", "PUBLISH", "REQUEST_CHANGES"].includes(transition)
+  ) {
+    try {
+      const revisionResult = await transitionPublishedRevision({
+        targetType,
+        targetId,
+        transition: transition as "SUBMIT_FOR_REVIEW" | "WITHDRAW_REVIEW" | "PUBLISH" | "REQUEST_CHANGES",
+        reviewNote,
+        actor,
+      });
+      if (revisionResult) return revisionResult;
+    } catch (error) {
+      if (error instanceof ContentRevisionError) {
+        throw new EditorialTransitionError(
+          error.code === "REVIEW_NOTE_REQUIRED"
+            ? "REVIEW_NOTE_REQUIRED"
+            : error.code === "EDIT_CONFLICT"
+              ? "TRANSITION_CONFLICT"
+              : error.code === "FORBIDDEN"
+                ? "FORBIDDEN"
+                : "INVALID_TRANSITION",
+          error.message,
+        );
+      }
+      throw error;
+    }
+  }
 
   if (
     !target.isActive &&

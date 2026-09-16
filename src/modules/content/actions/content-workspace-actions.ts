@@ -30,7 +30,7 @@ export async function getWorkspaceResourceDetailAction(input: unknown) {
     return { status: "error" as const, message: "El recurso seleccionado no es válido." };
   }
 
-  const actor = await requireRole(Role.ADMIN);
+  const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
   const resource = await getResourceContentDetail({
     resourceId: parsed.data.resourceId,
     expectedModuleId: parsed.data.moduleId,
@@ -59,7 +59,7 @@ export async function reorderWorkspaceModulesAction(
   }
 
   try {
-    const actor = await requireRole(Role.ADMIN);
+    const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
     await reorderCatalogModules(parsed.data, actor);
     revalidateContentPages("published");
     return { status: "success", message: "Orden de módulos actualizado." };
@@ -80,7 +80,7 @@ export async function reorderWorkspaceResourcesAction(
   }
 
   try {
-    const actor = await requireRole(Role.ADMIN);
+    const actor = await requireRole([Role.ADMIN, Role.COLLABORATOR]);
     await reorderCatalogResources(parsed.data, actor);
     revalidateContentPages("published");
     return { status: "success", message: "Orden de recursos actualizado." };

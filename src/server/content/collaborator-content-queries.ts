@@ -29,7 +29,7 @@ export async function getCollaboratorContentWorkspace(
     isActive: true,
     subject: { isActive: true, level: { isActive: true } },
   } as const;
-  const [subjects, modules, resourceCount, teamModuleTotal, teamModules] = await Promise.all([
+  const [subjects, modules, resourceCount, teamModuleTotal, teamModules, resourceModuleRecords] = await Promise.all([
     prisma.subject.findMany({
       where: { isActive: true, level: { isActive: true } },
       orderBy: [{ level: { levelNumber: "asc" } }, { order: "asc" }],
@@ -104,23 +104,22 @@ export async function getCollaboratorContentWorkspace(
         },
       },
     }),
+    prisma.module.findMany({
+      where: {
+        isActive: true,
+        publicationStatus: { in: ["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED", "PUBLISHED"] },
+        subject: { isActive: true, level: { isActive: true } },
+      },
+      orderBy: [{ subject: { level: { levelNumber: "asc" } } }, { subject: { order: "asc" } }, { order: "asc" }],
+      select: { id: true, title: true, subject: { select: { name: true, level: { select: { levelNumber: true } } } } },
+    }),
   ]);
 
-  const moduleOptions = modules
-    .filter(
-      (module) =>
-        module.isActive &&
-        module.subject.isActive &&
-        module.subject.level.isActive &&
-        ["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED", "PUBLISHED"].includes(
-          module.publicationStatus,
-        ),
-    )
-    .map((module) => ({
+  const moduleOptions = resourceModuleRecords.map((module) => ({
       id: module.id,
       title: module.title,
       subjectName: `Nivel ${module.subject.level.levelNumber} / ${module.subject.name}`,
-    }));
+  }));
 
   return {
     subjects,
