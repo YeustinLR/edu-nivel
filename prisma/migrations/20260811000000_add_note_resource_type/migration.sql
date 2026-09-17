@@ -1,1 +1,0 @@
-ALTER TYPE "ResourceType" ADD VALUE 'NOTE';

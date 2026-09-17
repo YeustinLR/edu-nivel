@@ -1,1 +1,0 @@
-ALTER TYPE "RefundStatus" ADD VALUE 'CANCELED';

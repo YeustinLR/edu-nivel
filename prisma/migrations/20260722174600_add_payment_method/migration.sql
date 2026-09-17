@@ -1,2 +1,0 @@
-ALTER TABLE "payment"
-ADD COLUMN "method" "PaymentMethod" NOT NULL DEFAULT 'SINPE_MOBILE';

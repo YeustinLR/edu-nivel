@@ -283,13 +283,10 @@ progreso.
 
 ## Migraciones presentes
 
-El historial contiene cinco migraciones:
-
-1. esquema inicial;
-2. modelos de pagos ONVO;
-3. datos del método de pago;
-4. acceso por nivel y flujo editorial;
-5. intenciones de carga R2.
+La evolución de la base de datos se administra mediante Prisma Migrate. El
+proyecto dispone de una migración inicial consolidada que representa el esquema
+base actual y, a partir de ella, los futuros cambios estructurales se gestionan
+mediante nuevas migraciones incrementales.
 
 Para desarrollo, `pnpm db:migrate` ejecuta `prisma migrate dev`. Para aplicar
 migraciones ya creadas en staging o producción,
