@@ -21,7 +21,8 @@ export type ContentEditField =
   | "maxAttempts"
   | "shuffleQuestions"
   | "type"
-  | "isActive";
+  | "isActive"
+  | "isFreePreview";
 
 export type ContentEditFieldErrors = Partial<
   Record<ContentEditField, string[]>

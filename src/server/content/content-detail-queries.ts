@@ -34,6 +34,8 @@ export type ResourceContentDetail = {
   content: string | null;
   estimatedMinutes: number | null;
   isRequired: boolean;
+  isFreePreview: boolean;
+  levelRequiresSubscription: boolean;
   publicationStatus: PublicationStatus;
   isActive: boolean;
   createdById: string;
@@ -253,6 +255,7 @@ export async function getResourceContentDetail({
       content: true,
       estimatedMinutes: true,
       isRequired: true,
+      isFreePreview: true,
       publicationStatus: true,
       isActive: true,
       createdById: true,
@@ -271,6 +274,7 @@ export async function getResourceContentDetail({
               level: {
                 select: {
                   isActive: true,
+                  requiresSubscription: true,
                 },
               },
             },
@@ -370,6 +374,9 @@ export async function getResourceContentDetail({
     content: workingRevision?.payload.content ?? resource.content,
     estimatedMinutes: workingRevision?.payload.estimatedMinutes ?? resource.estimatedMinutes,
     isRequired: resource.isRequired,
+    isFreePreview: resource.isFreePreview,
+    levelRequiresSubscription:
+      resource.module.subject.level.requiresSubscription,
     publicationStatus: resource.publicationStatus,
     isActive: resource.isActive,
     createdById: resource.createdById,

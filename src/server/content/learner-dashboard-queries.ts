@@ -3,6 +3,11 @@ import "server-only";
 import { cache } from "react";
 
 import { Role } from "@/generated/prisma/enums";
+import {
+  canOpenLearnerResource,
+  getLearnerResourceAccessMode,
+  type LearnerResourceAccessMode,
+} from "@/modules/content/domain/learner-resource-access";
 import type {
   LearnerContinueTarget,
   LearnerDashboardData,
@@ -76,21 +81,6 @@ export const getLearnerDashboardData = cache(async (
       : "INCLUDED"
     : "LOCKED";
 
-  if (!accessDecision.decision.allowed) {
-    return {
-      user: { id: user.id, name: user.name, email: user.email, firstName: firstName(user.name) },
-      levels,
-      selectedLevel,
-      access: { status: accessStatus, currentPeriodEnd: null },
-      subjects: [],
-      continueTarget: null,
-      recentResources: [],
-      savedResources: [],
-      availableResources: [],
-      searchItems: [],
-    };
-  }
-
   const subjects = await prisma.subject.findMany({
     where: {
       levelId: selectedLevel.id,
@@ -117,6 +107,7 @@ export const getLearnerDashboardData = cache(async (
             select: {
               id: true,
               title: true,
+              isFreePreview: true,
               estimatedMinutes: true,
               type: true,
               youtubeVideo: { select: { videoId: true, duration: true } },
@@ -136,6 +127,7 @@ export const getLearnerDashboardData = cache(async (
       moduleId: string;
       moduleTitle: string;
       moduleResourceIds: string[];
+      accessMode: Exclude<LearnerResourceAccessMode, "LOCKED">;
     }
   >();
   const searchItems: LearnerSearchItem[] = [];
@@ -158,16 +150,33 @@ export const getLearnerDashboardData = cache(async (
         context: subject.name,
         href,
       });
-      const moduleResourceIds = moduleRecord.resources.map((resource) => resource.id);
       for (const resource of moduleRecord.resources) {
-        resourceContext.set(resource.id, {
-          resource,
-          subjectId: subject.id,
-          subjectName: subject.name,
-          moduleId: moduleRecord.id,
-          moduleTitle: moduleRecord.title,
-          moduleResourceIds,
+        const resourceAccessMode = getLearnerResourceAccessMode({
+          levelRequiresSubscription: selectedLevel.requiresSubscription,
+          isFreePreview: resource.isFreePreview,
+          hasLevelAccess: accessDecision.decision.allowed,
         });
+        if (canOpenLearnerResource(resourceAccessMode)) {
+          resourceContext.set(resource.id, {
+            resource,
+            subjectId: subject.id,
+            subjectName: subject.name,
+            moduleId: moduleRecord.id,
+            moduleTitle: moduleRecord.title,
+            moduleResourceIds: moduleRecord.resources
+              .filter((candidate) =>
+                canOpenLearnerResource(
+                  getLearnerResourceAccessMode({
+                    levelRequiresSubscription: selectedLevel.requiresSubscription,
+                    isFreePreview: candidate.isFreePreview,
+                    hasLevelAccess: accessDecision.decision.allowed,
+                  }),
+                ),
+              )
+              .map((candidate) => candidate.id),
+            accessMode: resourceAccessMode,
+          });
+        }
         searchItems.push({
           id: `resource-${resource.id}`,
           kind: "resource",
@@ -227,6 +236,7 @@ export const getLearnerDashboardData = cache(async (
       startedAt: progress?.startedAt.toISOString() ?? null,
       lastViewedAt: progress?.lastViewedAt.toISOString() ?? null,
       completed: progress?.completed ?? false,
+      accessMode: context.accessMode,
       href: contentHref(role, context.subjectId, context.resource.id),
     };
   }

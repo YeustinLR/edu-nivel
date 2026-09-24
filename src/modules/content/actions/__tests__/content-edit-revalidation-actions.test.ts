@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     updateCatalogResource: vi.fn(),
     updateCatalogSubject: vi.fn(),
     setCatalogContentAvailability: vi.fn(),
+    setResourceFreePreview: vi.fn(),
     revalidateContentPages: vi.fn(),
   };
 });
@@ -41,11 +42,17 @@ vi.mock("@/server/content/update-content", () => ({
 vi.mock("@/server/content/set-content-availability", () => ({
   setCatalogContentAvailability: mocks.setCatalogContentAvailability,
 }));
+vi.mock("@/server/content/set-resource-free-preview", () => ({
+  setResourceFreePreview: mocks.setResourceFreePreview,
+}));
 vi.mock("@/server/content/revalidate-content", () => ({
   revalidateContentPages: mocks.revalidateContentPages,
 }));
 
-import { updateModuleContentAction } from "@/modules/content/actions/content-edit-actions";
+import {
+  setResourceFreePreviewAction,
+  updateModuleContentAction,
+} from "@/modules/content/actions/content-edit-actions";
 
 function moduleForm() {
   const data = new FormData();
@@ -54,6 +61,14 @@ function moduleForm() {
   data.set("title", "Módulo actualizado");
   data.set("description", "Descripción actualizada");
   data.set("audience", ContentAudience.BOTH);
+  return data;
+}
+
+function freePreviewForm() {
+  const data = new FormData();
+  data.set("id", "resource-1");
+  data.set("expectedUpdatedAt", "2026-08-22T12:00:00.000Z");
+  data.set("isFreePreview", "true");
   return data;
 }
 
@@ -89,5 +104,28 @@ describe("content edit revalidation scope", () => {
 
     expect(result.status).toBe("success");
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
+  });
+
+  it("allows only the admin path to publish a resource as free", async () => {
+    mocks.setResourceFreePreview.mockResolvedValue({
+      affectsPublishedContent: true,
+    });
+
+    const result = await setResourceFreePreviewAction(
+      initialContentEditActionState,
+      freePreviewForm(),
+    );
+
+    expect(mocks.requireRole).toHaveBeenCalledWith(Role.ADMIN);
+    expect(mocks.setResourceFreePreview).toHaveBeenCalledWith({
+      id: "resource-1",
+      expectedUpdatedAt: "2026-08-22T12:00:00.000Z",
+      isFreePreview: true,
+    });
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
+    expect(result).toEqual({
+      status: "success",
+      message: "El recurso ahora es gratuito.",
+    });
   });
 });

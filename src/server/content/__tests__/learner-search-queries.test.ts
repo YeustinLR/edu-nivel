@@ -3,12 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Role } from "@/generated/prisma/enums";
 
 const {
-  getPremiumAccessDecisionMock,
   getPublishedTeacherCatalogMock,
   getStudentCatalogSearchItemsMock,
   requireRoleMock,
 } = vi.hoisted(() => ({
-  getPremiumAccessDecisionMock: vi.fn(),
   getPublishedTeacherCatalogMock: vi.fn(),
   getStudentCatalogSearchItemsMock: vi.fn(),
   requireRoleMock: vi.fn(),
@@ -16,7 +14,6 @@ const {
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/auth/guards", () => ({
-  getPremiumAccessDecision: getPremiumAccessDecisionMock,
   requireRole: requireRoleMock,
 }));
 vi.mock("@/server/content/student-catalog-search-queries", () => ({
@@ -34,9 +31,6 @@ describe("getLearnerSearchItems", () => {
       id: "teacher-1",
       selectedLevelId: "level-7",
       selectedLevel: { id: "level-7", levelNumber: 7 },
-    });
-    getPremiumAccessDecisionMock.mockReset().mockResolvedValue({
-      decision: { allowed: true },
     });
     getStudentCatalogSearchItemsMock.mockReset().mockResolvedValue([
       { id: "level-1", kind: "level" },
@@ -68,7 +62,6 @@ describe("getLearnerSearchItems", () => {
     const result = await getLearnerSearchItems(Role.TEACHER);
 
     expect(requireRoleMock).toHaveBeenCalledWith(Role.TEACHER);
-    expect(getPremiumAccessDecisionMock).toHaveBeenCalledWith("level-7");
     expect(result).toEqual([
       expect.objectContaining({ id: "subject-subject-1", label: "Ciencias" }),
       expect.objectContaining({ id: "module-module-1", label: "Ecosistemas" }),
@@ -77,12 +70,8 @@ describe("getLearnerSearchItems", () => {
     expect(getPublishedTeacherCatalogMock).toHaveBeenCalledWith("level-7");
   });
 
-  it("does not expose teacher catalog metadata without access", async () => {
-    getPremiumAccessDecisionMock.mockResolvedValue({
-      decision: { allowed: false },
-    });
-
-    await expect(getLearnerSearchItems(Role.TEACHER)).resolves.toEqual([]);
-    expect(getPublishedTeacherCatalogMock).not.toHaveBeenCalled();
+  it("keeps teacher catalog metadata searchable without full access", async () => {
+    await expect(getLearnerSearchItems(Role.TEACHER)).resolves.toHaveLength(3);
+    expect(getPublishedTeacherCatalogMock).toHaveBeenCalledWith("level-7");
   });
 });

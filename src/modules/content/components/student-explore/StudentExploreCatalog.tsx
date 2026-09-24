@@ -162,20 +162,19 @@ function LevelPreview({ level }: { level: NonNullable<StudentExploreData["select
             <div className="flex items-center gap-2"><ShieldCheck aria-hidden="true" className="h-4 w-4 text-[var(--student-blue)]" /><dt className="sr-only">Recursos</dt><dd>{level.resourceCount} {level.resourceCount === 1 ? "recurso" : "recursos"}</dd></div>
           </dl>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-            {hasAccess ? (
-              <form action={enterStudentLevelAction}>
-                <input type="hidden" name="levelId" value={level.id} />
-                <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-extrabold text-white shadow-[0_10px_25px_rgba(23,104,229,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-auto">
-                  <BookOpenCheck aria-hidden="true" className="h-4 w-4" /> Entrar al nivel
-                </button>
-              </form>
-            ) : level.access.status === "PENDING" && level.access.pendingPaymentId ? (
-              <Link href={`/dashboard/subscription/payments/${encodeURIComponent(level.access.pendingPaymentId)}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-extrabold text-white">Ver pago en proceso <ChevronRight aria-hidden="true" className="h-4 w-4" /></Link>
-            ) : (
-              <Link href={unlockHref} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-extrabold text-white shadow-[0_10px_25px_rgba(23,104,229,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+            <form action={enterStudentLevelAction}>
+              <input type="hidden" name="levelId" value={level.id} />
+              <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-extrabold text-white shadow-[0_10px_25px_rgba(23,104,229,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-auto">
+                <BookOpenCheck aria-hidden="true" className="h-4 w-4" /> {hasAccess ? "Entrar al nivel" : level.freeResourceCount > 0 ? "Explorar recursos gratuitos" : "Explorar contenido"}
+              </button>
+            </form>
+            {!hasAccess && level.access.status === "PENDING" && level.access.pendingPaymentId ? (
+              <Link href={`/dashboard/subscription/payments/${encodeURIComponent(level.access.pendingPaymentId)}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--student-border)] px-5 text-sm font-extrabold text-[var(--student-blue)]">Ver pago en proceso <ChevronRight aria-hidden="true" className="h-4 w-4" /></Link>
+            ) : !hasAccess ? (
+              <Link href={unlockHref} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--student-border)] px-5 text-sm font-extrabold text-[var(--student-blue)]">
                 <LockKeyhole aria-hidden="true" className="h-4 w-4" /> {level.access.status === "EXPIRED" || level.access.subscriptionId ? "Renovar nivel" : "Desbloquear nivel"}
               </Link>
-            )}
+            ) : null}
             <Link href="/dashboard/subscription" className="inline-flex min-h-11 items-center justify-center px-2 text-sm font-extrabold text-[var(--student-blue)] hover:opacity-75">Ver plan de suscripción</Link>
           </div>
         </div>

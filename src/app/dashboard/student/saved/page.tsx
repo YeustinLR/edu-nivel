@@ -7,7 +7,8 @@ import { getStudentDashboardData } from "@/server/content/learner-dashboard-quer
 
 export default async function StudentSavedPage() {
   const data = await getStudentDashboardData();
-  const locked = data.access.status === "LOCKED";
+  const locked =
+    data.access.status === "LOCKED" && data.availableResources.length === 0;
 
   return (
     <div className="space-y-7">

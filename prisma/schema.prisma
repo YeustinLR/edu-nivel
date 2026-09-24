@@ -187,6 +187,7 @@ model User {
   payments             Payment[]
   refundsRequested     PaymentRefund[]    @relation("RefundRequester")
   progress             ResourceProgress[]
+  learnerActivityDays  LearnerActivityDay[]
   savedResources       SavedResource[]
   createdModules       Module[]           @relation("ModuleCreator")
   updatedModules       Module[]           @relation("ModuleUpdater")
@@ -616,6 +617,7 @@ model Resource {
   order                Int               @default(0)
   isActive             Boolean           @default(true)
   isRequired           Boolean           @default(false)
+  isFreePreview        Boolean           @default(false)
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -922,6 +924,19 @@ model AudioResource {
 // ============================================================
 // Progreso del Usuario
 // ============================================================
+
+model LearnerActivityDay {
+  id           String   @id @default(cuid())
+  userId       String
+  activityDate DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityDate])
+  @@index([userId, activityDate(sort: Desc)])
+  @@map("learner_activity_day")
+}
 
 model ResourceProgress {
   id           String    @id @default(cuid())

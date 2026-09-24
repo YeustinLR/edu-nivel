@@ -226,12 +226,19 @@ export const contentAvailabilitySchema = editBaseSchema.extend({
   isActive: z.boolean(),
 });
 
+export const resourceFreePreviewSchema = editBaseSchema.extend({
+  isFreePreview: z.boolean(),
+});
+
 export type UpdateLevelInput = z.output<typeof updateLevelSchema>;
 export type UpdateSubjectInput = z.output<typeof updateSubjectSchema>;
 export type UpdateModuleInput = z.output<typeof updateModuleSchema>;
 export type UpdateResourceInput = z.output<typeof updateResourceSchema>;
 export type ContentAvailabilityInput = z.output<
   typeof contentAvailabilitySchema
+>;
+export type ResourceFreePreviewInput = z.output<
+  typeof resourceFreePreviewSchema
 >;
 
 function getTextValue(formData: FormData, name: string) {
@@ -297,5 +304,12 @@ export function getContentAvailabilityFormValues(formData: FormData) {
     ...getEditBaseValues(formData),
     type: getTextValue(formData, "type"),
     isActive: getTextValue(formData, "isActive") === "true",
+  };
+}
+
+export function getResourceFreePreviewFormValues(formData: FormData) {
+  return {
+    ...getEditBaseValues(formData),
+    isFreePreview: getTextValue(formData, "isFreePreview") === "true",
   };
 }

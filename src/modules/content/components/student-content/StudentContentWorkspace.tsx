@@ -168,11 +168,20 @@ function SubjectOverviewHero({
   const resources = subject.modules.flatMap(
     (moduleRecord) => moduleRecord.resources,
   );
-  const resourceCount = resources.length;
-  const completedCount = resources.filter((resource) => resource.completed).length;
-  const moduleResourceCount = selectedModule?.resources.length ?? 0;
+  const accessibleResources = resources.filter(
+    (resource) => resource.accessMode !== "LOCKED",
+  );
+  const resourceCount = accessibleResources.length;
+  const completedCount = accessibleResources.filter(
+    (resource) => resource.completed,
+  ).length;
+  const accessibleModuleResources =
+    selectedModule?.resources.filter(
+      (resource) => resource.accessMode !== "LOCKED",
+    ) ?? [];
+  const moduleResourceCount = accessibleModuleResources.length;
   const moduleCompletedCount =
-    selectedModule?.resources.filter((resource) => resource.completed).length ?? 0;
+    accessibleModuleResources.filter((resource) => resource.completed).length;
   const moduleProgress = moduleResourceCount
     ? Math.round((moduleCompletedCount / moduleResourceCount) * 100)
     : 0;
@@ -211,7 +220,7 @@ function SubjectOverviewHero({
               </span>
             </div>
           ) : null}
-          {selectedResource ? (
+          {selectedResource && selectedResource.accessMode !== "LOCKED" ? (
             <a
               href="#resource-content"
               className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-control bg-gold px-5 font-heading text-sm font-bold text-ink-900 shadow-sm transition-colors hover:bg-[#f4bf15] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
@@ -281,6 +290,8 @@ function ResourcePathItem({
     resource.estimatedMinutes,
     resource.durationSeconds,
   );
+  const locked = resource.accessMode === "LOCKED";
+  const freePreview = resource.accessMode === "FREE_PREVIEW";
 
   return (
     <li className={`relative grid grid-cols-[28px_minmax(0,1fr)] gap-2 pb-3 ${last ? "pb-0" : ""}`}>
@@ -300,7 +311,9 @@ function ResourcePathItem({
             : "border-line text-ink-500 dark:border-[var(--student-border)] dark:text-[var(--student-muted)]"
         }`}
       >
-        {resource.completed ? (
+        {locked ? (
+          <LockKeyhole className="size-3" />
+        ) : resource.completed ? (
           <CircleCheckBig className="size-3.5" strokeWidth={3} />
         ) : selected ? (
           <span className="size-2 rounded-full bg-gold" />
@@ -318,6 +331,8 @@ function ResourcePathItem({
           className={`block text-[13px] font-semibold leading-5 transition-colors ${
             selected
               ? "text-[#9a6500] dark:text-gold"
+              : locked
+                ? "text-ink-500 dark:text-[var(--student-muted)]"
               : "text-ink-900 hover:text-violet dark:text-[var(--student-text)] dark:hover:text-[var(--student-blue)]"
           }`}
         >
@@ -327,6 +342,12 @@ function ResourcePathItem({
           <ResourceTypeIcon type={resource.type} className="size-3" />
           <span>{resourceTypeLabels[resource.type]}</span>
           {duration ? <span>· {duration}</span> : null}
+          {freePreview ? (
+            <span className="rounded-full bg-mint-100 px-1.5 py-0.5 font-semibold text-mint dark:bg-mint/15">
+              Gratis
+            </span>
+          ) : null}
+          {locked ? <span>· Requiere suscripción</span> : null}
         </span>
       </Link>
     </li>
@@ -356,7 +377,10 @@ function ModuleAccordion({
     "bg-violet-100 text-violet dark:bg-violet/15 dark:text-[var(--student-blue)]",
   ];
   const completedCount = moduleRecord.resources.filter(
-    (resource) => resource.completed,
+    (resource) => resource.accessMode !== "LOCKED" && resource.completed,
+  ).length;
+  const accessibleCount = moduleRecord.resources.filter(
+    (resource) => resource.accessMode !== "LOCKED",
   ).length;
 
   return (
@@ -378,7 +402,7 @@ function ModuleAccordion({
               {moduleRecord.title}
             </span>
             <span className="block font-meta text-[10px] text-ink-500 dark:text-[var(--student-muted)]">
-              {completedCount} de {moduleRecord.resources.length} completados
+              {completedCount} de {accessibleCount} disponibles completados
             </span>
           </span>
           <ChevronDown
@@ -568,10 +592,29 @@ export function StudentContentWorkspace({
               resourceCount={data.resourceCount}
               moduleResourcePosition={data.moduleResourcePosition}
               moduleResourceCount={data.moduleResourceCount}
-              moduleResourceCompletion={selectedModule.resources.map(
-                (resource) => resource.completed,
-              )}
+              moduleResourceCompletion={selectedModule.resources
+                .filter((resource) => resource.accessMode !== "LOCKED")
+                .map((resource) => resource.completed)}
             />
+          ) : data.selectedResourceAccessMode === "LOCKED" ? (
+            <section className="flex min-h-80 flex-col items-center justify-center rounded-card border border-violet/20 bg-surface px-6 text-center shadow-sm dark:border-[var(--student-border)] dark:bg-[var(--student-panel)]">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-violet-100 text-violet dark:bg-violet/15 dark:text-[var(--student-blue)]">
+                <LockKeyhole aria-hidden="true" className="size-6" />
+              </span>
+              <h2 className="mt-4 font-heading text-lg font-bold text-ink-900 dark:text-[var(--student-text)]">
+                Este recurso requiere suscripción
+              </h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-ink-500 dark:text-[var(--student-muted)]">
+                Puedes explorar el nivel y abrir los recursos marcados como
+                gratuitos. Activa tu suscripción para acceder a todo el contenido.
+              </p>
+              <Link
+                href="/dashboard/subscription"
+                className="mt-5 inline-flex min-h-11 items-center rounded-control bg-violet px-5 text-sm font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet focus-visible:ring-offset-2"
+              >
+                Ver suscripción
+              </Link>
+            </section>
           ) : (
             <section className="flex min-h-80 flex-col items-center justify-center rounded-card border border-dashed border-line bg-surface px-6 text-center shadow-sm dark:border-[var(--student-border)] dark:bg-[var(--student-panel)]">
               <FileText aria-hidden="true" className="size-9 text-ink-500 dark:text-[var(--student-muted)]" />

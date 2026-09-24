@@ -15,8 +15,12 @@ export function LearnerLevelCard({
   role: LearnerRole;
 }) {
   const hasAccess = data.access.status === "ACTIVE" || data.access.status === "INCLUDED";
+  const hasFreeResources =
+    data.access.status === "LOCKED" && data.availableResources.length > 0;
   const levelHeading = hasAccess
     ? "Tu nivel actual"
+    : hasFreeResources
+      ? "Nivel para explorar"
     : data.access.status === "LOCKED"
       ? "Nivel por desbloquear"
       : "Sin nivel en uso";
@@ -47,7 +51,9 @@ export function LearnerLevelCard({
                 ? "Acceso incluido"
                 : data.access.status === "NO_LEVEL"
                   ? "Selecciona un nivel"
-                  : "Sin suscripción activa"}
+                  : hasFreeResources
+                    ? "Recursos gratuitos disponibles"
+                    : "Sin suscripción activa"}
           </span>
         </div>
       </div>

@@ -39,10 +39,16 @@ export async function createModuleAction(formData: FormData) {
 export async function selectLevelAction(formData: FormData) {
   const user = await requireRole([Role.STUDENT, Role.TEACHER]);
   const levelId = idSchema.parse(formData.get("levelId"));
-  const access = await getPremiumAccessDecision(levelId);
+  const [level, access] = await Promise.all([
+    prisma.level.findUnique({
+      where: { id: levelId },
+      select: { isActive: true },
+    }),
+    getPremiumAccessDecision(levelId),
+  ]);
 
-  if (!access.decision.allowed) {
-    throw new Error("No tienes acceso vigente al nivel seleccionado.");
+  if (!level || (!level.isActive && !access.decision.allowed)) {
+    throw new Error("Este nivel no está disponible para tu cuenta.");
   }
 
   await prisma.user.update({
@@ -67,11 +73,20 @@ export async function selectLevelAction(formData: FormData) {
 export async function enterStudentLevelAction(formData: FormData) {
   await requireRole(Role.STUDENT);
   const levelId = idSchema.parse(formData.get("levelId"));
-  const access = await getPremiumAccessDecision(levelId);
+  const [level, access] = await Promise.all([
+    prisma.level.findUnique({
+      where: { id: levelId },
+      select: { isActive: true },
+    }),
+    getPremiumAccessDecision(levelId),
+  ]);
 
-  if (!access.decision.allowed) {
+  if (!level || (!level.isActive && !access.decision.allowed)) {
+    const errorCode = access.decision.allowed
+      ? "SUBSCRIPTION_REQUIRED"
+      : access.decision.code;
     redirect(
-      `/dashboard/student/explore?level=${encodeURIComponent(levelId)}&error=${encodeURIComponent(access.decision.code)}`,
+      `/dashboard/student/explore?level=${encodeURIComponent(levelId)}&error=${encodeURIComponent(errorCode)}`,
     );
   }
 

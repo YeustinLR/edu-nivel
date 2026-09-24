@@ -245,7 +245,17 @@ describe("learner dashboard queries", () => {
     });
   });
 
-  it("does not query protected content when subscription access is denied", async () => {
+  it("exposes catalog metadata but not protected resources when access is denied", async () => {
+    mocks.getAccessibleLearnerLevels.mockResolvedValue([
+      {
+        id: "level-7",
+        levelNumber: 7,
+        description: null,
+        requiresSubscription: true,
+        isActive: true,
+        hasFullAccess: false,
+      },
+    ]);
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: false },
       subscription: null,
@@ -254,8 +264,9 @@ describe("learner dashboard queries", () => {
     const result = await getStudentDashboardData();
 
     expect(result.access.status).toBe("LOCKED");
-    expect(result.subjects).toEqual([]);
-    expect(mocks.subjectFindMany).not.toHaveBeenCalled();
+    expect(result.subjects).toHaveLength(1);
+    expect(result.availableResources).toEqual([]);
+    expect(mocks.subjectFindMany).toHaveBeenCalledOnce();
     expect(mocks.progressFindMany).not.toHaveBeenCalled();
     expect(mocks.savedFindMany).not.toHaveBeenCalled();
   });

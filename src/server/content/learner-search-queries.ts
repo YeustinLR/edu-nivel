@@ -5,7 +5,7 @@ import type {
   LearnerRole,
   LearnerSearchItem,
 } from "@/modules/dashboard/types/learner-dashboard";
-import { getPremiumAccessDecision, requireRole } from "@/server/auth/guards";
+import { requireRole } from "@/server/auth/guards";
 import { getPublishedTeacherCatalog } from "@/server/content/published-academic-catalog-queries";
 import { getStudentCatalogSearchItems } from "@/server/content/student-catalog-search-queries";
 
@@ -18,9 +18,6 @@ export async function getLearnerSearchItems(
 
   const user = await requireRole(Role.TEACHER);
   if (!user.selectedLevelId || !user.selectedLevel) return [];
-
-  const access = await getPremiumAccessDecision(user.selectedLevelId);
-  if (!access.decision.allowed) return [];
 
   const subjects = await getPublishedTeacherCatalog(user.selectedLevelId);
 

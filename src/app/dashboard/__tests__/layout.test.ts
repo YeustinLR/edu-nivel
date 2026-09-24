@@ -6,11 +6,13 @@ import { Role } from "@/generated/prisma/enums";
 const {
   getLearnerDashboardDataMock,
   getStudentCatalogSearchItemsMock,
+  recordLearnerDashboardVisitMock,
   requireExactRoleOrRedirectMock,
   requireUserMock,
 } = vi.hoisted(() => ({
   getLearnerDashboardDataMock: vi.fn(),
   getStudentCatalogSearchItemsMock: vi.fn(),
+  recordLearnerDashboardVisitMock: vi.fn(),
   requireExactRoleOrRedirectMock: vi.fn(),
   requireUserMock: vi.fn(),
 }));
@@ -35,6 +37,9 @@ vi.mock("@/server/content/student-catalog-search-queries", () => ({
 vi.mock("@/modules/dashboard/components/layout/DashboardShell", () => ({
   DashboardShell: () => null,
 }));
+vi.mock("@/server/dashboard/learner-streak", () => ({
+  recordLearnerDashboardVisit: recordLearnerDashboardVisitMock,
+}));
 
 import DashboardLayout from "@/app/dashboard/layout";
 import AdminLayout from "@/app/dashboard/admin/layout";
@@ -44,6 +49,7 @@ import StudentLayout from "@/app/dashboard/student/layout";
 describe("dashboard layouts", () => {
   beforeEach(() => {
     requireUserMock.mockReset().mockResolvedValue({
+      id: "student-1",
       name: "Ana Estudiante",
       email: "ana@example.com",
       image: "https://example.com/avatar.png",
@@ -52,6 +58,7 @@ describe("dashboard layouts", () => {
     requireExactRoleOrRedirectMock.mockReset().mockResolvedValue(undefined);
     getLearnerDashboardDataMock.mockReset();
     getStudentCatalogSearchItemsMock.mockReset();
+    recordLearnerDashboardVisitMock.mockReset().mockResolvedValue(2);
   });
 
   it("authenticates and renders the learner shell with only identity data", async () => {
@@ -61,12 +68,14 @@ describe("dashboard layouts", () => {
     expect(isValidElement(result)).toBe(true);
     if (!isValidElement(result)) throw new Error("Expected a dashboard shell.");
     expect(result.props).toMatchObject({
+      learnerStreakDays: 2,
       userName: "Ana Estudiante",
       userEmail: "ana@example.com",
       userRole: Role.STUDENT,
       userImage: "https://example.com/avatar.png",
       children: "student-page",
     });
+    expect(recordLearnerDashboardVisitMock).toHaveBeenCalledWith("student-1");
     expect(result.props).not.toHaveProperty("learnerShellData");
     expect(getLearnerDashboardDataMock).not.toHaveBeenCalled();
     expect(getStudentCatalogSearchItemsMock).not.toHaveBeenCalled();

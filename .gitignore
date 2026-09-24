@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# Guía_Estudio
+/gui_estudio/
+
 # next.js
 /.next/
 /out/

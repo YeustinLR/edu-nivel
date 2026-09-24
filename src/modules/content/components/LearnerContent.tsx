@@ -2,6 +2,7 @@ import { FileText, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 
 import { Role } from "@/generated/prisma/enums";
+import { getLearnerResourceAccessMode } from "@/modules/content/domain/learner-resource-access";
 import { ContentPageHeader } from "@/modules/content/components/admin/ContentPageHeader";
 import { LearnerLevelSelector } from "@/modules/content/components/learner/LearnerLevelSelector";
 import { LearnerSubjectModules } from "@/modules/content/components/learner/LearnerSubjectModules";
@@ -40,7 +41,7 @@ export async function LearnerContent({
   const moduleWhere = getVisibleLearnerModuleWhere(role);
   const resourceWhere = getVisibleLearnerResourceWhere();
 
-  const modules = selectedLevel && canOpen
+  const moduleRows = selectedLevel
     ? await prisma.module.findMany({
         where: {
           ...moduleWhere,
@@ -58,6 +59,7 @@ export async function LearnerContent({
             select: {
               id: true,
               title: true,
+              isFreePreview: true,
               instructions: true,
               content: true,
               estimatedMinutes: true,
@@ -69,6 +71,26 @@ export async function LearnerContent({
         },
       })
     : [];
+  const modules = moduleRows.map((moduleRecord) => ({
+    ...moduleRecord,
+    resources: moduleRecord.resources.map((resource) => {
+      const accessMode = getLearnerResourceAccessMode({
+        levelRequiresSubscription: selectedLevel?.requiresSubscription ?? true,
+        isFreePreview: resource.isFreePreview,
+        hasLevelAccess: canOpen,
+      });
+      return accessMode === "LOCKED"
+        ? {
+            ...resource,
+            instructions: null,
+            content: null,
+            youtubeVideo: null,
+            linkResource: null,
+            accessMode,
+          }
+        : { ...resource, accessMode };
+    }),
+  }));
   const subjects = Array.from(new Map(modules.map((module) => [module.subject.id, module.subject])).values());
 
   return (
@@ -94,13 +116,13 @@ export async function LearnerContent({
       {selectedLevel && !canOpen ? (
         <section className={learner ? "rounded-2xl border border-blue-200/70 bg-[var(--student-blue-soft)] p-6 dark:border-blue-400/15" : "rounded-2xl border border-secondary/30 bg-secondary/10 p-6"}>
           <LockKeyhole aria-hidden="true" className={learner ? "h-7 w-7 text-[var(--student-blue)]" : "h-7 w-7 text-secondary"} />
-          <h2 className={learner ? "mt-4 text-lg font-bold text-[var(--student-text)]" : "mt-4 text-lg font-semibold text-foreground"}>Este nivel necesita una suscripción activa</h2>
-          <p className={learner ? "mt-1 max-w-2xl text-sm leading-6 text-[var(--student-muted)]" : "mt-1 max-w-2xl text-sm leading-6 text-muted"}>La compra desbloquea todas sus materias, módulos y recursos publicados.</p>
+          <h2 className={learner ? "mt-4 text-lg font-bold text-[var(--student-text)]" : "mt-4 text-lg font-semibold text-foreground"}>Explora los recursos gratuitos</h2>
+          <p className={learner ? "mt-1 max-w-2xl text-sm leading-6 text-[var(--student-muted)]" : "mt-1 max-w-2xl text-sm leading-6 text-muted"}>Puedes consultar los recursos marcados como gratuitos. La suscripción desbloquea todo el nivel.</p>
           <Link href="/dashboard/subscription" className={learner ? "mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--student-blue)] px-4 py-2 text-sm font-bold text-white" : "mt-4 inline-flex min-h-11 items-center rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-white"}>Ver planes</Link>
         </section>
       ) : null}
 
-      {selectedLevel && canOpen ? (
+      {selectedLevel ? (
         <div className="space-y-10">
           {subjects.map((subject) => (
             <section key={subject.id} aria-labelledby={`subject-${subject.id}`} className="scroll-mt-32 space-y-4">

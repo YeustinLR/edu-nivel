@@ -1,0 +1,2 @@
+ALTER TABLE "resource"
+ADD COLUMN "isFreePreview" BOOLEAN NOT NULL DEFAULT false;

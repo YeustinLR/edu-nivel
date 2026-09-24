@@ -44,7 +44,15 @@ describe("student resource progress actions", () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: true },
     });
-    mocks.resourceFindFirst.mockResolvedValue({ id: "resource-1" });
+    mocks.resourceFindFirst.mockResolvedValue({
+      id: "resource-1",
+      isFreePreview: false,
+      module: {
+        subject: {
+          level: { isActive: true, requiresSubscription: true },
+        },
+      },
+    });
     mocks.progressUpsert.mockResolvedValue({ id: "progress-1" });
   });
 
@@ -70,7 +78,19 @@ describe("student resource progress actions", () => {
           },
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        isFreePreview: true,
+        module: {
+          select: {
+            subject: {
+              select: {
+                level: { select: { isActive: true, requiresSubscription: true } },
+              },
+            },
+          },
+        },
+      },
     });
     expect(mocks.progressUpsert).toHaveBeenCalledWith({
       where: {
@@ -109,7 +129,7 @@ describe("student resource progress actions", () => {
           },
         }),
       }),
-      select: { id: true },
+      select: expect.objectContaining({ id: true, isFreePreview: true }),
     });
     expect(mocks.progressUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -197,9 +217,29 @@ describe("student resource progress actions", () => {
       status: "error",
       code: "CONTENT_ACCESS_REQUIRED",
     });
-    expect(mocks.resourceFindFirst).not.toHaveBeenCalled();
+    expect(mocks.resourceFindFirst).toHaveBeenCalledOnce();
     expect(mocks.progressUpsert).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("records progress for a free resource without level access", async () => {
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
+    });
+    mocks.resourceFindFirst.mockResolvedValue({
+      id: "resource-1",
+      isFreePreview: true,
+      module: {
+        subject: {
+          level: { isActive: true, requiresSubscription: true },
+        },
+      },
+    });
+
+    const result = await recordStudentResourceViewedAction("resource-1");
+
+    expect(result).toEqual({ status: "success" });
+    expect(mocks.progressUpsert).toHaveBeenCalledOnce();
   });
 
   it("validates input before authorization", async () => {

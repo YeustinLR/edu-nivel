@@ -44,7 +44,15 @@ describe("setStudentResourceSavedAction", () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: true },
     });
-    mocks.resourceFindFirst.mockResolvedValue({ id: "resource-1" });
+    mocks.resourceFindFirst.mockResolvedValue({
+      id: "resource-1",
+      isFreePreview: false,
+      module: {
+        subject: {
+          level: { isActive: true, requiresSubscription: true },
+        },
+      },
+    });
     mocks.savedUpsert.mockResolvedValue({ id: "saved-1" });
     mocks.savedDeleteMany.mockResolvedValue({ count: 1 });
   });
@@ -60,7 +68,7 @@ describe("setStudentResourceSavedAction", () => {
     expect(mocks.resourceFindFirst).not.toHaveBeenCalled();
   });
 
-  it("does not inspect or mutate resources when level access is denied", async () => {
+  it("inspects access metadata but does not save a premium resource when access is denied", async () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
     });
@@ -75,7 +83,7 @@ describe("setStudentResourceSavedAction", () => {
       status: "error",
       code: "CONTENT_ACCESS_REQUIRED",
     });
-    expect(mocks.resourceFindFirst).not.toHaveBeenCalled();
+    expect(mocks.resourceFindFirst).toHaveBeenCalledOnce();
     expect(mocks.savedUpsert).not.toHaveBeenCalled();
   });
 
@@ -103,7 +111,19 @@ describe("setStudentResourceSavedAction", () => {
           },
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        isFreePreview: true,
+        module: {
+          select: {
+            subject: {
+              select: {
+                level: { select: { isActive: true, requiresSubscription: true } },
+              },
+            },
+          },
+        },
+      },
     });
     expect(mocks.savedUpsert).toHaveBeenCalledWith({
       where: {
@@ -125,6 +145,29 @@ describe("setStudentResourceSavedAction", () => {
       2,
       "/dashboard/student/saved",
     );
+  });
+
+  it("allows saving a free resource without level access", async () => {
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
+    });
+    mocks.resourceFindFirst.mockResolvedValue({
+      id: "resource-1",
+      isFreePreview: true,
+      module: {
+        subject: {
+          level: { isActive: true, requiresSubscription: true },
+        },
+      },
+    });
+
+    const result = await setStudentResourceSavedAction({
+      resourceId: "resource-1",
+      saved: true,
+    });
+
+    expect(result).toEqual({ status: "success", saved: true });
+    expect(mocks.savedUpsert).toHaveBeenCalledOnce();
   });
 
   it("removes a saved resource idempotently and only for the current student", async () => {

@@ -20,14 +20,19 @@ import type { LearnerDashboardData } from "@/modules/dashboard/types/learner-das
 function ContinueCard({ data }: { data: LearnerDashboardData }) {
   const target = data.continueTarget;
   const locked = data.access.status === "LOCKED";
+  const hasFreeTarget = locked && Boolean(target);
   const noLevel = data.access.status === "NO_LEVEL";
-  const href = locked
+  const href = hasFreeTarget
+    ? target?.href ?? "/dashboard/student/content"
+    : locked
     ? "/dashboard/subscription"
     : noLevel
       ? "/dashboard/student/content"
       : target?.href ?? "/dashboard/student/explore";
   const eyebrow = target?.isProgressRecord ? "Continúa aprendiendo" : "Tu ruta de aprendizaje";
-  const title = locked
+  const title = hasFreeTarget
+    ? target?.subjectName ?? "Explora recursos gratuitos"
+    : locked
     ? "Activa el acceso a tu nivel"
     : noLevel
       ? "Elige el nivel que quieres explorar"
@@ -62,7 +67,7 @@ function ContinueCard({ data }: { data: LearnerDashboardData }) {
         <Beaker className="mt-5 h-12 w-12 opacity-75" />
       </div>
       <Link href={href} className="absolute bottom-6 right-6 z-20 inline-flex min-h-12 items-center gap-3 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-bold text-white shadow-[0_10px_25px_rgba(23,104,229,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(23,104,229,0.28)] max-sm:static max-sm:mt-6">
-        {locked ? "Ver suscripción" : noLevel ? "Elegir nivel" : target?.isProgressRecord ? "Continuar" : "Explorar"}
+        {hasFreeTarget ? "Explorar gratis" : locked ? "Ver suscripción" : noLevel ? "Elegir nivel" : target?.isProgressRecord ? "Continuar" : "Explorar"}
         <ArrowRight aria-hidden="true" className="h-4 w-4" />
       </Link>
     </section>

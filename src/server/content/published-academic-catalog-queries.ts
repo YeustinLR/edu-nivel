@@ -56,7 +56,12 @@ async function queryPublishedStudentCatalog() {
               resources: {
                 where: resourceWhere,
                 orderBy: [{ order: "asc" }, { id: "asc" }],
-                select: { id: true, title: true, type: true },
+                select: {
+                  id: true,
+                  title: true,
+                  type: true,
+                  isFreePreview: true,
+                },
               },
             },
           },
@@ -110,7 +115,7 @@ export const getActiveAcademicLevels = unstable_cache(
 /** Catálogo público compartido; no contiene sesión, acceso ni estado personal. */
 export const getPublishedStudentCatalog = unstable_cache(
   queryPublishedStudentCatalog,
-  ["published-student-academic-catalog-v1"],
+  ["published-student-academic-catalog-v2"],
   {
     revalidate: ACADEMIC_CATALOG_CACHE_SECONDS,
     tags: [STUDENT_ACADEMIC_CATALOG_TAG],

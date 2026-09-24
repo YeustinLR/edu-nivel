@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { PublicationStatus, Role, UploadStatus } from "@/generated/prisma/enums";
+import {
+  canOpenLearnerResource,
+  getLearnerResourceAccessMode,
+} from "@/modules/content/domain/learner-resource-access";
 import { getPremiumAccessDecision, requireUser } from "@/server/auth/guards";
 import { audienceAllowsLearnerRole } from "@/server/content/learner-content-access";
 import { prisma } from "@/server/db/prisma";
@@ -37,6 +41,7 @@ export async function GET(
               createdById: true,
               publicationStatus: true,
               isActive: true,
+              isFreePreview: true,
               module: {
                 select: {
                   createdById: true,
@@ -46,7 +51,13 @@ export async function GET(
                   subject: {
                     select: {
                       isActive: true,
-                      level: { select: { id: true, isActive: true } },
+                      level: {
+                        select: {
+                          id: true,
+                          isActive: true,
+                          requiresSubscription: true,
+                        },
+                      },
                     },
                   },
                 },
@@ -92,7 +103,6 @@ export async function GET(
         reference.module.isActive &&
         reference.module.publicationStatus === PublicationStatus.PUBLISHED &&
         reference.module.subject.isActive &&
-        reference.module.subject.level.isActive &&
         (user.role === Role.COLLABORATOR ||
           audienceAllowsLearnerRole(reference.module.audience, user.role));
       if (!visible) continue;
@@ -104,11 +114,20 @@ export async function GET(
         const { decision } = await getPremiumAccessDecision(
           reference.module.subject.level.id,
         );
-        if (decision.allowed) {
+        const level = reference.module.subject.level;
+        const accessMode = getLearnerResourceAccessMode({
+          levelRequiresSubscription: level.requiresSubscription,
+          isFreePreview: reference.isFreePreview,
+          hasLevelAccess: decision.allowed,
+        });
+        if (
+          (level.isActive || decision.allowed) &&
+          canOpenLearnerResource(accessMode)
+        ) {
           allowed = true;
           break;
         }
-        lastPremiumError = decision.code;
+        lastPremiumError = decision.allowed ? null : decision.code;
       }
     }
     if (!allowed) {

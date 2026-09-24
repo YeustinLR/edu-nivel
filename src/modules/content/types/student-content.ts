@@ -1,4 +1,5 @@
 import type { ResourceType } from "@/generated/prisma/enums";
+import type { LearnerResourceAccessMode } from "@/modules/content/domain/learner-resource-access";
 
 export type StudentContentLevel = {
   id: string;
@@ -15,6 +16,7 @@ export type StudentContentResourceSummary = {
   durationSeconds: number | null;
   started: boolean;
   completed: boolean;
+  accessMode: LearnerResourceAccessMode;
   href: string;
 };
 
@@ -49,6 +51,7 @@ export type StudentContentResourceDetail = {
   isRequired: boolean;
   isSaved: boolean;
   isCompleted: boolean;
+  accessMode: Exclude<LearnerResourceAccessMode, "LOCKED">;
   protectedFileAccessEnabled: boolean;
   youtube: {
     videoId: string;
@@ -114,6 +117,7 @@ export type StudentContentWorkspaceData =
       selectedSubjectId: string | null;
       selectedModuleId: string | null;
       selectedResourceId: string | null;
+      selectedResourceAccessMode: LearnerResourceAccessMode | null;
       selectedResource: StudentContentResourceDetail | null;
       previous: StudentContentNavigationTarget;
       next: StudentContentNavigationTarget;

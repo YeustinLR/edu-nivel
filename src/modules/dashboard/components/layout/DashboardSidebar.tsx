@@ -97,7 +97,7 @@ export function DashboardSidebar({
       {open ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 cursor-pointer bg-black/40 backdrop-blur-sm"
             onClick={onClose}
             aria-hidden="true"
           />

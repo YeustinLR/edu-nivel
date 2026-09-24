@@ -1,6 +1,10 @@
 import "server-only";
 
 import { Role } from "@/generated/prisma/enums";
+import {
+  canOpenLearnerResource,
+  getLearnerResourceAccessMode,
+} from "@/modules/content/domain/learner-resource-access";
 import type {
   StudentContentModule,
   StudentContentResourceDetail,
@@ -39,7 +43,6 @@ export async function getStudentContentCanonicalHref({
   if (!user.selectedLevelId) return null;
 
   const access = await getPremiumAccessDecision(user.selectedLevelId);
-  if (!access.decision.allowed) return null;
 
   const moduleWhere = getVisibleLearnerModuleWhere(Role.STUDENT);
   const resourceWhere = getVisibleLearnerResourceWhere();
@@ -55,7 +58,7 @@ export async function getStudentContentCanonicalHref({
           resources: {
             where: resourceWhere,
             orderBy: [{ order: "asc" }, { id: "asc" }],
-            select: { id: true },
+            select: { id: true, isFreePreview: true },
           },
         },
       },
@@ -65,18 +68,34 @@ export async function getStudentContentCanonicalHref({
   const requestedSubject = requestedSubjectId
     ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null
     : null;
+  const firstSubjectWithAccessibleResources = subjects.find((subject) =>
+    subject.modules.some((moduleRecord) =>
+      moduleRecord.resources.some(
+        (resource) => access.decision.allowed || resource.isFreePreview,
+      ),
+    ),
+  );
   const firstSubjectWithResources =
     subjects.find((subject) =>
       subject.modules.some((moduleRecord) => moduleRecord.resources.length > 0),
     ) ?? subjects[0] ?? null;
-  const selectedSubject = requestedSubject ?? firstSubjectWithResources;
+  const selectedSubject =
+    requestedSubject ??
+    firstSubjectWithAccessibleResources ??
+    firstSubjectWithResources;
   const resources =
     selectedSubject?.modules.flatMap((moduleRecord) => moduleRecord.resources) ??
     [];
   const requestedResource = requestedResourceId
     ? resources.find((resource) => resource.id === requestedResourceId) ?? null
     : null;
-  const selectedResource = requestedResource ?? resources[0] ?? null;
+  const selectedResource =
+    requestedResource ??
+    resources.find(
+      (resource) => access.decision.allowed || resource.isFreePreview,
+    ) ??
+    resources[0] ??
+    null;
 
   return studentContentHref(selectedSubject?.id, selectedResource?.id);
 }
@@ -98,12 +117,13 @@ export async function getStudentContentWorkspace({
       levelNumber: true,
       description: true,
       requiresSubscription: true,
+      isActive: true,
     },
   });
   if (!selectedLevel) return { status: "NO_LEVEL" };
 
   const access = await getPremiumAccessDecision(selectedLevel.id);
-  if (!access.decision.allowed) {
+  if (!selectedLevel.isActive && !access.decision.allowed) {
     return {
       status: "LOCKED",
       level: selectedLevel,
@@ -134,6 +154,7 @@ export async function getStudentContentWorkspace({
               id: true,
               title: true,
               type: true,
+              isFreePreview: true,
               estimatedMinutes: true,
               youtubeVideo: { select: { duration: true } },
               audioResource: { select: { duration: true } },
@@ -149,6 +170,7 @@ export async function getStudentContentWorkspace({
     },
   });
 
+  const hasLevelAccess = access.decision.allowed;
   const subjects: StudentContentSubject[] = subjectRows.map((subject) => ({
     id: subject.id,
     name: subject.name,
@@ -170,6 +192,11 @@ export async function getStudentContentWorkspace({
             null,
           started: resource.progress.length > 0,
           completed: resource.progress[0]?.completed ?? false,
+          accessMode: getLearnerResourceAccessMode({
+            levelRequiresSubscription: selectedLevel.requiresSubscription,
+            isFreePreview: resource.isFreePreview,
+            hasLevelAccess,
+          }),
           href: studentContentHref(subject.id, resource.id),
         })),
       }),
@@ -179,11 +206,21 @@ export async function getStudentContentWorkspace({
   const requestedSubject = requestedSubjectId
     ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null
     : null;
+  const firstSubjectWithAccessibleResources = subjects.find((subject) =>
+    subject.modules.some((moduleRecord) =>
+      moduleRecord.resources.some((resource) =>
+        canOpenLearnerResource(resource.accessMode),
+      ),
+    ),
+  );
   const firstSubjectWithResources =
     subjects.find((subject) =>
       subject.modules.some((moduleRecord) => moduleRecord.resources.length > 0),
     ) ?? subjects[0] ?? null;
-  const selectedSubject = requestedSubject ?? firstSubjectWithResources;
+  const selectedSubject =
+    requestedSubject ??
+    firstSubjectWithAccessibleResources ??
+    firstSubjectWithResources;
   const requestedSubjectUnavailable = Boolean(
     requestedSubjectId && !requestedSubject,
   );
@@ -199,13 +236,22 @@ export async function getStudentContentWorkspace({
       null
     : null;
   const selectedResourceSummary =
-    requestedResource ?? flattenedResources[0] ?? null;
+    requestedResource ??
+    flattenedResources.find((resource) =>
+      canOpenLearnerResource(resource.accessMode),
+    ) ??
+    flattenedResources[0] ??
+    null;
   const requestedResourceUnavailable = Boolean(
     requestedResourceId && !requestedResource,
   );
 
   let selectedResource: StudentContentResourceDetail | null = null;
-  if (selectedSubject && selectedResourceSummary) {
+  if (
+    selectedSubject &&
+    selectedResourceSummary &&
+    canOpenLearnerResource(selectedResourceSummary.accessMode)
+  ) {
     const resource = await prisma.resource.findFirst({
       where: {
         ...getVisibleLearnerResourceTreeWhere({
@@ -308,6 +354,7 @@ export async function getStudentContentWorkspace({
         isRequired: resource.isRequired,
         isSaved: resource.savedBy.length > 0,
         isCompleted: selectedResourceSummary.completed,
+        accessMode: selectedResourceSummary.accessMode,
         protectedFileAccessEnabled: isR2UploadEnabled(),
         youtube: resource.youtubeVideo,
         link: resource.linkResource,
@@ -364,9 +411,12 @@ export async function getStudentContentWorkspace({
     }
   }
 
-  const effectiveResourceId = selectedResource?.id ?? null;
+  const effectiveResourceId = selectedResourceSummary?.id ?? null;
+  const accessibleResources = flattenedResources.filter((resource) =>
+    canOpenLearnerResource(resource.accessMode),
+  );
   const resourceIndex = effectiveResourceId
-    ? flattenedResources.findIndex((resource) => resource.id === effectiveResourceId)
+    ? accessibleResources.findIndex((resource) => resource.id === effectiveResourceId)
     : -1;
   const selectedModule = effectiveResourceId
     ? selectedSubject?.modules.find((moduleRecord) =>
@@ -375,14 +425,18 @@ export async function getStudentContentWorkspace({
         ),
       ) ?? null
     : null;
+  const accessibleModuleResources =
+    selectedModule?.resources.filter((resource) =>
+      canOpenLearnerResource(resource.accessMode),
+    ) ?? [];
   const moduleResourceIndex =
     selectedModule && effectiveResourceId
-      ? selectedModule.resources.findIndex(
+      ? accessibleModuleResources.findIndex(
           (resource) => resource.id === effectiveResourceId,
         )
       : -1;
   const navigationTarget = (index: number) => {
-    const target = flattenedResources[index];
+    const target = accessibleResources[index];
     return target
       ? { id: target.id, title: target.title, href: target.href }
       : null;
@@ -394,20 +448,19 @@ export async function getStudentContentWorkspace({
     selectedSubjectId: selectedSubject?.id ?? null,
     selectedModuleId: selectedModule?.id ?? null,
     selectedResourceId: effectiveResourceId,
+    selectedResourceAccessMode: selectedResourceSummary?.accessMode ?? null,
     selectedResource,
     previous: resourceIndex > 0 ? navigationTarget(resourceIndex - 1) : null,
     next:
-      resourceIndex >= 0 && resourceIndex < flattenedResources.length - 1
+      resourceIndex >= 0 && resourceIndex < accessibleResources.length - 1
         ? navigationTarget(resourceIndex + 1)
         : null,
     resourcePosition: resourceIndex >= 0 ? resourceIndex + 1 : 0,
-    resourceCount: flattenedResources.length,
+    resourceCount: accessibleResources.length,
     moduleResourcePosition:
       moduleResourceIndex >= 0 ? moduleResourceIndex + 1 : 0,
-    moduleResourceCount: selectedModule?.resources.length ?? 0,
+    moduleResourceCount: accessibleModuleResources.length,
     requestedSubjectUnavailable,
-    requestedResourceUnavailable: requestedResourceUnavailable || Boolean(
-      selectedResourceSummary && !selectedResource,
-    ),
+    requestedResourceUnavailable,
   };
 }

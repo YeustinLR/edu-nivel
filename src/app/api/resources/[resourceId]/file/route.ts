@@ -6,6 +6,10 @@ import {
   ResourceType,
   Role,
 } from "@/generated/prisma/client";
+import {
+  canOpenLearnerResource,
+  getLearnerResourceAccessMode,
+} from "@/modules/content/domain/learner-resource-access";
 import { getPremiumAccessDecision, requireUser } from "@/server/auth/guards";
 import { audienceAllowsLearnerRole } from "@/server/content/learner-content-access";
 import { prisma } from "@/server/db/prisma";
@@ -40,6 +44,7 @@ export async function GET(
       createdById: true,
       publicationStatus: true,
       isActive: true,
+      isFreePreview: true,
       pdfResource: {
         select: {
           storageKey: true,
@@ -81,6 +86,7 @@ export async function GET(
                 select: {
                   id: true,
                   isActive: true,
+                  requiresSubscription: true,
                 },
               },
             },
@@ -103,7 +109,6 @@ export async function GET(
 
   if (!canManage) {
     const visible =
-      level.isActive &&
       resource.module.subject.isActive &&
       resource.module.isActive &&
       resource.isActive &&
@@ -117,9 +122,17 @@ export async function GET(
 
     if (user.role === Role.STUDENT || user.role === Role.TEACHER) {
       const { decision } = await getPremiumAccessDecision(level.id);
-      if (!decision.allowed) {
+      const accessMode = getLearnerResourceAccessMode({
+        levelRequiresSubscription: level.requiresSubscription,
+        isFreePreview: resource.isFreePreview,
+        hasLevelAccess: decision.allowed,
+      });
+      if (
+        (!level.isActive && !decision.allowed) ||
+        !canOpenLearnerResource(accessMode)
+      ) {
         return NextResponse.json(
-          { error: decision.code },
+          { error: decision.allowed ? "RESOURCE_FORBIDDEN" : decision.code },
           { status: 403 },
         );
       }

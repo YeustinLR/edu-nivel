@@ -64,17 +64,22 @@ export function StudentExploreModules({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1 text-[0.65rem] font-extrabold uppercase tracking-wide text-[var(--student-muted)]">
-                          {!hasAccess ? <LockKeyhole aria-hidden="true" className="h-3 w-3" /> : null}
+                          {!hasAccess && !resource.isFreePreview ? <LockKeyhole aria-hidden="true" className="h-3 w-3" /> : null}
                           {resourceTypeLabels[resource.type]}
                         </span>
                         <span className="mt-0.5 line-clamp-2 block text-xs font-semibold leading-4 text-[var(--student-text)]">{resource.title}</span>
+                        {!hasAccess && resource.isFreePreview ? (
+                          <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[0.65rem] font-bold text-emerald-700 dark:text-emerald-300">
+                            Gratis
+                          </span>
+                        ) : null}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="mt-4 rounded-xl border border-dashed border-[var(--student-border)] px-3 py-5 text-center text-xs text-[var(--student-muted)]">
-                  Sin recursos Student publicados
+                  Sin recursos publicados
                 </div>
               )}
             </article>

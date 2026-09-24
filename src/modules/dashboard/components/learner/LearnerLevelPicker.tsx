@@ -94,8 +94,10 @@ function LevelPickerControl({
               ? "Actualizando contenido…"
               : selectedLevel && !selectedLevel.isActive
                 ? "Archivado · acceso vigente"
+                : selectedLevel?.requiresSubscription && selectedLevel.hasFullAccess
+                ? "Suscripción vigente"
                 : selectedLevel?.requiresSubscription
-                ? "Acceso vigente"
+                  ? "Explora recursos gratuitos"
                 : selectedLevel
                   ? "Acceso incluido"
                   : "Adquiere o activa un nivel para verlo aquí"}
@@ -111,12 +113,12 @@ function LevelPickerControl({
         <div
           id={listboxId}
           role="listbox"
-          aria-label="Niveles con acceso vigente"
+          aria-label="Niveles disponibles"
           className="absolute right-0 z-50 mt-2 max-h-80 w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-[var(--student-border)] bg-[var(--student-panel)] p-2 shadow-[0_22px_60px_rgba(15,23,42,0.22)] ring-1 ring-black/5 sm:left-0 sm:right-auto"
         >
           <div className="px-2.5 pb-2 pt-1">
             <p className="text-xs font-extrabold uppercase tracking-[0.13em] text-[var(--student-muted)]">
-              Tus niveles disponibles
+              Niveles disponibles
             </p>
           </div>
           <div className="space-y-1">
@@ -157,8 +159,10 @@ function LevelPickerControl({
                     <span className="mt-0.5 block text-xs leading-4 text-[var(--student-muted)]">
                       {!level.isActive
                         ? "Archivado · disponible hasta tu vencimiento"
-                        : level.requiresSubscription
+                        : level.requiresSubscription && level.hasFullAccess
                         ? "Suscripción con acceso vigente"
+                        : level.requiresSubscription
+                          ? "Explora gratis · contenido premium bloqueado"
                         : "Disponible sin suscripción"}
                     </span>
                   </span>

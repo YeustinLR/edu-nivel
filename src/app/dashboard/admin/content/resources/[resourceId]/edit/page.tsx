@@ -7,6 +7,7 @@ import { ResourceCreationHelp } from "@/modules/content/components/admin/creatio
 import { ResourceCreationToast } from "@/modules/content/components/creation/ResourceCreationToast";
 import { ContentAvailabilityControl } from "@/modules/content/components/editor/ContentAvailabilityControl";
 import { EditResourceForm } from "@/modules/content/components/editor/EditResourceForm";
+import { ResourceFreeAccessControl } from "@/modules/content/components/editor/ResourceFreeAccessControl";
 import { requireRole } from "@/server/auth/guards";
 import { getResourceContentDetail } from "@/server/content/content-detail-queries";
 import { prisma } from "@/server/db/prisma";
@@ -63,6 +64,12 @@ export default async function EditAdminResourcePage({
             ) : (
               <p role="alert" className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">Este recurso no puede editarse en su estado actual.</p>
             )}
+            <ResourceFreeAccessControl
+              resourceId={resource.id}
+              isFreePreview={resource.isFreePreview}
+              levelRequiresSubscription={resource.levelRequiresSubscription}
+              updatedAt={resource.updatedAt.toISOString()}
+            />
             <ContentAvailabilityControl
               type="resource"
               id={resource.id}

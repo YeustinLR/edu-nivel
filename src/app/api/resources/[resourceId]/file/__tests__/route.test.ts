@@ -51,6 +51,7 @@ function pdfResource() {
     createdById: "author-1",
     publicationStatus: PublicationStatus.PUBLISHED,
     isActive: true,
+    isFreePreview: false,
     pdfResource: {
       storageKey: "resources/resource-1/file.pdf",
       originalName: "guia.pdf",
@@ -66,7 +67,11 @@ function pdfResource() {
       audience: ContentAudience.BOTH,
       subject: {
         isActive: true,
-        level: { id: "level-1", isActive: true },
+        level: {
+          id: "level-1",
+          isActive: true,
+          requiresSubscription: true,
+        },
       },
     },
   };
@@ -107,6 +112,7 @@ describe("GET /api/resources/[resourceId]/file", () => {
         createdById: true,
         publicationStatus: true,
         isActive: true,
+        isFreePreview: true,
         pdfResource: {
           select: {
             storageKey: true,
@@ -145,7 +151,11 @@ describe("GET /api/resources/[resourceId]/file", () => {
               select: {
                 isActive: true,
                 level: {
-                  select: { id: true, isActive: true },
+                  select: {
+                    id: true,
+                    isActive: true,
+                    requiresSubscription: true,
+                  },
                 },
               },
             },
@@ -182,7 +192,6 @@ describe("GET /api/resources/[resourceId]/file", () => {
   });
 
   it.each([
-    ["inactive level", { level: false }],
     ["inactive subject", { subject: false }],
     ["inactive module", { module: false }],
     ["inactive resource", { resource: false }],
@@ -217,6 +226,28 @@ describe("GET /api/resources/[resourceId]/file", () => {
     expect(response.status).toBe(403);
     expect(getPremiumAccessDecisionMock).not.toHaveBeenCalled();
     expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an archived resource available while paid access remains valid", async () => {
+    const current = pdfResource();
+    findUniqueMock.mockResolvedValue({
+      ...current,
+      module: {
+        ...current.module,
+        subject: {
+          ...current.module.subject,
+          level: { ...current.module.subject.level, isActive: false },
+        },
+      },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(307);
+    expect(getPremiumAccessDecisionMock).toHaveBeenCalledWith("level-1");
   });
 
   it.each([
@@ -262,6 +293,24 @@ describe("GET /api/resources/[resourceId]/file", () => {
       error: "SUBSCRIPTION_REQUIRED",
     });
     expect(createPresignedDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("authorizes a free resource without premium access", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pdfResource(),
+      isFreePreview: true,
+    });
+    getPremiumAccessDecisionMock.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/resources/resource-1/file"),
+      params,
+    );
+
+    expect(response.status).toBe(307);
+    expect(createPresignedDownloadUrlMock).toHaveBeenCalledOnce();
   });
 
   it("authorizes a teacher for a published teacher resource", async () => {

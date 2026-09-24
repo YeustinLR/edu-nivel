@@ -1,25 +1,25 @@
 "use client";
 
-import { Flame } from "lucide-react";
 import Link from "next/link";
 
 import { EduNivelLogo } from "@/components/layout/EduNivelLogo";
 import { Role } from "@/generated/prisma/enums";
 import { SidebarUserMenu } from "@/modules/dashboard/components/layout/SidebarUserMenu";
+import { LearnerStreakBadge } from "@/modules/dashboard/components/learner/LearnerStreakBadge";
 import { navigationByRole } from "@/modules/dashboard/config/navigation";
 import { useActiveNavItem } from "@/modules/dashboard/hooks/useActiveNavItem";
 import type { LearnerRole } from "@/modules/dashboard/types/learner-dashboard";
 
-const TEMPORARY_STREAK_DAYS = 5;
-
 export function LearnerSidebar({
   role,
+  streakDays,
   userName,
   userEmail,
   userImage,
   onLogout,
 }: {
   role: LearnerRole;
+  streakDays: number;
   userName: string;
   userEmail: string;
   userImage?: string | null;
@@ -82,15 +82,7 @@ export function LearnerSidebar({
       </nav>
 
       <div className="space-y-3 px-4 pb-5">
-        <div className="rounded-control border border-white/10 bg-[#1b2745] px-4 py-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Flame aria-hidden="true" className="size-5 text-coral" fill="currentColor" />
-            <div>
-              <p className="font-heading text-sm font-bold">{TEMPORARY_STREAK_DAYS} días</p>
-              <p className="text-[11px] text-white/55">Racha actual</p>
-            </div>
-          </div>
-        </div>
+        <LearnerStreakBadge days={streakDays} />
 
         <SidebarUserMenu
           userName={userName}

@@ -13,6 +13,7 @@ import { LearnerDashboardShell } from "@/modules/dashboard/components/learner/Le
 
 interface DashboardShellProps {
   children: ReactNode;
+  learnerStreakDays?: number;
   userName: string;
   userEmail: string;
   userRole: string;
@@ -21,6 +22,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({
   children,
+  learnerStreakDays = 0,
   userName,
   userEmail,
   userRole,
@@ -38,6 +40,7 @@ export function DashboardShell({
     return (
       <LearnerDashboardShell
         role={userRole}
+        streakDays={learnerStreakDays}
         userName={userName}
         userEmail={userEmail}
         userImage={userImage}
@@ -94,7 +97,7 @@ export function DashboardShell({
 
         <main
           id="dashboard-content"
-          className="mx-auto w-full max-w-7xl px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-14 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-5"
+          className="mx-auto w-full max-w-7xl px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-20 lg:px-8 lg:pb-10 lg:pt-5"
         >
           {children}
         </main>

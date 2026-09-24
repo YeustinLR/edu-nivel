@@ -17,7 +17,9 @@
  */
 import { requireUser } from "@/server/auth/guards";
 
+import { Role } from "@/generated/prisma/enums";
 import { DashboardShell } from "@/modules/dashboard/components/layout/DashboardShell";
+import { recordLearnerDashboardVisit } from "@/server/dashboard/learner-streak";
 
 export default async function DashboardLayout({
   children,
@@ -25,9 +27,14 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  const learnerStreakDays =
+    user.role === Role.STUDENT || user.role === Role.TEACHER
+      ? await recordLearnerDashboardVisit(user.id)
+      : undefined;
 
   return (
     <DashboardShell
+      learnerStreakDays={learnerStreakDays}
       userName={user.name}
       userEmail={user.email}
       userRole={user.role}

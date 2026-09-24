@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, type MouseEvent } from "react";
 
 import { ThemeToggle } from "@/modules/dashboard/components/layout/ThemeToggle";
+import { LearnerStreakBadge } from "@/modules/dashboard/components/learner/LearnerStreakBadge";
 import {
   navigationByRole,
   partitionMobileNavigation,
@@ -19,12 +20,14 @@ const roleLabels = {
 
 export function LearnerMobileNavigation({
   role,
+  streakDays,
   userName,
   userEmail,
   userImage,
   onLogout,
 }: {
   role: LearnerRole;
+  streakDays: number;
   userName: string;
   userEmail: string;
   userImage?: string | null;
@@ -132,6 +135,8 @@ export function LearnerMobileNavigation({
         </div>
 
         <div className="space-y-5 px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4">
+          <LearnerStreakBadge days={streakDays} tone="light" />
+
           <div className="flex items-center gap-3 rounded-[16px] border border-[var(--student-border)] bg-[var(--student-bg)] p-3">
             {userImage ? (
               // eslint-disable-next-line @next/next/no-img-element

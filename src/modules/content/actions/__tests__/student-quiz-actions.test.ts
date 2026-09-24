@@ -5,7 +5,8 @@ import { startStudentQuizAttemptAction, submitStudentQuizAttemptAction } from "@
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
-  getPremiumAccessDecision: vi.fn(),
+  getAuthorizedStudentResource: vi.fn(),
+  attemptFindFirst: vi.fn(),
   start: vi.fn(),
   submit: vi.fn(),
   revalidatePath: vi.fn(),
@@ -15,12 +16,19 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/server/auth/guards", () => ({
   AuthGuardError: class AuthGuardError extends Error {},
   requireRole: mocks.requireRole,
-  getPremiumAccessDecision: mocks.getPremiumAccessDecision,
 }));
 vi.mock("@/server/content/quiz-attempts", () => ({
   QuizAttemptError: class QuizAttemptError extends Error {},
   startOrResumeStudentQuizAttempt: mocks.start,
   submitStudentQuizAttempt: mocks.submit,
+}));
+vi.mock("@/server/content/student-resource-access", () => ({
+  getAuthorizedStudentResource: mocks.getAuthorizedStudentResource,
+}));
+vi.mock("@/server/db/prisma", () => ({
+  prisma: {
+    quizAttempt: { findFirst: mocks.attemptFindFirst },
+  },
 }));
 
 describe("student quiz actions", () => {
@@ -31,16 +39,24 @@ describe("student quiz actions", () => {
       role: Role.STUDENT,
       selectedLevelId: "level-1",
     });
-    mocks.getPremiumAccessDecision.mockResolvedValue({ decision: { allowed: true } });
+    mocks.getAuthorizedStudentResource.mockResolvedValue({
+      allowed: true,
+      userId: "student-1",
+      levelId: "level-1",
+      resourceId: "resource-1",
+      accessMode: "SUBSCRIBED",
+    });
+    mocks.attemptFindFirst.mockResolvedValue({
+      quiz: { resourceId: "resource-1" },
+    });
     mocks.start.mockResolvedValue({ attemptId: "attempt-1", questions: [] });
     mocks.submit.mockResolvedValue({ attemptId: "attempt-1", percentage: 100 });
   });
 
-  it("requires the student role and premium level access before starting", async () => {
+  it("requires resource-level access before starting", async () => {
     const result = await startStudentQuizAttemptAction("resource-1");
 
-    expect(mocks.requireRole).toHaveBeenCalledWith(Role.STUDENT);
-    expect(mocks.getPremiumAccessDecision).toHaveBeenCalledWith("level-1");
+    expect(mocks.getAuthorizedStudentResource).toHaveBeenCalledWith("resource-1");
     expect(mocks.start).toHaveBeenCalledWith(
       { id: "student-1", selectedLevelId: "level-1" },
       "resource-1",
@@ -48,9 +64,10 @@ describe("student quiz actions", () => {
     expect(result.status).toBe("success");
   });
 
-  it("refuses to reveal a quiz to a student without level access", async () => {
-    mocks.getPremiumAccessDecision.mockResolvedValue({
-      decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
+  it("refuses to reveal a quiz without resource access", async () => {
+    mocks.getAuthorizedStudentResource.mockResolvedValue({
+      allowed: false,
+      code: "CONTENT_ACCESS_REQUIRED",
     });
 
     const result = await startStudentQuizAttemptAction("resource-1");

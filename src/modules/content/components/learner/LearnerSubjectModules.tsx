@@ -1,10 +1,11 @@
 "use client";
 
-import { BookOpen, ChevronDown, ExternalLink, Lightbulb } from "lucide-react";
+import { BookOpen, ChevronDown, ExternalLink, Lightbulb, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ResourceType } from "@/generated/prisma/enums";
+import type { LearnerResourceAccessMode } from "@/modules/content/domain/learner-resource-access";
 import {
   ResourceTypeBadge,
 } from "@/modules/content/components/admin/ContentBadges";
@@ -21,6 +22,7 @@ export type LearnerModuleResource = {
   content: string | null;
   estimatedMinutes: number | null;
   type: ResourceType;
+  accessMode: LearnerResourceAccessMode;
   youtubeVideo: { videoId: string; startAt: number | null } | null;
   linkResource: { url: string; openInNewTab: boolean } | null;
 };
@@ -52,7 +54,12 @@ function ResourcePresentation({
   const viewRecorded = useRef(false);
 
   useEffect(() => {
-    if (!trackTeacherView || !visible || viewRecorded.current) return;
+    if (
+      resource.accessMode === "LOCKED" ||
+      !trackTeacherView ||
+      !visible ||
+      viewRecorded.current
+    ) return;
 
     viewRecorded.current = true;
     void recordTeacherResourceViewedAction(resource.id)
@@ -62,7 +69,7 @@ function ResourcePresentation({
       .catch(() => {
         viewRecorded.current = false;
       });
-  }, [resource.id, trackTeacherView, visible]);
+  }, [resource.accessMode, resource.id, trackTeacherView, visible]);
 
   const surfaceClass = student
     ? "rounded-2xl border border-[var(--student-border)] bg-[var(--student-panel)] p-5 shadow-[0_5px_22px_rgba(15,23,42,0.035)]"
@@ -76,10 +83,39 @@ function ResourcePresentation({
 
   const header = (
     <>
+      <div className="flex flex-wrap items-center gap-2">
       <ResourceTypeBadge type={resource.type} showIcon />
+        {resource.accessMode === "FREE_PREVIEW" ? (
+          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            Gratis
+          </span>
+        ) : resource.accessMode === "LOCKED" ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300">
+            <LockKeyhole aria-hidden="true" className="h-3 w-3" />
+            Suscripción
+          </span>
+        ) : null}
+      </div>
       <p className={titleClass}>{resource.title}</p>
     </>
   );
+
+  if (resource.accessMode === "LOCKED") {
+    return (
+      <div className={surfaceClass}>
+        {header}
+        <p className={descriptionClass}>
+          Suscríbete a este nivel para abrir el recurso completo.
+        </p>
+        <Link
+          href="/dashboard/subscription"
+          className={student ? "mt-4 inline-flex min-h-10 items-center rounded-xl bg-[var(--student-blue)] px-3 py-2 text-sm font-bold text-white" : "mt-4 inline-flex min-h-10 items-center rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-white"}
+        >
+          Ver suscripción
+        </Link>
+      </div>
+    );
+  }
   const instructions = resource.instructions ? (
     <details className={student ? "mt-4 rounded-xl border border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25" : "mt-4 rounded-lg border border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25"}>
       <summary className={student ? "flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-bold text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-100" : "flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-100"}>

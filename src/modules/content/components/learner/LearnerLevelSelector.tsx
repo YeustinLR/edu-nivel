@@ -8,6 +8,7 @@ type LevelOption = {
   description: string | null;
   requiresSubscription: boolean;
   isActive: boolean;
+  hasFullAccess: boolean;
 };
 
 export function LearnerLevelSelector({
@@ -40,7 +41,8 @@ export function LearnerLevelSelector({
         returnTo={`/dashboard/${roleRoot}/content`}
       />
       <p className="mt-2 text-xs text-[var(--student-muted)]">
-        Solo se muestran niveles con acceso vigente.
+        Puedes explorar todos los niveles activos. Los recursos premium se
+        desbloquean con una suscripción vigente.
       </p>
     </div>
   );

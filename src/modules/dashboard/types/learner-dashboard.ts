@@ -1,4 +1,5 @@
 import type { ResourceType, Role } from "@/generated/prisma/enums";
+import type { LearnerResourceAccessMode } from "@/modules/content/domain/learner-resource-access";
 
 export type LearnerRole = typeof Role.STUDENT | typeof Role.TEACHER;
 export type LearnerAccessStatus = "ACTIVE" | "INCLUDED" | "LOCKED" | "NO_LEVEL";
@@ -26,6 +27,7 @@ export type LearnerResourceSummary = {
   startedAt: string | null;
   lastViewedAt: string | null;
   completed: boolean;
+  accessMode: Exclude<LearnerResourceAccessMode, "LOCKED">;
   href: string;
 };
 
@@ -60,6 +62,7 @@ export type LearnerDashboardData = {
     description: string | null;
     requiresSubscription: boolean;
     isActive: boolean;
+    hasFullAccess: boolean;
   }>;
   selectedLevel: {
     id: string;
@@ -67,6 +70,7 @@ export type LearnerDashboardData = {
     description: string | null;
     requiresSubscription: boolean;
     isActive: boolean;
+    hasFullAccess: boolean;
   } | null;
   access: {
     status: LearnerAccessStatus;

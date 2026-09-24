@@ -99,6 +99,13 @@ export async function getStudentExploreData({
       subjectCount: level.subjects.length,
       moduleCount: modules.length,
       resourceCount: resourceTypes.length,
+      freeResourceCount: modules.reduce(
+        (total, moduleRecord) =>
+          total +
+          moduleRecord.resources.filter((resource) => resource.isFreePreview)
+            .length,
+        0,
+      ),
       ...typeSummary,
       access: getStudentExploreAccess({
         requiresSubscription: level.requiresSubscription,

@@ -871,7 +871,13 @@ export default function ResourceDocumentEditor({
           disabled={disabled}
           revision={selectionRevision}
         />
-        <div className={styles.editorPane} onPaste={normalizePaste}>
+        <div
+          className={styles.editorPane}
+          role="region"
+          aria-label="Contenido del documento"
+          tabIndex={0}
+          onPaste={normalizePaste}
+        >
           <BlockNoteView
             editor={editor}
             theme={resolvedTheme === "dark" ? "dark" : "light"}
@@ -893,7 +899,13 @@ export default function ResourceDocumentEditor({
           </BlockNoteView>
         </div>
       </div>
-      <div className={mode === "preview" ? styles.preview : styles.hidden} role="tabpanel" aria-hidden={mode !== "preview"}>
+      <div
+        className={mode === "preview" ? styles.preview : styles.hidden}
+        role="tabpanel"
+        aria-label="Vista previa del documento"
+        aria-hidden={mode !== "preview"}
+        tabIndex={mode === "preview" ? 0 : -1}
+      >
         <ResourceContentRenderer
           content={serialized}
           emptyFallback={<p className={styles.previewEmpty}>La vista previa aparecerá cuando agregues contenido.</p>}

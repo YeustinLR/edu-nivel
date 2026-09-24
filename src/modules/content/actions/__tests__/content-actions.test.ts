@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   getPremiumAccessDecision: vi.fn(),
   userUpdate: vi.fn(),
+  levelFindUnique: vi.fn(),
   revalidateContentPages: vi.fn(),
   revalidateLearnerSelectionPages: vi.fn(),
 }));
@@ -21,7 +22,7 @@ vi.mock("@/server/auth/guards", () => ({
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     user: { update: mocks.userUpdate },
-    level: { findUnique: vi.fn() },
+    level: { findUnique: mocks.levelFindUnique },
   },
 }));
 vi.mock("@/server/content/revalidate-content", () => ({
@@ -51,6 +52,7 @@ describe("enterStudentLevelAction", () => {
     vi.clearAllMocks();
     mocks.requireRole.mockResolvedValue({ id: "student-1", role: Role.STUDENT });
     mocks.userUpdate.mockResolvedValue({ id: "student-1" });
+    mocks.levelFindUnique.mockResolvedValue({ isActive: true });
   });
 
   it("persists selectedLevelId only after server-side access succeeds", async () => {
@@ -76,17 +78,17 @@ describe("enterStudentLevelAction", () => {
     expect(mocks.revalidateContentPages).not.toHaveBeenCalled();
   });
 
-  it("does not persist the preview level when access is denied", async () => {
+  it("allows entering an active level to explore free resources", async () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       user: { id: "student-1" },
       decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
     });
 
     await expect(enterStudentLevelAction(formData())).rejects.toThrow(
-      "REDIRECT:/dashboard/student/explore?level=level-7&error=SUBSCRIPTION_REQUIRED",
+      "REDIRECT:/dashboard/student/content",
     );
-    expect(mocks.userUpdate).not.toHaveBeenCalled();
-    expect(mocks.revalidateLearnerSelectionPages).not.toHaveBeenCalled();
+    expect(mocks.userUpdate).toHaveBeenCalledOnce();
+    expect(mocks.revalidateLearnerSelectionPages).toHaveBeenCalledOnce();
   });
 });
 
@@ -95,6 +97,7 @@ describe("selectLevelAction", () => {
     vi.clearAllMocks();
     mocks.requireRole.mockResolvedValue({ id: "student-1", role: Role.STUDENT });
     mocks.userUpdate.mockResolvedValue({ id: "student-1" });
+    mocks.levelFindUnique.mockResolvedValue({ isActive: true });
   });
 
   it("persists only an accessible level and reloads the learner dashboard", async () => {
@@ -115,15 +118,26 @@ describe("selectLevelAction", () => {
     });
   });
 
-  it("rejects a level without current access", async () => {
+  it("allows selecting an active level without current access", async () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: false, code: "SUBSCRIPTION_EXPIRED" },
     });
 
     await expect(selectLevelAction(formData())).rejects.toThrow(
-      "No tienes acceso vigente al nivel seleccionado.",
+      "REDIRECT:/dashboard/student",
+    );
+    expect(mocks.userUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an archived level without current access", async () => {
+    mocks.levelFindUnique.mockResolvedValue({ isActive: false });
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_EXPIRED" },
+    });
+
+    await expect(selectLevelAction(formData())).rejects.toThrow(
+      "Este nivel no está disponible para tu cuenta.",
     );
     expect(mocks.userUpdate).not.toHaveBeenCalled();
-    expect(mocks.redirect).not.toHaveBeenCalled();
   });
 });

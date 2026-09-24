@@ -50,7 +50,7 @@ describe("published academic catalog cache", () => {
     );
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ["published-student-academic-catalog-v1"],
+      ["published-student-academic-catalog-v2"],
       {
         revalidate: ACADEMIC_CATALOG_CACHE_SECONDS,
         tags: [STUDENT_ACADEMIC_CATALOG_TAG],

@@ -16,12 +16,14 @@ import type { LearnerRole } from "@/modules/dashboard/types/learner-dashboard";
 
 export function LearnerDashboardShell({
   role,
+  streakDays,
   children,
   userName,
   userEmail,
   userImage,
 }: {
   role: LearnerRole;
+  streakDays: number;
   children: ReactNode;
   userName: string;
   userEmail: string;
@@ -43,6 +45,7 @@ export function LearnerDashboardShell({
     <div className={`${learnerBodyFont.variable} ${learnerHeadingFont.variable} ${learnerMetaFont.variable} learner-dashboard ${isMateriasPage ? "learner-dashboard--materias" : ""} min-h-dvh bg-[var(--student-bg)] font-body text-[var(--student-text)]`}>
       <LearnerSidebar
         role={role}
+        streakDays={streakDays}
         userName={userName}
         userEmail={userEmail}
         userImage={userImage}
@@ -60,6 +63,7 @@ export function LearnerDashboardShell({
       </div>
       <LearnerMobileNavigation
         role={role}
+        streakDays={streakDays}
         userName={userName}
         userEmail={userEmail}
         userImage={userImage}

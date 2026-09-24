@@ -45,7 +45,7 @@ export default function Testimonials() {
           ))}
         </div>
 
-        <div className="glass-card rounded-3xl p-6 mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+        <div className="glass-card mt-10 grid grid-cols-1 gap-6 rounded-3xl p-6 text-center sm:grid-cols-3">
             {[
               { n: "2 roles", d: "Estudiante, Docente" },
               { n: "MEP", d: "Currículo oficial CR" },

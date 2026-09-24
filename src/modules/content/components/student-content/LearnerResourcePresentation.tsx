@@ -35,7 +35,7 @@ type LearnerQuizSummary = Omit<
 
 export type LearnerResourcePresentationData = Omit<
   StudentContentResourceDetail,
-  "isSaved" | "isCompleted" | "quiz"
+  "isSaved" | "isCompleted" | "quiz" | "accessMode"
 > & { quiz: LearnerQuizSummary | null };
 
 function formatSize(value: string | null) {

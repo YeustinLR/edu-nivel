@@ -54,7 +54,7 @@ describe("accessible learner levels", () => {
     ]);
   });
 
-  it("returns only free levels and paid levels with current proven access", async () => {
+  it("returns every active level and identifies which ones have full access", async () => {
     const result = await getAccessibleLearnerLevels({
       userId: "student-1",
       role: Role.STUDENT,
@@ -62,7 +62,16 @@ describe("accessible learner levels", () => {
       now,
     });
 
-    expect(result.map((level) => level.id)).toEqual(["free", "active-paid"]);
+    expect(result.map((level) => level.id)).toEqual([
+      "free",
+      "active-paid",
+      "inactive-paid",
+    ]);
+    expect(result.map((level) => [level.id, level.hasFullAccess])).toEqual([
+      ["free", true],
+      ["active-paid", true],
+      ["inactive-paid", false],
+    ]);
     expect(mocks.subscriptionFindMany).toHaveBeenCalledWith({
       where: {
         userId: "student-1",
@@ -114,7 +123,12 @@ describe("accessible learner levels", () => {
       now,
     });
 
-    expect(result.map((level) => level.id)).toEqual(["free", "archived-paid"]);
-    expect(result[1]).toMatchObject({ isActive: false });
+    expect(result.map((level) => level.id)).toEqual([
+      "free",
+      "active-paid",
+      "inactive-paid",
+      "archived-paid",
+    ]);
+    expect(result[3]).toMatchObject({ isActive: false, hasFullAccess: true });
   });
 });

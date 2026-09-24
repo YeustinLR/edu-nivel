@@ -27,6 +27,7 @@ export type StudentExploreLevelSummary = {
   subjectCount: number;
   moduleCount: number;
   resourceCount: number;
+  freeResourceCount: number;
   resourceTypes: ResourceType[];
   additionalResourceTypeCount: number;
   access: StudentExploreAccess;
@@ -36,6 +37,7 @@ export type StudentExploreResource = {
   id: string;
   title: string;
   type: ResourceType;
+  isFreePreview: boolean;
 };
 
 export type StudentExploreModule = {

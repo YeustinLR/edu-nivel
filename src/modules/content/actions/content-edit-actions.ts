@@ -8,6 +8,7 @@ import {
 import {
   contentAvailabilitySchema,
   getContentAvailabilityFormValues,
+  getResourceFreePreviewFormValues,
   getUpdateLevelFormValues,
   getUpdateModuleFormValues,
   getUpdateResourceFormValues,
@@ -16,6 +17,7 @@ import {
   updateModuleSchema,
   updateResourceSchema,
   updateSubjectSchema,
+  resourceFreePreviewSchema,
 } from "@/modules/content/schemas/content-edit.schema";
 import type {
   ContentEditActionState,
@@ -32,6 +34,7 @@ import {
   updateCatalogSubject,
 } from "@/server/content/update-content";
 import { setCatalogContentAvailability } from "@/server/content/set-content-availability";
+import { setResourceFreePreview } from "@/server/content/set-resource-free-preview";
 
 function knownEditError(
   error: unknown,
@@ -191,6 +194,38 @@ export async function setContentAvailabilityAction(
       message: parsed.data.isActive
         ? "El contenido fue reactivado."
         : "El contenido fue archivado.",
+    };
+  } catch (error) {
+    const known = knownEditError(error, toActionValues(values));
+    if (known) return known;
+    throw error;
+  }
+}
+
+export async function setResourceFreePreviewAction(
+  _previousState: ContentEditActionState,
+  formData: FormData,
+): Promise<ContentEditActionState> {
+  const values = getResourceFreePreviewFormValues(formData);
+  const parsed = resourceFreePreviewSchema.safeParse(values);
+  if (!parsed.success) {
+    return createValidationError(
+      parsed.error.flatten().fieldErrors,
+      toActionValues(values),
+    );
+  }
+
+  try {
+    await requireRole(Role.ADMIN);
+    const result = await setResourceFreePreview(parsed.data);
+    revalidateContentPages(
+      result.affectsPublishedContent ? "published" : "authoring",
+    );
+    return {
+      status: "success",
+      message: parsed.data.isFreePreview
+        ? "El recurso ahora es gratuito."
+        : "El recurso ahora requiere suscripción.",
     };
   } catch (error) {
     const known = knownEditError(error, toActionValues(values));

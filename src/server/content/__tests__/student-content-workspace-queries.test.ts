@@ -42,6 +42,7 @@ const level = {
   levelNumber: 7,
   description: "Séptimo año",
   requiresSubscription: true,
+  isActive: true,
 };
 
 type MockResourceSummary = {
@@ -52,6 +53,7 @@ type MockResourceSummary = {
   youtubeVideo: null;
   audioResource: null;
   progress: Array<{ completed: boolean }>;
+  isFreePreview: boolean;
 };
 
 const subjects: Array<{
@@ -83,6 +85,7 @@ const subjects: Array<{
             youtubeVideo: null,
             audioResource: null,
             progress: [],
+            isFreePreview: true,
           },
           {
             id: "resource-pdf",
@@ -92,6 +95,7 @@ const subjects: Array<{
             youtubeVideo: null,
             audioResource: null,
             progress: [{ completed: true }],
+            isFreePreview: false,
           },
         ],
       },
@@ -108,6 +112,7 @@ const subjects: Array<{
             youtubeVideo: null,
             audioResource: null,
             progress: [],
+            isFreePreview: false,
           },
         ],
       },
@@ -253,7 +258,7 @@ describe("student content workspace queries", () => {
     });
   });
 
-  it("does not query protected catalog data when subscription access is denied", async () => {
+  it("shows the catalog and opens only a free resource when subscription access is denied", async () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
       subscription: null,
@@ -262,10 +267,31 @@ describe("student content workspace queries", () => {
     const result = await getStudentContentWorkspace({});
 
     expect(result).toMatchObject({
-      status: "LOCKED",
-      denialCode: "SUBSCRIPTION_REQUIRED",
+      status: "READY",
+      selectedResourceId: "resource-note",
+      selectedResourceAccessMode: "FREE_PREVIEW",
     });
-    expect(mocks.subjectFindMany).not.toHaveBeenCalled();
+    expect(mocks.subjectFindMany).toHaveBeenCalledOnce();
+    expect(mocks.resourceFindFirst).toHaveBeenCalledOnce();
+  });
+
+  it("does not load the body of a locked premium resource", async () => {
+    mocks.getPremiumAccessDecision.mockResolvedValue({
+      decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
+      subscription: null,
+    });
+
+    const result = await getStudentContentWorkspace({
+      requestedSubjectId: "subject-math",
+      requestedResourceId: "resource-pdf",
+    });
+
+    expect(result).toMatchObject({
+      status: "READY",
+      selectedResourceId: "resource-pdf",
+      selectedResourceAccessMode: "LOCKED",
+      selectedResource: null,
+    });
     expect(mocks.resourceFindFirst).not.toHaveBeenCalled();
   });
 
@@ -375,7 +401,7 @@ describe("student content workspace queries", () => {
                 publicationStatus: PublicationStatus.PUBLISHED,
               },
               orderBy: [{ order: "asc" }, { id: "asc" }],
-              select: { id: true },
+              select: { id: true, isFreePreview: true },
             },
           },
         },
@@ -412,13 +438,15 @@ describe("student content workspace queries", () => {
     );
   });
 
-  it("does not resolve catalog IDs without active premium access", async () => {
+  it("resolves the first free resource without active premium access", async () => {
     mocks.getPremiumAccessDecision.mockResolvedValue({
       decision: { allowed: false, code: "SUBSCRIPTION_REQUIRED" },
       subscription: null,
     });
 
-    await expect(getStudentContentCanonicalHref({})).resolves.toBeNull();
-    expect(mocks.subjectFindMany).not.toHaveBeenCalled();
+    await expect(getStudentContentCanonicalHref({})).resolves.toBe(
+      "/dashboard/student/content?subject=subject-math&resource=resource-note",
+    );
+    expect(mocks.subjectFindMany).toHaveBeenCalledOnce();
   });
 });

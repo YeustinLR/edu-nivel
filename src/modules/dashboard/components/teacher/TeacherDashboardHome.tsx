@@ -20,8 +20,11 @@ import type { LearnerDashboardData } from "@/modules/dashboard/types/learner-das
 function TeacherFocusCard({ data }: { data: LearnerDashboardData }) {
   const target = data.continueTarget;
   const locked = data.access.status === "LOCKED";
+  const hasFreeTarget = locked && Boolean(target);
   const noLevel = data.access.status === "NO_LEVEL";
-  const href = locked
+  const href = hasFreeTarget
+    ? target?.href ?? "/dashboard/teacher/content"
+    : locked
     ? "/dashboard/subscription"
     : noLevel
       ? "/dashboard/teacher/content"
@@ -29,7 +32,9 @@ function TeacherFocusCard({ data }: { data: LearnerDashboardData }) {
   const eyebrow = target?.isProgressRecord
     ? "Continúa consultando"
     : "Biblioteca docente";
-  const title = locked
+  const title = hasFreeTarget
+    ? target?.subjectName ?? "Explora recursos gratuitos"
+    : locked
     ? "Activa el acceso a tu nivel"
     : noLevel
       ? "Elige el nivel que deseas preparar"
@@ -55,7 +60,7 @@ function TeacherFocusCard({ data }: { data: LearnerDashboardData }) {
         <div className="mt-4 h-2 w-24 rounded bg-white/60" />
       </div>
       <Link href={href} className="absolute bottom-6 right-6 z-20 inline-flex min-h-12 items-center gap-3 rounded-xl bg-[var(--student-blue)] px-5 text-sm font-bold text-white shadow-[0_10px_25px_rgba(23,104,229,0.22)] transition hover:-translate-y-0.5 max-sm:static max-sm:mt-6">
-        {locked ? "Ver suscripción" : noLevel ? "Elegir nivel" : target?.isProgressRecord ? "Continuar consulta" : "Explorar recursos"}
+        {hasFreeTarget ? "Explorar gratis" : locked ? "Ver suscripción" : noLevel ? "Elegir nivel" : target?.isProgressRecord ? "Continuar consulta" : "Explorar recursos"}
         <ArrowRight aria-hidden="true" className="h-4 w-4" />
       </Link>
     </section>

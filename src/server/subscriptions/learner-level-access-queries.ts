@@ -31,7 +31,9 @@ export async function getAccessibleLearnerLevels({
   const product = getRequiredSubscriptionProduct(role);
 
   if (!product) {
-    return levels.filter((level) => !level.requiresSubscription);
+    return levels
+      .filter((level) => !level.requiresSubscription)
+      .map((level) => ({ ...level, hasFullAccess: true }));
   }
 
   const subscriptions = await prisma.subscription.findMany({
@@ -67,17 +69,19 @@ export async function getAccessibleLearnerLevels({
   const accessiblePaidLevelIds = new Set(
     subscriptions.map((subscription) => subscription.levelId),
   );
-
-  const visibleLevels = levels.filter(
-    (level) =>
+  // Los niveles activos son explorables aunque el usuario todavía no tenga
+  // suscripción. La autorización del contenido se decide por recurso.
+  const visibleLevels = levels.map((level) => ({
+    ...level,
+    hasFullAccess:
       !level.requiresSubscription || accessiblePaidLevelIds.has(level.id),
-  );
+  }));
   const visibleLevelIds = new Set(visibleLevels.map((level) => level.id));
   const archivedSubscribedLevels = subscriptions.flatMap(({ level }) =>
     !level.isActive &&
     level.requiresSubscription &&
     !visibleLevelIds.has(level.id)
-      ? [level]
+      ? [{ ...level, hasFullAccess: true }]
       : [],
   );
 

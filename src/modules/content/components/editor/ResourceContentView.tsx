@@ -282,6 +282,13 @@ export function ResourceContentView({
             <div className="flex flex-wrap items-center gap-2">
               <ResourceTypeBadge type={resource.type} />
               <PublicationStatusBadge status={resource.publicationStatus} />
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${resource.isFreePreview ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-violet-500/10 text-violet-700 dark:text-violet-300"}`}>
+                {resource.isFreePreview
+                  ? "Gratuito"
+                  : resource.levelRequiresSubscription
+                    ? "Suscripción"
+                    : "Incluido"}
+              </span>
             </div>
             <h3 className="mt-3 break-words text-lg font-semibold text-foreground">
               {resource.title}
