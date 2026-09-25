@@ -49,11 +49,6 @@ import { EditModuleForm } from "@/modules/content/components/editor/EditModuleFo
 import { LearnerResourcePresentation } from "@/modules/content/components/student-content/LearnerResourcePresentation";
 import { initialContentEditActionState } from "@/modules/content/types/content-edit-action-state";
 import { initialEditorialActionState } from "@/modules/content/types/editorial-action-state";
-import {
-  learnerBodyFont,
-  learnerHeadingFont,
-  learnerMetaFont,
-} from "@/modules/dashboard/styles/learner-fonts";
 import type {
   AdminSubjectWorkspaceModule,
   AdminSubjectWorkspaceResource,
@@ -773,7 +768,7 @@ export function SubjectContentWorkspace({
         ) : drawer?.kind === "resource" ? (
           drawer.resource ? (
             <div
-              className={`${learnerBodyFont.variable} ${learnerHeadingFont.variable} ${learnerMetaFont.variable} learner-dashboard learner-dashboard--materias rounded-card bg-[var(--student-bg)] font-body text-[var(--student-text)]`}
+              className="learner-dashboard learner-dashboard--materias rounded-card bg-[var(--student-bg)] font-body text-[var(--student-text)]"
             >
               <LearnerResourcePresentation
                 resource={drawer.resource}

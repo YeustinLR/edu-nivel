@@ -1,3 +1,5 @@
+import "server-only";
+
 import { IBM_Plex_Mono, Inter, Space_Grotesk } from "next/font/google";
 
 export const learnerBodyFont = Inter({

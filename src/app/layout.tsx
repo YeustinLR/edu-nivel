@@ -3,6 +3,11 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "@teispace/next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import {
+  learnerBodyFont,
+  learnerHeadingFont,
+  learnerMetaFont,
+} from "@/modules/dashboard/styles/learner-fonts";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
@@ -46,7 +51,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geist.variable} h-full antialiased`}
+      className={`${geist.variable} ${learnerBodyFont.variable} ${learnerHeadingFont.variable} ${learnerMetaFont.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >

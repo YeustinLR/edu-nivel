@@ -7,11 +7,6 @@ import { authClient } from "@/modules/auth/services/auth-client";
 import { LearnerDashboardHeader } from "@/modules/dashboard/components/learner/LearnerDashboardHeader";
 import { LearnerMobileNavigation } from "@/modules/dashboard/components/learner/LearnerMobileNavigation";
 import { LearnerSidebar } from "@/modules/dashboard/components/learner/LearnerSidebar";
-import {
-  learnerBodyFont,
-  learnerHeadingFont,
-  learnerMetaFont,
-} from "@/modules/dashboard/styles/learner-fonts";
 import type { LearnerRole } from "@/modules/dashboard/types/learner-dashboard";
 
 export function LearnerDashboardShell({
@@ -42,7 +37,7 @@ export function LearnerDashboardShell({
   }
 
   return (
-    <div className={`${learnerBodyFont.variable} ${learnerHeadingFont.variable} ${learnerMetaFont.variable} learner-dashboard ${isMateriasPage ? "learner-dashboard--materias" : ""} min-h-dvh bg-[var(--student-bg)] font-body text-[var(--student-text)]`}>
+    <div className={`learner-dashboard ${isMateriasPage ? "learner-dashboard--materias" : ""} min-h-dvh bg-[var(--student-bg)] font-body text-[var(--student-text)]`}>
       <LearnerSidebar
         role={role}
         streakDays={streakDays}
