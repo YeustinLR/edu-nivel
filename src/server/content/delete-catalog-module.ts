@@ -2,17 +2,21 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import { ContentAudience, Role } from "@/generated/prisma/enums";
-import { isModulePermanentlyDeletable } from "@/modules/content/domain/content-permissions";
 import type { AdminModuleDeleteInput } from "@/modules/content/schemas/admin-module-delete.schema";
-import { prisma } from "@/server/db/prisma";
+import {
+  catalogDeletionDependencyMessage,
+  getLevelDeletionDependencyCounts,
+  hasLevelDeletionDependencies,
+} from "@/server/content/catalog-deletion-dependencies";
 import { cleanupQueuedStorageObjects } from "@/server/content/cleanup-storage-objects";
+import { prisma } from "@/server/db/prisma";
 import { isR2UploadEnabled } from "@/server/storage/r2";
 
 export type CatalogModuleDeletionErrorCode =
   | "NOT_FOUND"
   | "FORBIDDEN"
   | "TITLE_MISMATCH"
-  | "INVALID_STATE"
+  | "DEPENDENCY_BLOCKED"
   | "CONCURRENT_OPERATION";
 
 export class CatalogModuleDeletionError extends Error {
@@ -29,9 +33,8 @@ const moduleDeletionSelect = {
   id: true,
   title: true,
   subjectId: true,
+  subject: { select: { levelId: true } },
   audience: true,
-  publicationStatus: true,
-  isActive: true,
   uploadIntents: {
     select: {
       temporaryStorageKey: true,
@@ -62,19 +65,6 @@ const moduleDeletionSelect = {
 type DeletionTarget = Prisma.ModuleGetPayload<{
   select: typeof moduleDeletionSelect;
 }>;
-
-function assertDeletionAllowed(
-  target: Pick<DeletionTarget, "publicationStatus">,
-) {
-  if (!isModulePermanentlyDeletable(target.publicationStatus)) {
-    throw new CatalogModuleDeletionError(
-      "INVALID_STATE",
-      target.publicationStatus === "PUBLISHED"
-        ? "Despublica el módulo antes de eliminarlo."
-        : "Retira el módulo de revisión antes de eliminarlo.",
-    );
-  }
-}
 
 function getStorageKeys(target: DeletionTarget) {
   const keys = new Set<string>();
@@ -116,10 +106,7 @@ export async function deleteCatalogModule(
 
   const initial = await prisma.module.findUnique({
     where: { id: input.moduleId },
-    select: {
-      title: true,
-      publicationStatus: true,
-    },
+    select: { title: true },
   });
   if (!initial) {
     throw new CatalogModuleDeletionError(
@@ -131,23 +118,6 @@ export async function deleteCatalogModule(
     throw new CatalogModuleDeletionError(
       "TITLE_MISMATCH",
       "El título de confirmación no coincide.",
-    );
-  }
-  assertDeletionAllowed(initial);
-
-  const archived = await prisma.module.updateMany({
-    where: {
-      id: input.moduleId,
-      publicationStatus: {
-        in: ["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED"],
-      },
-    },
-    data: { isActive: false },
-  });
-  if (archived.count !== 1) {
-    throw new CatalogModuleDeletionError(
-      "CONCURRENT_OPERATION",
-      "El módulo cambió durante la eliminación. Actualiza la página e inténtalo nuevamente.",
     );
   }
 
@@ -180,11 +150,14 @@ export async function deleteCatalogModule(
             "El título de confirmación no coincide.",
           );
         }
-        assertDeletionAllowed(target);
-        if (target.isActive) {
+        const dependencies = await getLevelDeletionDependencyCounts(
+          tx,
+          target.subject.levelId,
+        );
+        if (hasLevelDeletionDependencies(dependencies)) {
           throw new CatalogModuleDeletionError(
-            "CONCURRENT_OPERATION",
-            "El módulo fue reactivado durante la eliminación. Inténtalo nuevamente.",
+            "DEPENDENCY_BLOCKED",
+            catalogDeletionDependencyMessage,
           );
         }
 
@@ -199,13 +172,7 @@ export async function deleteCatalogModule(
           where: { moduleId: target.id },
         });
         const deleted = await tx.module.deleteMany({
-          where: {
-            id: target.id,
-            isActive: false,
-            publicationStatus: {
-              in: ["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED"],
-            },
-          },
+          where: { id: target.id },
         });
         if (deleted.count !== 1) {
           throw new CatalogModuleDeletionError(

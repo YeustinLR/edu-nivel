@@ -573,6 +573,30 @@ export function normalizeResourceDocument(blocks: unknown): ResourceDocumentV1 {
   });
 }
 
+/**
+ * BlockNote creates an empty image block before the user chooses a file. That
+ * block is editor UI state, not document content, so it must not participate in
+ * validation or serialization until an upload supplies its image identifier.
+ */
+export function omitPendingResourceDocumentImages(blocks: unknown): unknown {
+  if (!Array.isArray(blocks)) return blocks;
+
+  return blocks.flatMap((block) => {
+    if (!isRecord(block)) return [block];
+
+    const props = isRecord(block.props) ? block.props : null;
+    if (block.type === "image" && props?.imageId === "") return [];
+
+    if (!Array.isArray(block.children)) return [block];
+    return [
+      {
+        ...block,
+        children: omitPendingResourceDocumentImages(block.children),
+      },
+    ];
+  });
+}
+
 export function parseResourceContent(value: string | null | undefined): ParsedResourceContent {
   if (!value || !value.trim()) return { kind: "empty", document: null, blocks: [] };
   const trimmed = value.trim();

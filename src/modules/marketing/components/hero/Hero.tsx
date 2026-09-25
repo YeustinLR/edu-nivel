@@ -1,5 +1,5 @@
 import HeroContent from "./HeroContent";
-import HeroMockup from "./HeroMockup";
+import StudentDashboardPreview from "./StudentDashboardPreview";
 
 export default function Hero() {
   return (
@@ -9,7 +9,7 @@ export default function Hero() {
 
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
         <HeroContent />
-        <HeroMockup />
+        <StudentDashboardPreview />
       </div>
     </section>
   );

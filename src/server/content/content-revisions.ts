@@ -169,13 +169,19 @@ export async function savePublishedModuleRevision(
 
   try {
     return await prisma.$transaction(async (transaction) => {
+      const submittedAt = new Date();
       let revision;
       if (existing) {
         const updated = await transaction.contentRevision.updateMany({
           where: { id: existing.id, updatedAt: existing.updatedAt },
           data: {
             payload: payload as Prisma.InputJsonValue,
+            status: ContentRevisionStatus.IN_REVIEW,
             updatedById: actor.id,
+            submittedById: actor.id,
+            submittedAt,
+            reviewedById: null,
+            reviewedAt: null,
             reviewNote: null,
           },
         });
@@ -200,6 +206,9 @@ export async function savePublishedModuleRevision(
             baseUpdatedAt: moduleRecord.updatedAt,
             createdById: actor.id,
             updatedById: actor.id,
+            status: ContentRevisionStatus.IN_REVIEW,
+            submittedById: actor.id,
+            submittedAt,
           },
         });
       }
@@ -209,6 +218,13 @@ export async function savePublishedModuleRevision(
         entityId: input.id,
         revisionId: revision.id,
         action: existing ? "REVISION_UPDATED" : "REVISION_CREATED",
+      });
+      await audit(transaction, {
+        actorId: actor.id,
+        kind: ContentRevisionKind.MODULE,
+        entityId: input.id,
+        revisionId: revision.id,
+        action: "SUBMIT_FOR_REVIEW",
       });
       return revision;
     });
@@ -272,11 +288,21 @@ export async function savePublishedResourceRevision(
 
   try {
     return await prisma.$transaction(async (transaction) => {
+      const submittedAt = new Date();
       let revision;
       if (existing) {
         const updated = await transaction.contentRevision.updateMany({
           where: { id: existing.id, updatedAt: existing.updatedAt },
-          data: { payload, updatedById: actor.id, reviewNote: null },
+          data: {
+            payload,
+            status: ContentRevisionStatus.IN_REVIEW,
+            updatedById: actor.id,
+            submittedById: actor.id,
+            submittedAt,
+            reviewedById: null,
+            reviewedAt: null,
+            reviewNote: null,
+          },
         });
         if (updated.count !== 1) {
           throw new ContentRevisionError(
@@ -299,6 +325,9 @@ export async function savePublishedResourceRevision(
             baseUpdatedAt: resource.updatedAt,
             createdById: actor.id,
             updatedById: actor.id,
+            status: ContentRevisionStatus.IN_REVIEW,
+            submittedById: actor.id,
+            submittedAt,
           },
         });
       }
@@ -308,6 +337,13 @@ export async function savePublishedResourceRevision(
         entityId: input.id,
         revisionId: revision.id,
         action: existing ? "REVISION_UPDATED" : "REVISION_CREATED",
+      });
+      await audit(transaction, {
+        actorId: actor.id,
+        kind: ContentRevisionKind.RESOURCE,
+        entityId: input.id,
+        revisionId: revision.id,
+        action: "SUBMIT_FOR_REVIEW",
       });
       return revision;
     });

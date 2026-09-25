@@ -34,6 +34,7 @@ describe("content revalidation boundaries", () => {
 
     expect(mocks.revalidatePath.mock.calls).toEqual([
       ["/dashboard/admin/content", "layout"],
+      ["/dashboard/admin"],
       ["/dashboard/collaborator/content", "layout"],
     ]);
     expect(mocks.updateTag).not.toHaveBeenCalled();
@@ -44,6 +45,7 @@ describe("content revalidation boundaries", () => {
 
     expect(mocks.revalidatePath.mock.calls).toEqual([
       ["/dashboard/admin/content", "layout"],
+      ["/dashboard/admin"],
       ["/dashboard/collaborator/content", "layout"],
       ["/dashboard/student"],
       ["/dashboard/student/content"],

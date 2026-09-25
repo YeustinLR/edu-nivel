@@ -36,7 +36,7 @@ export default async function CollaboratorContentPage({
       `/dashboard/collaborator/content?teamAudience=${teamAudience}#team-catalog`,
     );
   }
-  const publishedModules = workspace.modules.filter((module) => module.publicationStatus === "PUBLISHED").length;
+  const publishedModules = workspace.modules.filter((module) => module.basePublicationStatus === "PUBLISHED").length;
   const teamHref = (audience: "STUDENT" | "TEACHER", page = 1) => {
     const query = new URLSearchParams({ teamAudience: audience });
     if (page > 1) query.set("teamPage", String(page));

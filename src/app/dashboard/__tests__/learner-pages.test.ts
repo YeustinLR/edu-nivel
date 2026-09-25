@@ -5,6 +5,7 @@ import { Role } from "@/generated/prisma/enums";
 
 const {
   getStudentContentCanonicalHrefMock,
+  getAccountSettingsDataMock,
   getLearnerSubscriptionOverviewMock,
   getStudentContentWorkspaceMock,
   getStudentDashboardDataMock,
@@ -12,6 +13,7 @@ const {
   requireUserMock,
 } = vi.hoisted(() => ({
   getStudentContentCanonicalHrefMock: vi.fn(),
+  getAccountSettingsDataMock: vi.fn(),
   getLearnerSubscriptionOverviewMock: vi.fn(),
   getStudentContentWorkspaceMock: vi.fn(),
   getStudentDashboardDataMock: vi.fn(),
@@ -35,6 +37,15 @@ vi.mock("@/server/subscriptions/learner-subscription-queries", () => ({
   getLearnerSubscriptionOverview: getLearnerSubscriptionOverviewMock,
   normalizeLearnerPaymentHistoryPage: () => 1,
 }));
+vi.mock("@/server/account/account-settings-queries", () => ({
+  getAccountSettingsData: getAccountSettingsDataMock,
+}));
+vi.mock("@/modules/account/components/AccountSettings", () => ({
+  AccountSettings: () => null,
+}));
+vi.mock("@/modules/dashboard/components/admin/AdminPageHeader", () => ({
+  AdminPageHeader: () => null,
+}));
 vi.mock("@/modules/dashboard/components/student/StudentDashboardHome", () => ({
   StudentDashboardHome: () => null,
 }));
@@ -53,7 +64,7 @@ vi.mock("@/modules/dashboard/components/learner/LearnerPageHeader", () => ({
 
 import StudentContentPage from "@/app/dashboard/student/content/page";
 import StudentDashboardPage from "@/app/dashboard/student/page";
-import StudentSettingsPage from "@/app/dashboard/student/settings/page";
+import SettingsPage from "@/app/dashboard/settings/page";
 import SubscriptionPage from "@/app/dashboard/subscription/page";
 
 describe("learner pages after shell data separation", () => {
@@ -78,6 +89,17 @@ describe("learner pages after shell data separation", () => {
     getLearnerSubscriptionOverviewMock.mockReset().mockResolvedValue({
       subscriptions: [],
       payments: [],
+    });
+    getAccountSettingsDataMock.mockReset().mockResolvedValue({
+      user: {
+        name: "Ana",
+        email: "ana@example.com",
+        emailVerified: true,
+        role: Role.STUDENT,
+        selectedLevelNumber: 7,
+      },
+      currentSessionToken: "session-token",
+      sessionAccess: { status: "ready", sessions: [] },
     });
   });
 
@@ -110,9 +132,9 @@ describe("learner pages after shell data separation", () => {
   });
 
   it("renders Settings from the authenticated user without academic queries", async () => {
-    const result = await StudentSettingsPage();
+    const result = await SettingsPage();
 
-    expect(requireRoleMock).toHaveBeenCalledWith(Role.STUDENT);
+    expect(getAccountSettingsDataMock).toHaveBeenCalledOnce();
     expect(getStudentDashboardDataMock).not.toHaveBeenCalled();
     expect(isValidElement(result)).toBe(true);
   });

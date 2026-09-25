@@ -2,7 +2,11 @@ import "server-only";
 
 import { cache } from "react";
 
-import { PublicationStatus } from "@/generated/prisma/enums";
+import {
+  ContentRevisionKind,
+  ContentRevisionStatus,
+  PublicationStatus,
+} from "@/generated/prisma/enums";
 import { prisma } from "@/server/db/prisma";
 
 export type AdminContentSummary = {
@@ -27,6 +31,8 @@ export const getAdminContentSummary = cache(
       totalModules,
       modulesPendingReview,
       resourcesPendingReview,
+      moduleRevisionsPendingReview,
+      resourceRevisionsPendingReview,
       publishedModules,
       publishedResources,
     ] = await Promise.all([
@@ -37,6 +43,18 @@ export const getAdminContentSummary = cache(
       }),
       prisma.resource.count({
         where: { publicationStatus: PublicationStatus.IN_REVIEW },
+      }),
+      prisma.contentRevision.count({
+        where: {
+          kind: ContentRevisionKind.MODULE,
+          status: ContentRevisionStatus.IN_REVIEW,
+        },
+      }),
+      prisma.contentRevision.count({
+        where: {
+          kind: ContentRevisionKind.RESOURCE,
+          status: ContentRevisionStatus.IN_REVIEW,
+        },
       }),
       prisma.module.count({
         where: {
@@ -62,9 +80,13 @@ export const getAdminContentSummary = cache(
       levelsConfigured,
       totalModules,
       pendingReview: {
-        total: modulesPendingReview + resourcesPendingReview,
-        modules: modulesPendingReview,
-        resources: resourcesPendingReview,
+        total:
+          modulesPendingReview +
+          moduleRevisionsPendingReview +
+          resourcesPendingReview +
+          resourceRevisionsPendingReview,
+        modules: modulesPendingReview + moduleRevisionsPendingReview,
+        resources: resourcesPendingReview + resourceRevisionsPendingReview,
       },
       publishedContent: {
         total: publishedModules + publishedResources,

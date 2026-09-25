@@ -63,6 +63,7 @@ vi.mock("@/server/db/prisma", () => ({
 
 import {
   savePublishedModuleRevision,
+  savePublishedResourceRevision,
   transitionPublishedRevision,
 } from "@/server/content/content-revisions";
 
@@ -127,7 +128,7 @@ describe("content revisions", () => {
     mocks.syncResourceContentImages.mockResolvedValue(undefined);
   });
 
-  it("creates a separate draft without changing the published module", async () => {
+  it("creates and submits a separate revision without changing the published module", async () => {
     mocks.moduleFindUnique.mockResolvedValue({
       id: "module-1",
       publicationStatus: PublicationStatus.PUBLISHED,
@@ -137,7 +138,7 @@ describe("content revisions", () => {
     mocks.revisionCreate.mockResolvedValue(
       revision({
         kind: ContentRevisionKind.MODULE,
-        status: ContentRevisionStatus.DRAFT,
+        status: ContentRevisionStatus.IN_REVIEW,
         moduleId: "module-1",
         resourceId: null,
       }),
@@ -154,10 +155,97 @@ describe("content revisions", () => {
           moduleId: "module-1",
           baseUpdatedAt,
           createdById: "collaborator-a",
+          status: ContentRevisionStatus.IN_REVIEW,
+          submittedById: "collaborator-a",
+          submittedAt: expect.any(Date),
         }),
       }),
     );
     expect(mocks.moduleUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.auditCreate).toHaveBeenCalledTimes(2);
+    expect(mocks.auditCreate).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ action: "SUBMIT_FOR_REVIEW" }),
+    });
+  });
+
+  it("creates and submits a separate revision for a published resource", async () => {
+    mocks.resourceFindUnique.mockResolvedValue({
+      id: "resource-1",
+      publicationStatus: PublicationStatus.PUBLISHED,
+      updatedAt: baseUpdatedAt,
+      type: ResourceType.NOTE,
+    });
+    mocks.revisionFindUnique.mockResolvedValueOnce(null);
+    mocks.revisionCreate.mockResolvedValue(revision());
+
+    await savePublishedResourceRevision(
+      {
+        id: "resource-1",
+        expectedUpdatedAt: baseUpdatedAt.toISOString(),
+        resourceType: ResourceType.NOTE,
+        title: "Recurso revisado",
+        instructions: "Indicaciones",
+        content: "Contenido nuevo",
+        estimatedMinutes: 8,
+      },
+      { id: "collaborator-a", role: Role.COLLABORATOR },
+    );
+
+    expect(mocks.revisionCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        resourceId: "resource-1",
+        status: ContentRevisionStatus.IN_REVIEW,
+        submittedById: "collaborator-a",
+        submittedAt: expect.any(Date),
+      }),
+    });
+    expect(mocks.resourceUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("resubmits requested changes and clears the previous review decision", async () => {
+    mocks.moduleFindUnique.mockResolvedValue({
+      id: "module-1",
+      publicationStatus: PublicationStatus.PUBLISHED,
+      updatedAt: baseUpdatedAt,
+    });
+    mocks.revisionFindUnique
+      .mockResolvedValueOnce(
+        revision({
+          kind: ContentRevisionKind.MODULE,
+          status: ContentRevisionStatus.CHANGES_REQUESTED,
+          moduleId: "module-1",
+          resourceId: null,
+          reviewNote: "Aclara el contenido.",
+          reviewedById: "admin-1",
+          reviewedAt: revisionUpdatedAt,
+        }),
+      )
+      .mockResolvedValueOnce(
+        revision({
+          kind: ContentRevisionKind.MODULE,
+          status: ContentRevisionStatus.IN_REVIEW,
+          moduleId: "module-1",
+          resourceId: null,
+        }),
+      );
+
+    await savePublishedModuleRevision(
+      moduleInput(revisionUpdatedAt.toISOString()),
+      { id: "collaborator-b", role: Role.COLLABORATOR },
+    );
+
+    expect(mocks.revisionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: ContentRevisionStatus.IN_REVIEW,
+          submittedById: "collaborator-b",
+          submittedAt: expect.any(Date),
+          reviewedById: null,
+          reviewedAt: null,
+          reviewNote: null,
+        }),
+      }),
+    );
   });
 
   it("does not silently overwrite a concurrent revision edit", async () => {

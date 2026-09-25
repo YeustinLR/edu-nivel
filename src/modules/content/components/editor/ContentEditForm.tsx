@@ -17,6 +17,6 @@ export function EditActionFeedback({ state }: { state: ContentEditActionState })
   );
 }
 
-export function EditFormActions({ closeHref, onCancel, isPending, submitDisabled }: { closeHref?: string; onCancel?: () => void; isPending: boolean; submitDisabled?: boolean }) {
-  return <ContentFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} submitDisabled={submitDisabled} submitLabel="Guardar cambios" />;
+export function EditFormActions({ closeHref, onCancel, isPending, submitDisabled, submitForReview = false }: { closeHref?: string; onCancel?: () => void; isPending: boolean; submitDisabled?: boolean; submitForReview?: boolean }) {
+  return <ContentFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} submitDisabled={submitDisabled} submitLabel={submitForReview ? "Guardar y enviar a revisión" : "Guardar cambios"} />;
 }

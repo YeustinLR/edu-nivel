@@ -45,7 +45,7 @@ export async function deleteAdminModuleAction(
     throw error;
   }
 
-  revalidateContentPages("authoring");
+  revalidateContentPages("published");
   const audience =
     destination.audience === ContentAudience.TEACHER
       ? ContentAudience.TEACHER

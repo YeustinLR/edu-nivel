@@ -1,6 +1,8 @@
 import "server-only";
 
 import {
+  ContentRevisionKind,
+  ContentRevisionStatus,
   PaymentStatus,
   Prisma,
   ProviderMode,
@@ -143,6 +145,8 @@ export async function getAdminDashboardSummary(
   const [
     moduleReview,
     resourceReview,
+    moduleRevisionReview,
+    resourceRevisionReview,
     paymentsRequiringReview,
     renewalsNeedingReminder,
     expiredInvitations,
@@ -156,6 +160,7 @@ export async function getAdminDashboardSummary(
     publishedResources,
     modulesChangesRequested,
     resourcesChangesRequested,
+    revisionsChangesRequested,
     modulesWithoutPublishedResources,
     subjectsWithoutPublishedModules,
   ] = await Promise.all([
@@ -168,6 +173,22 @@ export async function getAdminDashboardSummary(
       where: { publicationStatus: PublicationStatus.IN_REVIEW },
       _count: { _all: true },
       _min: { submittedForReviewAt: true },
+    }),
+    prisma.contentRevision.aggregate({
+      where: {
+        kind: ContentRevisionKind.MODULE,
+        status: ContentRevisionStatus.IN_REVIEW,
+      },
+      _count: { _all: true },
+      _min: { submittedAt: true },
+    }),
+    prisma.contentRevision.aggregate({
+      where: {
+        kind: ContentRevisionKind.RESOURCE,
+        status: ContentRevisionStatus.IN_REVIEW,
+      },
+      _count: { _all: true },
+      _min: { submittedAt: true },
     }),
     prisma.payment.count({
       where: {
@@ -290,6 +311,9 @@ export async function getAdminDashboardSummary(
     prisma.resource.count({
       where: { publicationStatus: PublicationStatus.CHANGES_REQUESTED },
     }),
+    prisma.contentRevision.count({
+      where: { status: ContentRevisionStatus.CHANGES_REQUESTED },
+    }),
     prisma.module.count({
       where: {
         isActive: true,
@@ -329,12 +353,22 @@ export async function getAdminDashboardSummary(
     periods,
     attention: {
       pendingReviews: {
-        total: moduleReview._count._all + resourceReview._count._all,
-        modules: moduleReview._count._all,
-        resources: resourceReview._count._all,
+        total:
+          moduleReview._count._all +
+          moduleRevisionReview._count._all +
+          resourceReview._count._all +
+          resourceRevisionReview._count._all,
+        modules: moduleReview._count._all + moduleRevisionReview._count._all,
+        resources: resourceReview._count._all + resourceRevisionReview._count._all,
         oldestSubmittedAt: oldestDate(
-          moduleReview._min.submittedForReviewAt,
-          resourceReview._min.submittedForReviewAt,
+          oldestDate(
+            moduleReview._min.submittedForReviewAt,
+            moduleRevisionReview._min.submittedAt,
+          ),
+          oldestDate(
+            resourceReview._min.submittedForReviewAt,
+            resourceRevisionReview._min.submittedAt,
+          ),
         ),
       },
       paymentsRequiringReview,
@@ -363,7 +397,10 @@ export async function getAdminDashboardSummary(
     contentHealth: {
       publishedModules,
       publishedResources,
-      changesRequested: modulesChangesRequested + resourcesChangesRequested,
+      changesRequested:
+        modulesChangesRequested +
+        resourcesChangesRequested +
+        revisionsChangesRequested,
       modulesWithoutPublishedResources,
       subjectsWithoutPublishedModules,
     },

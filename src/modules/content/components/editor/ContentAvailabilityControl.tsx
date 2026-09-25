@@ -1,11 +1,13 @@
 "use client";
 
 import { Archive, RotateCcw } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { setContentAvailabilityAction } from "@/modules/content/actions/content-edit-actions";
 import { EditActionFeedback } from "@/modules/content/components/editor/ContentEditForm";
 import { initialContentEditActionState } from "@/modules/content/types/content-edit-action-state";
+
+const FEEDBACK_DURATION_MS = 3_000;
 
 export function ContentAvailabilityControl({
   type,
@@ -29,6 +31,16 @@ export function ContentAvailabilityControl({
     initialContentEditActionState,
   );
   const [isConfirming, setIsConfirming] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(true);
+
+  useEffect(() => {
+    if (state.status === "idle") return;
+    const timeoutId = window.setTimeout(
+      () => setFeedbackVisible(false),
+      FEEDBACK_DURATION_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [state]);
 
   const showConfirmation = isConfirming && state.status !== "success";
   const isLevel = type === "level";
@@ -75,7 +87,9 @@ export function ContentAvailabilityControl({
         ) : null}
       </div>
 
-      <EditActionFeedback state={state} />
+      {feedbackVisible && !showConfirmation ? (
+        <EditActionFeedback state={state} />
+      ) : null}
 
       {!showConfirmation ? (
         <button
@@ -94,6 +108,7 @@ export function ContentAvailabilityControl({
       ) : (
         <form
           action={formAction}
+          onSubmit={() => setFeedbackVisible(true)}
           className={`rounded-xl border p-4 ${
             isActive
               ? "border-border bg-surface-elevated/50"
@@ -114,7 +129,7 @@ export function ContentAvailabilityControl({
                 : "No se eliminará y podrás reactivarlo cuando lo necesites."
               : "Volverá a estar activo si el resto de la jerarquía está disponible."}
           </p>
-          {state.status === "error" ? (
+          {state.status === "error" && feedbackVisible ? (
             <div className="mt-3">
               <EditActionFeedback state={state} />
             </div>
@@ -123,7 +138,10 @@ export function ContentAvailabilityControl({
             <button
               type="button"
               disabled={isPending}
-              onClick={() => setIsConfirming(false)}
+              onClick={() => {
+                setIsConfirming(false);
+                setFeedbackVisible(false);
+              }}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50"
             >
               Cancelar

@@ -1,13 +1,13 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
-import {
-  PaymentStatus,
-  Role,
-  SubscriptionStatus,
-} from "@/generated/prisma/enums";
+import { Role } from "@/generated/prisma/enums";
 import type { AdminLevelDeleteInput } from "@/modules/content/schemas/admin-level-delete.schema";
 import { cleanupQueuedStorageObjects } from "@/server/content/cleanup-storage-objects";
+import {
+  getLevelDeletionDependencyCounts,
+  hasLevelDeletionDependencies,
+} from "@/server/content/catalog-deletion-dependencies";
 import { prisma } from "@/server/db/prisma";
 import { isR2UploadEnabled } from "@/server/storage/r2";
 
@@ -75,34 +75,6 @@ function confirmationLabel(levelNumber: number) {
   return `Nivel ${levelNumber}`;
 }
 
-function activeSubscriptionWhere(levelId: string, now: Date) {
-  return {
-    levelId,
-    status: {
-      in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED],
-    },
-    currentPeriodEnd: { gt: now },
-  } satisfies Prisma.SubscriptionWhereInput;
-}
-
-function unresolvedPaymentWhere(levelId: string) {
-  return {
-    levelId,
-    OR: [
-      {
-        status: {
-          in: [
-            PaymentStatus.INITIALIZING,
-            PaymentStatus.PROCESSING,
-            PaymentStatus.REQUIRES_REVIEW,
-          ],
-        },
-      },
-      { status: PaymentStatus.SUCCEEDED, appliedAt: null },
-    ],
-  } satisfies Prisma.PaymentWhereInput;
-}
-
 export type LevelDeletionEligibility = {
   activeSubscriptionCount: number;
   unresolvedPaymentCount: number;
@@ -113,12 +85,8 @@ export async function getLevelDeletionEligibility(
   levelId: string,
   now = new Date(),
 ): Promise<LevelDeletionEligibility> {
-  const [activeSubscriptionCount, unresolvedPaymentCount] = await Promise.all([
-    prisma.subscription.count({
-      where: activeSubscriptionWhere(levelId, now),
-    }),
-    prisma.payment.count({ where: unresolvedPaymentWhere(levelId) }),
-  ]);
+  const { activeSubscriptionCount, unresolvedPaymentCount } =
+    await getLevelDeletionDependencyCounts(prisma, levelId, now);
 
   return {
     activeSubscriptionCount,
@@ -131,7 +99,12 @@ function assertDeletionDependencies(
   activeSubscriptionCount: number,
   unresolvedPaymentCount: number,
 ) {
-  if (activeSubscriptionCount === 0 && unresolvedPaymentCount === 0) return;
+  if (
+    !hasLevelDeletionDependencies({
+      activeSubscriptionCount,
+      unresolvedPaymentCount,
+    })
+  ) return;
 
   throw new CatalogLevelDeletionError(
     "DEPENDENCY_BLOCKED",
@@ -226,14 +199,8 @@ export async function deleteCatalogLevel(
           );
         }
 
-        const now = new Date();
-        const [activeSubscriptionCount, unresolvedPaymentCount] =
-          await Promise.all([
-            tx.subscription.count({
-              where: activeSubscriptionWhere(target.id, now),
-            }),
-            tx.payment.count({ where: unresolvedPaymentWhere(target.id) }),
-          ]);
+        const { activeSubscriptionCount, unresolvedPaymentCount } =
+          await getLevelDeletionDependencyCounts(tx, target.id);
         assertDeletionDependencies(
           activeSubscriptionCount,
           unresolvedPaymentCount,

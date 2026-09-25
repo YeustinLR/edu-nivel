@@ -28,6 +28,11 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   USER_ALREADY_EXISTS: "Ya existe una cuenta con ese correo.",
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Ya existe una cuenta con ese correo.",
   INVALID_EMAIL_OR_PASSWORD: "Correo o contraseña incorrectos.",
+  INVALID_PASSWORD: "La contraseña actual es incorrecta.",
+  CREDENTIAL_ACCOUNT_NOT_FOUND: "Esta cuenta no tiene una contraseña disponible.",
+  PASSWORD_UNCHANGED: "La nueva contraseña debe ser diferente de la actual.",
+  INVALID_PROFILE_NAME: "El nombre ingresado no es válido.",
+  PROFILE_FIELD_CHANGE_NOT_ALLOWED: "Ese dato no se puede cambiar desde el perfil.",
   EMAIL_NOT_VERIFIED: "Debes verificar tu correo antes de continuar.",
   AGE_RESTRICTED: "Debes tener 18 años o más.",
   ROLE_CHANGE_NOT_ALLOWED:

@@ -15,6 +15,7 @@ import {
   legacyTextToResourceDocument,
   normalizeResourceContentForStorage,
   normalizeResourceDocument,
+  omitPendingResourceDocumentImages,
   parseResourceContent,
   ResourceDocumentValidationError,
   serializeResourceDocument,
@@ -199,6 +200,45 @@ describe("resource document", () => {
     });
     expect(getResourceDocumentImageIds(document)).toEqual([imageId]);
     expect(countResourceDocumentText(document)).toBe(45);
+  });
+
+  it("omits pending editor images without hiding malformed uploaded images", () => {
+    const draftBlocks = [
+      paragraph("intro", "Contenido antes de la imagen"),
+      {
+        id: "pending-image",
+        type: "image",
+        props: {
+          imageId: "",
+          altText: "",
+          decorative: false,
+          caption: "",
+          textAlignment: "center",
+          previewWidth: 720,
+        },
+        children: [],
+      },
+    ];
+
+    const prepared = omitPendingResourceDocumentImages(draftBlocks);
+    const document = normalizeResourceDocument(prepared);
+
+    expect(document.blocks.map((block) => block.id)).toEqual(["intro"]);
+    expect(countResourceDocumentText(document)).toBe(
+      Array.from("Contenido antes de la imagen").length,
+    );
+    expectCode(
+      () =>
+        normalizeResourceDocument(
+          omitPendingResourceDocumentImages([
+            {
+              ...draftBlocks[1],
+              props: { ...draftBlocks[1].props, imageId: "not-an-image-id" },
+            },
+          ]),
+        ),
+      "INVALID_IMAGE",
+    );
   });
 
   it("requires alt text or an explicit decorative choice and limits images", () => {

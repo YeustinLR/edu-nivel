@@ -6,9 +6,13 @@ import type { AdminModuleDetail } from "@/server/content/admin-content-queries";
 export function ModuleReviewWorkspace({
   detail,
   subjectId,
+  activeSubscriptionCount,
+  unresolvedPaymentCount,
 }: {
   detail: AdminModuleDetail;
   subjectId: string;
+  activeSubscriptionCount: number;
+  unresolvedPaymentCount: number;
 }) {
   return (
     <div className="space-y-4">
@@ -36,8 +40,9 @@ export function ModuleReviewWorkspace({
       <AdminModuleDeletionControl
         moduleId={detail.id}
         title={detail.title}
-        publicationStatus={detail.publicationStatus}
         resourceCount={detail.resourceCount}
+        activeSubscriptionCount={activeSubscriptionCount}
+        unresolvedPaymentCount={unresolvedPaymentCount}
       />
     </div>
   );

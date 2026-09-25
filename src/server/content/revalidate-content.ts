@@ -10,6 +10,7 @@ export function revalidateContentPages(
   scope: ContentRevalidationScope = "authoring",
 ) {
   revalidatePath("/dashboard/admin/content", "layout");
+  revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/collaborator/content", "layout");
 
   if (scope !== "published") return;

@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   deleteContentImages: vi.fn(),
   isR2UploadEnabled: vi.fn(),
   cleanupQueuedStorageObjects: vi.fn(),
+  subscriptionCount: vi.fn(),
+  paymentCount: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -55,6 +57,7 @@ function createTarget(
     id: "module-1",
     title: "Números naturales",
     subjectId: "subject-1",
+    subject: { levelId: "level-1" },
     audience: ContentAudience.STUDENT,
     publicationStatus: PublicationStatus.DRAFT,
     isActive: false,
@@ -98,6 +101,8 @@ describe("deleteCatalogModule", () => {
       retained: 0,
       failed: 0,
     });
+    mocks.subscriptionCount.mockResolvedValue(0);
+    mocks.paymentCount.mockResolvedValue(0);
     mocks.transaction.mockImplementation(
       async (operation: (transactionClient: unknown) => unknown) =>
         operation({
@@ -109,6 +114,8 @@ describe("deleteCatalogModule", () => {
           uploadIntent: { deleteMany: mocks.deleteUploadIntents },
           contentImage: { deleteMany: mocks.deleteContentImages },
           storageObjectCleanup: { createMany: mocks.enqueueStorageCleanup },
+          subscription: { count: mocks.subscriptionCount },
+          payment: { count: mocks.paymentCount },
         }),
     );
   });
@@ -119,15 +126,6 @@ describe("deleteCatalogModule", () => {
       audience: ContentAudience.STUDENT,
     });
 
-    expect(mocks.archiveModule).toHaveBeenCalledWith({
-      where: {
-        id: "module-1",
-        publicationStatus: {
-          in: ["DRAFT", "CHANGES_REQUESTED", "UNPUBLISHED"],
-        },
-      },
-      data: { isActive: false },
-    });
     expect(mocks.enqueueStorageCleanup).toHaveBeenCalledWith({
       data: [
         { storageKey: "temporary/module-1/file.pdf" },
@@ -147,18 +145,16 @@ describe("deleteCatalogModule", () => {
     ]);
   });
 
-  it("rejects published modules before changing data or storage", async () => {
-    mocks.initialFindUnique.mockResolvedValueOnce({
-      title: "Números naturales",
-      publicationStatus: PublicationStatus.PUBLISHED,
-    });
+  it("deletes published modules when the level has no financial dependencies", async () => {
+    mocks.targetFindUnique.mockResolvedValueOnce(
+      createTarget({ publicationStatus: PublicationStatus.PUBLISHED }),
+    );
 
-    await expect(deleteCatalogModule(input, actor)).rejects.toMatchObject({
-      code: "INVALID_STATE",
-      message: "Despublica el módulo antes de eliminarlo.",
+    await expect(deleteCatalogModule(input, actor)).resolves.toEqual({
+      subjectId: "subject-1",
+      audience: ContentAudience.STUDENT,
     });
-    expect(mocks.archiveModule).not.toHaveBeenCalled();
-    expect(mocks.cleanupQueuedStorageObjects).not.toHaveBeenCalled();
+    expect(mocks.deleteModule).toHaveBeenCalledOnce();
   });
 
   it("requires the exact module title before archiving it", async () => {
@@ -209,5 +205,14 @@ describe("deleteCatalogModule", () => {
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(mocks.initialFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("blocks deletion when the parent level has a pending payment", async () => {
+    mocks.paymentCount.mockResolvedValueOnce(1);
+
+    await expect(deleteCatalogModule(input, actor)).rejects.toMatchObject({
+      code: "DEPENDENCY_BLOCKED",
+    });
+    expect(mocks.deleteModule).not.toHaveBeenCalled();
   });
 });

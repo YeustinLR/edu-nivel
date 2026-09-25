@@ -18,12 +18,17 @@
  */
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { APIError, betterAuth } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
+import {
+  createAuthMiddleware,
+  getAuthoritativeSessionFromCtx,
+} from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
 import { z } from "zod";
 
 import { env } from "@/config/env";
+import { PASSWORD_UNCHANGED_MESSAGE } from "@/modules/account/schemas/change-password.schema";
+import { profileNameSchema } from "@/modules/account/schemas/profile-name.schema";
 import { isAllowedDeclaredAge } from "@/modules/auth/lib/age";
 import { withEmailVerificationTimestamp } from "@/modules/auth/lib/email-verification-timestamp";
 import { isUserCurrentlySuspended } from "@/modules/users/domain/user-suspension";
@@ -164,6 +169,7 @@ export const auth = betterAuth({
       "/email-otp/verify-email": false,
       "/email-otp/request-password-reset": false,
       "/email-otp/reset-password": false,
+      "/change-password": { window: 15 * 60, max: 5 },
     },
   },
   advanced: {
@@ -187,23 +193,39 @@ export const auth = betterAuth({
     // Refuerzo server-side de las reglas de contrasena. Better Auth solo exige el largo
     // minimo; la complejidad se valida aqui para que un cliente no pueda saltarla
     // llamando directo a la API. Cubre registro, reset por OTP y cambio de contrasena.
-    // La regla de contencion del correo aplica en las rutas que traen `email` en el body
-    // (registro y reset por OTP); el cambio de contrasena no la puede comprobar aqui.
+    // En cambio de contrasena se resuelve una sesion autoritativa para comprobar tambien
+    // el correo del usuario, aunque ese endpoint no lo incluya en el body.
     before: createAuthMiddleware(async (ctx) => {
       const body = ctx.body as Record<string, unknown> | undefined;
 
       // `role` es escribible durante el registro para que el usuario pueda elegir entre
       // estudiante y docente. Better Auth tambien expone los additionalFields en update-user,
       // por eso bloqueamos explicitamente cualquier cambio de rol por autoservicio.
-      if (
-        ctx.path === "/update-user" &&
-        body &&
-        Object.prototype.hasOwnProperty.call(body, "role")
-      ) {
-        throw APIError.from("FORBIDDEN", {
-          code: "ROLE_CHANGE_NOT_ALLOWED",
-          message: "El tipo de cuenta no se puede cambiar desde el perfil.",
-        });
+      if (ctx.path === "/update-user" && body) {
+        if (Object.prototype.hasOwnProperty.call(body, "role")) {
+          throw APIError.from("FORBIDDEN", {
+            code: "ROLE_CHANGE_NOT_ALLOWED",
+            message: "El tipo de cuenta no se puede cambiar desde el perfil.",
+          });
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body, "ageDeclared")) {
+          throw APIError.from("FORBIDDEN", {
+            code: "PROFILE_FIELD_CHANGE_NOT_ALLOWED",
+            message: "Ese dato no se puede cambiar desde el perfil.",
+          });
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body, "name")) {
+          const parsedName = profileNameSchema.safeParse(body.name);
+          if (!parsedName.success) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "INVALID_PROFILE_NAME",
+              message: parsedName.error.issues[0]?.message ?? "El nombre no es válido.",
+            });
+          }
+          body.name = parsedName.data;
+        }
       }
 
       if (
@@ -233,8 +255,25 @@ export const auth = betterAuth({
       }
 
       if (
-        typeof body?.email === "string" &&
-        passwordContainsEmail(candidate, body.email)
+        ctx.path === "/change-password" &&
+        typeof body?.currentPassword === "string" &&
+        body.currentPassword === candidate
+      ) {
+        throw APIError.from("BAD_REQUEST", {
+          code: "PASSWORD_UNCHANGED",
+          message: PASSWORD_UNCHANGED_MESSAGE,
+        });
+      }
+
+      const accountEmail = typeof body?.email === "string"
+        ? body.email
+        : ctx.path === "/change-password"
+          ? (await getAuthoritativeSessionFromCtx(ctx))?.user.email
+          : undefined;
+
+      if (
+        typeof accountEmail === "string" &&
+        passwordContainsEmail(candidate, accountEmail)
       ) {
         throw APIError.from("BAD_REQUEST", {
           code: "PASSWORD_CONTAINS_EMAIL",

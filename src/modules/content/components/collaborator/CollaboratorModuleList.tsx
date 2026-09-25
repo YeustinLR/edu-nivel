@@ -395,6 +395,7 @@ function InteractiveCollaboratorModuleList({
                               audience: module.audience,
                               updatedAt: module.updatedAt.toISOString(),
                             }}
+                            submitForReview={module.basePublicationStatus === "PUBLISHED"}
                           />
                           <ContentAvailabilityControl
                             type="module"

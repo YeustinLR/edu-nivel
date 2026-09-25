@@ -14,6 +14,7 @@ import { ModuleDetailSummary } from "@/modules/content/components/admin/detail/M
 import { ModuleReviewWorkspace } from "@/modules/content/components/admin/detail/ModuleReviewWorkspace";
 import { getResourceCreationUnavailableReason, isModuleEditablePublicationStatus } from "@/modules/content/domain/content-permissions";
 import { getAdminModuleDetail } from "@/server/content/admin-content-queries";
+import { getLevelDeletionEligibility } from "@/server/content/delete-catalog-level";
 import { prisma } from "@/server/db/prisma";
 
 const RESOURCE_PAGE_SIZE = 10;
@@ -41,6 +42,9 @@ export default async function AdminModuleDetailPage({
     },
   });
   if (!context) notFound();
+  const deletionEligibility = await getLevelDeletionEligibility(
+    context.subject.level.id,
+  );
 
   const requestedPage = typeof queryParams.page === "string" ? Number(queryParams.page) : 1;
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
@@ -155,7 +159,7 @@ export default async function AdminModuleDetailPage({
         <aside className="rounded-xl border border-border bg-card p-4 sm:p-5" aria-labelledby="module-editorial-heading">
           <h2 id="module-editorial-heading" className="text-lg font-semibold text-foreground">Publicación del módulo</h2>
           <p className="mt-1 text-sm leading-6 text-muted">Administra su disponibilidad sin pasar por una revisión editorial.</p>
-          <div className="mt-4"><ModuleReviewWorkspace detail={detail} subjectId={context.subjectId} /></div>
+          <div className="mt-4"><ModuleReviewWorkspace detail={detail} subjectId={context.subjectId} activeSubscriptionCount={deletionEligibility.activeSubscriptionCount} unresolvedPaymentCount={deletionEligibility.unresolvedPaymentCount} /></div>
         </aside>
       </div>
     </div>

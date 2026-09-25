@@ -8,11 +8,13 @@ import {
   secondaryActionClass,
 } from "@/modules/content/components/admin/ContentPageHeader";
 import { EditorialControls } from "@/modules/content/components/admin/editorial/EditorialControls";
+import { AdminResourceDeletionControl } from "@/modules/content/components/admin/detail/AdminResourceDeletionControl";
 import { ResourceContentView } from "@/modules/content/components/editor/ResourceContentView";
 import { getAdminEditorialTransitions } from "@/modules/content/domain/editorial-workflow";
 import { Role } from "@/generated/prisma/enums";
 import { requireRole } from "@/server/auth/guards";
 import { getResourceContentDetail } from "@/server/content/content-detail-queries";
+import { getLevelDeletionEligibility } from "@/server/content/delete-catalog-level";
 import { prisma } from "@/server/db/prisma";
 
 export default async function AdminResourceDetailPage({
@@ -44,6 +46,9 @@ export default async function AdminResourceDetailPage({
     }),
   ]);
   if (!resource || !context) notFound();
+  const deletionEligibility = await getLevelDeletionEligibility(
+    context.module.subject.level.id,
+  );
 
   const moduleHref = `/dashboard/admin/content/modules/${encodeURIComponent(context.module.id)}`;
   const resourceHref = `/dashboard/admin/content/resources/${encodeURIComponent(resource.id)}`;
@@ -84,6 +89,14 @@ export default async function AdminResourceDetailPage({
               layout="stacked"
               variant="review-workspace"
               targetTitle={resource.title}
+            />
+          </div>
+          <div className="mt-5">
+            <AdminResourceDeletionControl
+              resourceId={resource.id}
+              title={resource.title}
+              activeSubscriptionCount={deletionEligibility.activeSubscriptionCount}
+              unresolvedPaymentCount={deletionEligibility.unresolvedPaymentCount}
             />
           </div>
         </aside>

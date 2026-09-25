@@ -67,7 +67,7 @@ describe("deleteAdminModuleAction", () => {
       },
       { id: "admin-1", role: Role.ADMIN },
     );
-    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 
   it("returns the title mismatch beside the confirmation field", async () => {

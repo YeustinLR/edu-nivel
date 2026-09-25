@@ -70,4 +70,80 @@ describe("collaborator team catalog pagination", () => {
     });
     expect(result.resourceCount).toBe(4);
   });
+
+  it("presents separate published revisions with their effective editorial state", async () => {
+    const baseUpdatedAt = new Date("2026-09-20T12:00:00.000Z");
+    const revisionUpdatedAt = new Date("2026-09-21T12:00:00.000Z");
+    mocks.moduleFindMany
+      .mockReset()
+      .mockResolvedValueOnce([
+        {
+          id: "module-1",
+          title: "Módulo publicado",
+          description: "Descripción publicada",
+          audience: "STUDENT",
+          publicationStatus: "PUBLISHED",
+          reviewNote: null,
+          isActive: true,
+          updatedAt: baseUpdatedAt,
+          subject: {
+            name: "Matemáticas",
+            isActive: true,
+            level: { levelNumber: 7, isActive: true },
+          },
+          revisions: [
+            {
+              status: "IN_REVIEW",
+              payload: {
+                title: "Módulo revisado",
+                description: "Descripción revisada",
+                audience: "BOTH",
+              },
+              reviewNote: null,
+              updatedAt: revisionUpdatedAt,
+            },
+          ],
+          resources: [
+            {
+              id: "resource-1",
+              title: "Recurso publicado",
+              type: "NOTE",
+              publicationStatus: "PUBLISHED",
+              reviewNote: null,
+              isActive: true,
+              revisions: [
+                {
+                  status: "CHANGES_REQUESTED",
+                  payload: { title: "Recurso corregido" },
+                  reviewNote: "Aclara el ejemplo.",
+                },
+              ],
+            },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await getCollaboratorContentWorkspace("collaborator-1");
+
+    expect(result.modules[0]).toMatchObject({
+      title: "Módulo revisado",
+      description: "Descripción revisada",
+      audience: "BOTH",
+      basePublicationStatus: "PUBLISHED",
+      publicationStatus: "IN_REVIEW",
+      revisionStatus: "IN_REVIEW",
+      updatedAt: revisionUpdatedAt,
+      resources: [
+        expect.objectContaining({
+          title: "Recurso corregido",
+          basePublicationStatus: "PUBLISHED",
+          publicationStatus: "CHANGES_REQUESTED",
+          revisionStatus: "CHANGES_REQUESTED",
+          reviewNote: "Aclara el ejemplo.",
+        }),
+      ],
+    });
+  });
 });

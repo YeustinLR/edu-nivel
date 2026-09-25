@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   moduleCount: vi.fn(),
   resourceAggregate: vi.fn(),
   resourceCount: vi.fn(),
+  revisionAggregate: vi.fn(),
+  revisionCount: vi.fn(),
   paymentCount: vi.fn(),
   paymentFindMany: vi.fn(),
   invitationCount: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("@/server/db/prisma", () => ({
   prisma: {
     module: { aggregate: mocks.moduleAggregate, count: mocks.moduleCount },
     resource: { aggregate: mocks.resourceAggregate, count: mocks.resourceCount },
+    contentRevision: { aggregate: mocks.revisionAggregate, count: mocks.revisionCount },
     payment: { count: mocks.paymentCount, findMany: mocks.paymentFindMany },
     userInvitation: { count: mocks.invitationCount },
     subscription: { count: mocks.subscriptionCount, findMany: mocks.subscriptionFindMany },
@@ -54,6 +57,20 @@ describe("admin dashboard queries", () => {
       _count: { _all: 3 },
       _min: { submittedForReviewAt: new Date("2026-09-04T12:00:00.000Z") },
     });
+    mocks.revisionAggregate.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.kind === "MODULE"
+          ? {
+              _count: { _all: 1 },
+              _min: { submittedAt: new Date("2026-09-03T12:00:00.000Z") },
+            }
+          : {
+              _count: { _all: 2 },
+              _min: { submittedAt: new Date("2026-09-02T12:00:00.000Z") },
+            },
+      ),
+    );
+    mocks.revisionCount.mockResolvedValue(2);
     mocks.paymentCount.mockResolvedValue(4);
     mocks.invitationCount.mockResolvedValue(1);
     mocks.subscriptionCount.mockResolvedValue(7);
@@ -112,10 +129,10 @@ describe("admin dashboard queries", () => {
     const result = await getAdminDashboardSummary(now);
 
     expect(result.attention.pendingReviews).toEqual({
-      total: 5,
-      modules: 2,
-      resources: 3,
-      oldestSubmittedAt: new Date("2026-09-04T12:00:00.000Z"),
+      total: 8,
+      modules: 3,
+      resources: 5,
+      oldestSubmittedAt: new Date("2026-09-02T12:00:00.000Z"),
     });
     expect(result.attention.renewalsNeedingReminder).toBe(1);
     expect(result.attention.expiredInvitations).toBe(1);
@@ -146,7 +163,7 @@ describe("admin dashboard queries", () => {
     expect(result.contentHealth).toEqual({
       publishedModules: 10,
       publishedResources: 20,
-      changesRequested: 7,
+      changesRequested: 9,
       modulesWithoutPublishedResources: 2,
       subjectsWithoutPublishedModules: 1,
     });

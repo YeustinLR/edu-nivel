@@ -4,6 +4,10 @@ import {
   getModuleAudiencesForSelection,
   type ModuleAudienceSelection,
 } from "@/modules/content/domain/content-audience";
+import {
+  asModuleRevisionPayload,
+  asResourceRevisionPayload,
+} from "@/server/content/content-revisions";
 import { prisma } from "@/server/db/prisma";
 
 export const COLLABORATOR_TEAM_PAGE_SIZE = 10;
@@ -51,6 +55,15 @@ export async function getCollaboratorContentWorkspace(
         reviewNote: true,
         isActive: true,
         updatedAt: true,
+        revisions: {
+          take: 1,
+          select: {
+            status: true,
+            payload: true,
+            reviewNote: true,
+            updatedAt: true,
+          },
+        },
         subject: {
           select: {
             name: true,
@@ -67,6 +80,14 @@ export async function getCollaboratorContentWorkspace(
             publicationStatus: true,
             reviewNote: true,
             isActive: true,
+            revisions: {
+              take: 1,
+              select: {
+                status: true,
+                payload: true,
+                reviewNote: true,
+              },
+            },
           },
         },
       },
@@ -121,9 +142,43 @@ export async function getCollaboratorContentWorkspace(
       subjectName: `Nivel ${module.subject.level.levelNumber} / ${module.subject.name}`,
   }));
 
+  const authoredModules = modules.map(({ revisions, ...moduleRecord }) => {
+    const revision = revisions[0];
+    const revisionPayload = revision
+      ? asModuleRevisionPayload(revision.payload)
+      : null;
+
+    return {
+      ...moduleRecord,
+      basePublicationStatus: moduleRecord.publicationStatus,
+      publicationStatus: revision?.status ?? moduleRecord.publicationStatus,
+      revisionStatus: revision?.status ?? null,
+      title: revisionPayload?.title ?? moduleRecord.title,
+      description: revisionPayload?.description ?? moduleRecord.description,
+      audience: revisionPayload?.audience ?? moduleRecord.audience,
+      reviewNote: revision?.reviewNote ?? moduleRecord.reviewNote,
+      updatedAt: revision?.updatedAt ?? moduleRecord.updatedAt,
+      resources: moduleRecord.resources.map(({ revisions: resourceRevisions, ...resource }) => {
+        const resourceRevision = resourceRevisions[0];
+        const resourceRevisionPayload = resourceRevision
+          ? asResourceRevisionPayload(resourceRevision.payload)
+          : null;
+
+        return {
+          ...resource,
+          basePublicationStatus: resource.publicationStatus,
+          publicationStatus: resourceRevision?.status ?? resource.publicationStatus,
+          revisionStatus: resourceRevision?.status ?? null,
+          title: resourceRevisionPayload?.title ?? resource.title,
+          reviewNote: resourceRevision?.reviewNote ?? resource.reviewNote,
+        };
+      }),
+    };
+  });
+
   return {
     subjects,
-    modules,
+    modules: authoredModules,
     resourceCount,
     teamModules,
     teamPagination: {

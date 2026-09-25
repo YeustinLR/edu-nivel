@@ -46,6 +46,7 @@ export function CollaboratorResourcePanel({
                 ...resource,
                 updatedAt: resource.updatedAt.toISOString(),
               }}
+              submitForReview={resource.publicationStatus === "PUBLISHED"}
             />
             <ContentAvailabilityControl
               type="resource"

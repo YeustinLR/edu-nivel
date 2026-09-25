@@ -26,6 +26,7 @@ export function EditModuleForm({
   closeHref,
   onCancel,
   onSuccess,
+  submitForReview = false,
 }: {
   moduleRecord: {
     id: string;
@@ -37,6 +38,7 @@ export function EditModuleForm({
   closeHref?: string;
   onCancel?: () => void;
   onSuccess?: (message: string) => void;
+  submitForReview?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(
     updateModuleContentAction,
@@ -117,7 +119,7 @@ export function EditModuleForm({
         <EditFieldError id={descriptionErrorId} messages={errors?.description} />
       </label>
 
-      <EditFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} />
+      <EditFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} submitForReview={submitForReview} />
     </form>
   );
 }

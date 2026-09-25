@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   levelCount: vi.fn(),
   moduleCount: vi.fn(),
   resourceCount: vi.fn(),
+  revisionCount: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -12,6 +13,7 @@ vi.mock("@/server/db/prisma", () => ({
     level: { count: mocks.levelCount },
     module: { count: mocks.moduleCount },
     resource: { count: mocks.resourceCount },
+    contentRevision: { count: mocks.revisionCount },
   },
 }));
 
@@ -28,15 +30,24 @@ describe("admin content summary", () => {
     mocks.resourceCount
       .mockResolvedValueOnce(3)
       .mockResolvedValueOnce(20);
+    mocks.revisionCount
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2);
   });
 
   it("includes both modules and resources in the editorial queue", async () => {
     const result = await getAdminContentSummary();
 
     expect(result.pendingReview).toEqual({
-      total: 5,
-      modules: 2,
-      resources: 3,
+      total: 8,
+      modules: 3,
+      resources: 5,
+    });
+    expect(mocks.revisionCount).toHaveBeenNthCalledWith(1, {
+      where: { kind: "MODULE", status: "IN_REVIEW" },
+    });
+    expect(mocks.revisionCount).toHaveBeenNthCalledWith(2, {
+      where: { kind: "RESOURCE", status: "IN_REVIEW" },
     });
     expect(mocks.moduleCount).toHaveBeenNthCalledWith(2, {
       where: { publicationStatus: "IN_REVIEW" },

@@ -47,6 +47,7 @@ export function EditResourceForm({
   closeHref,
   onCancel,
   onSuccess,
+  submitForReview = false,
 }: {
   resource: {
     id: string;
@@ -73,6 +74,7 @@ export function EditResourceForm({
   closeHref?: string;
   onCancel?: () => void;
   onSuccess?: (message: string) => void;
+  submitForReview?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(
     updateResourceContentAction,
@@ -428,6 +430,7 @@ export function EditResourceForm({
         onCancel={onCancel}
         isPending={isPending}
         submitDisabled={Boolean(contentValidationError)}
+        submitForReview={submitForReview}
       />
     </form>
   );

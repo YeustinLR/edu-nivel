@@ -20,7 +20,7 @@ describe("learner dashboard navigation", () => {
       { label: "Explorar", href: "/dashboard/teacher/explore" },
       { label: "Recientes", href: "/dashboard/teacher/recent" },
       { label: "Mi suscripción", href: "/dashboard/subscription" },
-      { label: "Configuración", href: "/dashboard/teacher/settings" },
+      { label: "Configuración", href: "/dashboard/settings" },
     ]);
   });
 
@@ -93,6 +93,7 @@ describe("learner dashboard navigation", () => {
         label: "Mis contenidos",
         href: "/dashboard/collaborator/content",
       },
+      { label: "Configuración", href: "/dashboard/settings" },
     ]);
     expect(
       linksFor("COLLABORATOR").some(({ href }) =>
@@ -114,6 +115,16 @@ describe("learner dashboard navigation", () => {
       { label: "Contenido", href: "/dashboard/admin/content" },
       { label: "Usuarios", href: "/dashboard/admin/users" },
       { label: "Notificaciones", href: "/dashboard/admin/notifications" },
+      { label: "Configuración", href: "/dashboard/settings" },
     ]);
+  });
+
+  it("uses one canonical settings destination for every role", () => {
+    for (const role of ["STUDENT", "TEACHER", "COLLABORATOR", "ADMIN"] as const) {
+      expect(linksFor(role)).toContainEqual({
+        label: "Configuración",
+        href: "/dashboard/settings",
+      });
+    }
   });
 });

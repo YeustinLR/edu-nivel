@@ -70,7 +70,15 @@ import {
   Undo2,
   UploadCloud,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTheme } from "@teispace/next-themes";
 
 import { ResourceContentRenderer } from "@/modules/content/components/editor/ResourceContentRenderer";
@@ -79,10 +87,15 @@ import {
   eduCalloutVariants,
   isResourceDocumentSemanticallyEmpty,
   normalizeResourceDocument,
+  omitPendingResourceDocumentImages,
   parseResourceContent,
   serializeResourceDocument,
   type ResourceDocumentValidationError,
 } from "@/modules/content/domain/resource-document";
+import {
+  getImageUploadValidationMessage,
+  transitionActiveImageUploads,
+} from "@/modules/content/domain/resource-image-upload";
 
 import styles from "./ResourceDocumentEditor.module.css";
 
@@ -92,6 +105,37 @@ const calloutIcons = {
   note: NotebookPen,
   warning: TriangleAlert,
 } as const;
+
+const MIN_IMAGE_PREVIEW_WIDTH = 160;
+const MAX_IMAGE_PREVIEW_WIDTH = 1_600;
+
+type ImageUploadTracker = {
+  begin: () => void;
+  finish: () => void;
+};
+
+const ImageUploadTrackerContext = createContext<ImageUploadTracker>({
+  begin: () => undefined,
+  finish: () => undefined,
+});
+
+const imageResizeHandles = [
+  { corner: "topLeft", label: "Redimensionar desde la esquina superior izquierda" },
+  { corner: "topRight", label: "Redimensionar desde la esquina superior derecha" },
+  { corner: "bottomLeft", label: "Redimensionar desde la esquina inferior izquierda" },
+  { corner: "bottomRight", label: "Redimensionar desde la esquina inferior derecha" },
+] as const;
+
+type ImageResizeCorner = (typeof imageResizeHandles)[number]["corner"];
+
+function clampImagePreviewWidth(width: number, maximum: number) {
+  return Math.round(
+    Math.min(
+      Math.max(MIN_IMAGE_PREVIEW_WIDTH, maximum),
+      Math.max(MIN_IMAGE_PREVIEW_WIDTH, width),
+    ),
+  );
+}
 
 const createEduCallout = createReactBlockSpec(
   {
@@ -131,6 +175,7 @@ function EmbeddedImageEditorView({
   previewWidth,
   disabled,
   onFile,
+  onResize,
 }: {
   imageId: string;
   altText: string;
@@ -140,9 +185,99 @@ function EmbeddedImageEditorView({
   previewWidth: number;
   disabled: boolean;
   onFile: (file: File) => Promise<void>;
+  onResize: (width: number) => void;
 }) {
+  const uploadTracker = useContext(ImageUploadTrackerContext);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState(false);
+  const [resizingWidth, setResizingWidth] = useState<number | null>(null);
+  const figureRef = useRef<HTMLElement>(null);
+  const resizeStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    direction: 1 | -1;
+  } | null>(null);
+
+  const resizing = resizingWidth !== null;
+  const displayWidth = resizingWidth ?? previewWidth;
+
+  const maximumWidth = () =>
+    Math.min(
+      MAX_IMAGE_PREVIEW_WIDTH,
+      figureRef.current?.clientWidth || MAX_IMAGE_PREVIEW_WIDTH,
+    );
+
+  const widthFromPointer = (clientX: number) => {
+    const state = resizeStateRef.current;
+    if (!state) return displayWidth;
+    return clampImagePreviewWidth(
+      state.startWidth + (clientX - state.startX) * state.direction,
+      maximumWidth(),
+    );
+  };
+
+  const startResize = (
+    event: React.PointerEvent<HTMLSpanElement>,
+    corner: ImageResizeCorner,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    figureRef.current?.focus({ preventScroll: true });
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: displayWidth,
+      direction: corner.endsWith("Right") ? 1 : -1,
+    };
+    setSelected(true);
+    setResizingWidth(displayWidth);
+  };
+
+  const moveResize = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (resizeStateRef.current?.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    setResizingWidth(widthFromPointer(event.clientX));
+  };
+
+  const finishResize = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (resizeStateRef.current?.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const nextWidth = widthFromPointer(event.clientX);
+    resizeStateRef.current = null;
+    setResizingWidth(null);
+    onResize(nextWidth);
+  };
+
+  const cancelResize = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (resizeStateRef.current?.pointerId !== event.pointerId) return;
+    resizeStateRef.current = null;
+    setResizingWidth(null);
+  };
+
+  const resizeWithKeyboard = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+    let nextWidth: number | null = null;
+    const step = event.shiftKey ? 32 : 8;
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+      nextWidth = displayWidth + step;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+      nextWidth = displayWidth - step;
+    } else if (event.key === "Home") {
+      nextWidth = MIN_IMAGE_PREVIEW_WIDTH;
+    } else if (event.key === "End") {
+      nextWidth = maximumWidth();
+    }
+    if (nextWidth === null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const clampedWidth = clampImagePreviewWidth(nextWidth, maximumWidth());
+    setSelected(true);
+    onResize(clampedWidth);
+  };
 
   if (!imageId) {
     return (
@@ -159,6 +294,7 @@ function EmbeddedImageEditorView({
             onChange={async (event) => {
               const file = event.target.files?.[0];
               if (!file) return;
+              uploadTracker.begin();
               setUploading(true);
               setError(null);
               try {
@@ -171,6 +307,7 @@ function EmbeddedImageEditorView({
                 );
               } finally {
                 setUploading(false);
+                uploadTracker.finish();
                 event.target.value = "";
               }
             }}
@@ -184,18 +321,59 @@ function EmbeddedImageEditorView({
 
   return (
     <figure
-      className={`${styles.imageFigure} ${styles[`imageAlign${textAlignment[0].toUpperCase()}${textAlignment.slice(1)}`]}`}
+      ref={figureRef}
+      tabIndex={disabled ? -1 : 0}
+      aria-label="Imagen del contenido. Usa los controles de las esquinas para cambiar su tamaño."
+      className={`${styles.imageFigure} ${selected ? styles.imageFigureSelected : ""} ${styles[`imageAlign${textAlignment[0].toUpperCase()}${textAlignment.slice(1)}`]}`}
       contentEditable={false}
+      onFocus={() => setSelected(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setSelected(false);
+      }}
+      onPointerDown={() => {
+        if (!disabled) figureRef.current?.focus({ preventScroll: true });
+      }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/content-images/${encodeURIComponent(imageId)}/file`}
-        alt={decorative ? "" : altText}
-        width={previewWidth}
-        className={styles.embeddedImage}
-        draggable={false}
-      />
-      {caption ? <figcaption>{caption}</figcaption> : null}
+      <div
+        className={styles.imageResizeFrame}
+        style={{ width: `${displayWidth}px` }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/content-images/${encodeURIComponent(imageId)}/file`}
+          alt={decorative ? "" : altText}
+          width={displayWidth}
+          className={styles.embeddedImage}
+          draggable={false}
+        />
+        {!disabled
+          ? imageResizeHandles.map(({ corner, label }) => (
+              <span
+                key={corner}
+                role="slider"
+                tabIndex={0}
+                aria-label={label}
+                aria-valuemin={MIN_IMAGE_PREVIEW_WIDTH}
+                aria-valuemax={MAX_IMAGE_PREVIEW_WIDTH}
+                aria-valuenow={displayWidth}
+                className={`${styles.resizeHandle} ${styles[`resizeHandle${corner[0].toUpperCase()}${corner.slice(1)}`]}`}
+                onPointerDown={(event) => startResize(event, corner)}
+                onPointerMove={moveResize}
+                onPointerUp={finishResize}
+                onPointerCancel={cancelResize}
+                onKeyDown={resizeWithKeyboard}
+              />
+            ))
+          : null}
+        {resizing ? (
+          <span className={styles.imageSizeIndicator}>{displayWidth} px</span>
+        ) : null}
+      </div>
+      {caption ? (
+        <figcaption style={{ width: `${displayWidth}px`, maxWidth: "100%" }}>
+          {caption}
+        </figcaption>
+      ) : null}
     </figure>
   );
 }
@@ -241,6 +419,7 @@ const createEmbeddedImage = createReactBlockSpec(
               : update,
           );
         }}
+        onResize={(width) => editor.updateBlock(block, { props: { previewWidth: width } })}
       />
     ),
   },
@@ -720,7 +899,12 @@ export default function ResourceDocumentEditor({
   onChange: (serialized: string, error: string | null) => void;
 }) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
-  const [serialized, setSerialized] = useState(() => initialSerializedContent(initialValue));
+  const [serialized, setSerialized] = useState(() =>
+    initialSerializedContent(initialValue),
+  );
+  const serializedRef = useRef(serialized);
+  const onChangeRef = useRef(onChange);
+  const activeImageUploadsRef = useRef(0);
   const [validationError, setValidationError] = useState<string | null>(() =>
     parseResourceContent(initialValue).kind === "invalid"
       ? "El contenido existente no tiene un formato compatible."
@@ -734,6 +918,10 @@ export default function ResourceDocumentEditor({
   useEffect(() => {
     imageUploadContextRef.current = imageUploadContext;
   }, [imageUploadContext]);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   const editor = useCreateBlockNote({
     schema: resourceEditorSchema,
     extensions: [syntaxHighlighter],
@@ -819,22 +1007,64 @@ export default function ResourceDocumentEditor({
   });
 
   const publishDocument = useCallback(() => {
+    const uploadError = getImageUploadValidationMessage(
+      activeImageUploadsRef.current,
+    );
+    if (uploadError) {
+      setValidationError(uploadError);
+      onChangeRef.current(
+        serializedRef.current,
+        uploadError,
+      );
+      return;
+    }
+
     try {
-      const document = normalizeResourceDocument(editor.document);
+      const document = normalizeResourceDocument(
+        omitPendingResourceDocumentImages(editor.document),
+      );
       const nextSerialized = isResourceDocumentSemanticallyEmpty(document)
         ? ""
         : serializeResourceDocument(document);
+      serializedRef.current = nextSerialized;
       setSerialized(nextSerialized);
       setValidationError(null);
-      onChange(nextSerialized, null);
+      onChangeRef.current(nextSerialized, null);
     } catch (error) {
       const message = error instanceof Error
         ? error.message
         : "El documento educativo no tiene un formato válido.";
       setValidationError(message);
-      onChange(serialized, message);
+      onChangeRef.current(serializedRef.current, message);
     }
-  }, [editor, onChange, serialized]);
+  }, [editor]);
+
+  const beginImageUpload = useCallback(() => {
+    activeImageUploadsRef.current = transitionActiveImageUploads(
+      activeImageUploadsRef.current,
+      "begin",
+    );
+    if (activeImageUploadsRef.current === 1) {
+      const message = getImageUploadValidationMessage(
+        activeImageUploadsRef.current,
+      );
+      setValidationError(message);
+      onChangeRef.current(serializedRef.current, message);
+    }
+  }, []);
+  const finishImageUpload = useCallback(() => {
+    activeImageUploadsRef.current = transitionActiveImageUploads(
+      activeImageUploadsRef.current,
+      "finish",
+    );
+    if (activeImageUploadsRef.current === 0) {
+      publishDocument();
+    }
+  }, [publishDocument]);
+  const imageUploadTracker = useMemo(
+    () => ({ begin: beginImageUpload, finish: finishImageUpload }),
+    [beginImageUpload, finishImageUpload],
+  );
 
   const normalizePaste = () => {
     window.setTimeout(() => {
@@ -850,7 +1080,7 @@ export default function ResourceDocumentEditor({
       } catch (error) {
         const message = (error as ResourceDocumentValidationError).message ?? "No se pudo normalizar el contenido pegado.";
         setValidationError(message);
-        onChange(serialized, message);
+        onChangeRef.current(serializedRef.current, message);
       }
     }, 0);
   };
@@ -878,25 +1108,27 @@ export default function ResourceDocumentEditor({
           tabIndex={0}
           onPaste={normalizePaste}
         >
-          <BlockNoteView
-            editor={editor}
-            theme={resolvedTheme === "dark" ? "dark" : "light"}
-            editable={!disabled}
-            formattingToolbar={false}
-            slashMenu={false}
-            sideMenu={false}
-            filePanel={false}
-            emojiPicker
-            comments={false}
-            onChange={publishDocument}
-            onSelectionChange={() => setSelectionRevision((revision) => revision + 1)}
-          >
-            <SideMenuController sideMenu={RightOpeningSideMenu} />
-            <SuggestionMenuController
-              triggerCharacter="/"
-              getItems={async (query) => filterSuggestionItems(getSlashMenuItems(editor), query)}
-            />
-          </BlockNoteView>
+          <ImageUploadTrackerContext.Provider value={imageUploadTracker}>
+            <BlockNoteView
+              editor={editor}
+              theme={resolvedTheme === "dark" ? "dark" : "light"}
+              editable={!disabled}
+              formattingToolbar={false}
+              slashMenu={false}
+              sideMenu={false}
+              filePanel={false}
+              emojiPicker
+              comments={false}
+              onChange={publishDocument}
+              onSelectionChange={() => setSelectionRevision((revision) => revision + 1)}
+            >
+              <SideMenuController sideMenu={RightOpeningSideMenu} />
+              <SuggestionMenuController
+                triggerCharacter="/"
+                getItems={async (query) => filterSuggestionItems(getSlashMenuItems(editor), query)}
+              />
+            </BlockNoteView>
+          </ImageUploadTrackerContext.Provider>
         </div>
       </div>
       <div
@@ -911,7 +1143,6 @@ export default function ResourceDocumentEditor({
           emptyFallback={<p className={styles.previewEmpty}>La vista previa aparecerá cuando agregues contenido.</p>}
         />
       </div>
-      {validationError ? <p role="alert" className={styles.error}>{validationError}</p> : null}
     </div>
   );
 }

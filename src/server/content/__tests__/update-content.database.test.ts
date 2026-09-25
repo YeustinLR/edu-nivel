@@ -384,6 +384,11 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
           const firstRevision = await prisma.contentRevision.findUniqueOrThrow({
             where: { resourceId: contentResource.id },
           });
+          expect(firstRevision).toMatchObject({
+            status: "IN_REVIEW",
+            submittedById: collaboratorBId,
+          });
+          expect(firstRevision.submittedAt).toBeInstanceOf(Date);
           await expect(
             prisma.resource.findUniqueOrThrow({
               where: { id: contentResource.id },
@@ -397,55 +402,18 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             publicationStatus: "PUBLISHED",
           });
 
-          await updates.updateCatalogResource(
-            {
-              id: contentResource.id,
-              expectedUpdatedAt: firstRevision.updatedAt.toISOString(),
-              resourceType: ResourceType.NOTE,
-              title: `Revisión ajustada ${marker}`,
-              instructions: "Ajustada por A",
-              content: "Contenido de la revisión ajustada",
-              estimatedMinutes: 9,
-            },
-            { id: collaboratorId, role: Role.COLLABORATOR },
-          );
           await expect(
             updates.updateCatalogResource(
               {
                 id: contentResource.id,
                 expectedUpdatedAt: firstRevision.updatedAt.toISOString(),
                 resourceType: ResourceType.NOTE,
-                title: `Sobrescritura silenciosa ${marker}`,
+                title: `Edición bloqueada ${marker}`,
                 instructions: undefined,
                 content: "No debe guardarse",
                 estimatedMinutes: 10,
               },
-              { id: collaboratorBId, role: Role.COLLABORATOR },
-            ),
-          ).rejects.toMatchObject({ code: "EDIT_CONFLICT" });
-
-          await editorial.applyEditorialTransition({
-            targetType: "resource",
-            targetId: contentResource.id,
-            transition: "SUBMIT_FOR_REVIEW",
-            actor: { id: collaboratorId, role: Role.COLLABORATOR },
-          });
-          const submittedRevision =
-            await prisma.contentRevision.findUniqueOrThrow({
-              where: { resourceId: contentResource.id },
-            });
-          expect(submittedRevision.submittedById).toBe(collaboratorId);
-          await expect(
-            updates.updateCatalogResource(
-              {
-                id: contentResource.id,
-                expectedUpdatedAt: submittedRevision.updatedAt.toISOString(),
-                resourceType: ResourceType.NOTE,
-                title: `Edición bloqueada ${marker}`,
-                instructions: undefined,
-                content: "No debe guardarse",
-              },
-              { id: collaboratorBId, role: Role.COLLABORATOR },
+              { id: collaboratorId, role: Role.COLLABORATOR },
             ),
           ).rejects.toMatchObject({ code: "INVALID_STATE" });
 
@@ -479,11 +447,16 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             },
             { id: collaboratorBId, role: Role.COLLABORATOR },
           );
-          await editorial.applyEditorialTransition({
-            targetType: "resource",
-            targetId: contentResource.id,
-            transition: "SUBMIT_FOR_REVIEW",
-            actor: { id: collaboratorBId, role: Role.COLLABORATOR },
+          const resubmittedRevision =
+            await prisma.contentRevision.findUniqueOrThrow({
+              where: { resourceId: contentResource.id },
+            });
+          expect(resubmittedRevision).toMatchObject({
+            status: "IN_REVIEW",
+            submittedById: collaboratorBId,
+            reviewedById: null,
+            reviewedAt: null,
+            reviewNote: null,
           });
           await editorial.applyEditorialTransition({
             targetType: "resource",

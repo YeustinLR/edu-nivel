@@ -1,23 +1,23 @@
 "use client";
 
-import type { PublicationStatus } from "@/generated/prisma/enums";
 import { Trash2, TriangleAlert } from "lucide-react";
 import { useActionState, useId, useState } from "react";
 
 import { deleteAdminModuleAction } from "@/modules/content/actions/admin-module-delete-actions";
-import { isModulePermanentlyDeletable } from "@/modules/content/domain/content-permissions";
 import { initialAdminModuleDeleteActionState } from "@/modules/content/types/admin-module-delete-action-state";
 
 export function AdminModuleDeletionControl({
   moduleId,
   title,
-  publicationStatus,
   resourceCount,
+  activeSubscriptionCount,
+  unresolvedPaymentCount,
 }: {
   moduleId: string;
   title: string;
-  publicationStatus: PublicationStatus;
   resourceCount: number;
+  activeSubscriptionCount: number;
+  unresolvedPaymentCount: number;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(
@@ -25,7 +25,8 @@ export function AdminModuleDeletionControl({
     initialAdminModuleDeleteActionState,
   );
   const confirmationErrorId = useId();
-  const canDelete = isModulePermanentlyDeletable(publicationStatus);
+  const blocked =
+    activeSubscriptionCount > 0 || unresolvedPaymentCount > 0;
   const confirmationError =
     state.status === "error"
       ? state.fieldErrors?.confirmationTitle?.[0]
@@ -49,31 +50,31 @@ export function AdminModuleDeletionControl({
             Eliminar módulo
           </h3>
           <p className="mt-1 text-xs leading-5 text-muted">
-            Esta acción elimina permanentemente el módulo, sus {resourceCount}{" "}
-            {resourceCount === 1 ? "recurso" : "recursos"} y el progreso asociado.
+            {blocked
+              ? "No puede eliminarse mientras el nivel tenga accesos o pagos en curso."
+              : `Esta acción elimina permanentemente el módulo, sus ${resourceCount} ${resourceCount === 1 ? "recurso" : "recursos"} y el progreso asociado.`}
           </p>
         </div>
       </div>
 
-      {canDelete ? (
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          aria-expanded={open}
-          className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-red-500/40 px-3 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-red-300"
-        >
-          <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-          Eliminar permanentemente
-        </button>
-      ) : (
-        <p className="mt-3 text-xs font-medium text-muted">
-          {publicationStatus === "PUBLISHED"
-            ? "Despublica el módulo antes de eliminarlo."
-            : "Retira el módulo de revisión antes de eliminarlo."}
-        </p>
-      )}
+      {blocked ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {activeSubscriptionCount > 0 ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">{activeSubscriptionCount} {activeSubscriptionCount === 1 ? "suscripción vigente" : "suscripciones vigentes"}</span> : null}
+          {unresolvedPaymentCount > 0 ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">{unresolvedPaymentCount} {unresolvedPaymentCount === 1 ? "pago pendiente" : "pagos pendientes"}</span> : null}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        disabled={blocked}
+        className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-red-500/40 px-3 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:border-border disabled:text-muted disabled:hover:bg-transparent dark:text-red-300"
+      >
+        <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+        {blocked ? "Eliminación bloqueada" : "Eliminar permanentemente"}
+      </button>
 
-      {open && canDelete ? (
+      {open && !blocked ? (
         <form
           action={formAction}
           className="mt-4 space-y-3 border-t border-border pt-4"
