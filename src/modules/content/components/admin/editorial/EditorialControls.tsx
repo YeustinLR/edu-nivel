@@ -80,11 +80,13 @@ function HiddenFields({
   targetId,
   parentId,
   transition,
+  expectedRevisionUpdatedAt,
 }: {
   targetType: "module" | "resource";
   targetId: string;
   parentId: string;
   transition: EditorialTransition;
+  expectedRevisionUpdatedAt?: string;
 }) {
   return (
     <>
@@ -92,6 +94,13 @@ function HiddenFields({
       <input type="hidden" name="targetId" value={targetId} />
       <input type="hidden" name="parentId" value={parentId} />
       <input type="hidden" name="transition" value={transition} />
+      {expectedRevisionUpdatedAt ? (
+        <input
+          type="hidden"
+          name="expectedRevisionUpdatedAt"
+          value={expectedRevisionUpdatedAt}
+        />
+      ) : null}
     </>
   );
 }
@@ -105,6 +114,7 @@ export function EditorialControls({
   variant = "default",
   targetTitle,
   initialReviewNote,
+  expectedRevisionUpdatedAt,
   successHref,
 }: {
   targetType: "module" | "resource";
@@ -115,6 +125,7 @@ export function EditorialControls({
   variant?: "default" | "review-workspace";
   targetTitle?: string;
   initialReviewNote?: string | null;
+  expectedRevisionUpdatedAt?: string;
   successHref?: string;
 }) {
   const router = useRouter();
@@ -201,6 +212,7 @@ export function EditorialControls({
                 targetId={targetId}
                 parentId={parentId}
                 transition={transition}
+                expectedRevisionUpdatedAt={expectedRevisionUpdatedAt}
               />
               <button
                 type="submit"
@@ -222,6 +234,7 @@ export function EditorialControls({
             targetId={targetId}
             parentId={parentId}
             transition={activeTransition}
+            expectedRevisionUpdatedAt={expectedRevisionUpdatedAt}
           />
           {needsReviewNote && isReviewWorkspace ? (
             <input type="hidden" name="reviewNote" value={reviewNote} />

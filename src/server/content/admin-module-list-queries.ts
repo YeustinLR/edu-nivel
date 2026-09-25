@@ -210,6 +210,10 @@ export async function getAdminSubjectContentWorkspace({
       : null;
     const moduleTarget = {
       createdById: moduleRecord.createdById,
+      publicationStatus: moduleRecord.publicationStatus,
+    };
+    const moduleWorkflowTarget = {
+      createdById: moduleRecord.createdById,
       publicationStatus: moduleRevision?.status ?? moduleRecord.publicationStatus,
     };
     const moduleBaseTarget = {
@@ -237,14 +241,18 @@ export async function getAdminSubjectContentWorkspace({
       canArchive: canArchiveEditorialContent(actor, moduleBaseTarget),
       canReactivate:
         hierarchyIsActive && canReactivateEditorialContent(actor, moduleTarget),
-      canSubmitForReview: canSubmitEditorialContent(actor, moduleTarget),
-      canApprove: canApproveEditorialContent(actor, moduleTarget),
+      canSubmitForReview: canSubmitEditorialContent(actor, moduleWorkflowTarget),
+      canApprove: canApproveEditorialContent(actor, moduleWorkflowTarget),
       resources: moduleRecord.resources.map((resource) => {
         const resourceRevision = resource.revisions[0];
         const resourceRevisionPayload = resourceRevision && actor.role === Role.COLLABORATOR
           ? asResourceRevisionPayload(resourceRevision.payload)
           : null;
         const resourceTarget = {
+          createdById: resource.createdById,
+          publicationStatus: resource.publicationStatus,
+        };
+        const resourceWorkflowTarget = {
           createdById: resource.createdById,
           publicationStatus: resourceRevision?.status ?? resource.publicationStatus,
         };
@@ -289,8 +297,8 @@ export async function getAdminSubjectContentWorkspace({
             hierarchyIsActive &&
             moduleRecord.isActive &&
             canReactivateEditorialContent(actor, resourceTarget),
-          canSubmitForReview: canSubmitEditorialContent(actor, resourceTarget),
-          canApprove: canApproveEditorialContent(actor, resourceTarget),
+          canSubmitForReview: canSubmitEditorialContent(actor, resourceWorkflowTarget),
+          canApprove: canApproveEditorialContent(actor, resourceWorkflowTarget),
         };
       }),
     };

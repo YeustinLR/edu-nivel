@@ -64,6 +64,7 @@ export async function AdminReviewDetailPage({ reviewId }: { reviewId: string }) 
               layout="stacked"
               variant="review-workspace"
               targetTitle={detail.title}
+              expectedRevisionUpdatedAt={detail.updatedAt.toISOString()}
               successHref={reviewsHref}
             />
           </div>

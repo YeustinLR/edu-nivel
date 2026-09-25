@@ -9,6 +9,7 @@ export const editorialActionSchema = z
     parentId: z.string().trim().min(1).max(128),
     transition: z.enum(editorialTransitions),
     reviewNote: z.string().trim().max(500).optional(),
+    expectedRevisionUpdatedAt: z.iso.datetime({ offset: true }).optional(),
     reviewConfirmed: z.preprocess(
       (value) => value === true || value === "true" || value === "on",
       z.boolean(),

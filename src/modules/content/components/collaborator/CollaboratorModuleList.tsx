@@ -85,6 +85,15 @@ function ModuleMetadata({ module }: { module: CollaboratorModule }) {
         </span>
       )}
       <AudienceBadge audience={module.audience} appearance="inline" />
+      {module.revisionStatus ? (
+        <span className="inline-flex items-center gap-1 text-xs text-muted">
+          Propuesta:
+          <PublicationStatusBadge
+            status={module.revisionStatus as PublicationStatus}
+            compact
+          />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -128,6 +137,15 @@ function CollaboratorResources({ module }: { module: CollaboratorModule }) {
                         Archivado
                       </span>
                     )}
+                    {resource.revisionStatus ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted">
+                        Propuesta:
+                        <PublicationStatusBadge
+                          status={resource.revisionStatus as PublicationStatus}
+                          compact
+                        />
+                      </span>
+                    ) : null}
                   </div>
                   {resource.reviewNote ? (
                     <p className="mt-1 flex items-start gap-1 text-xs leading-5 text-secondary">
@@ -145,7 +163,7 @@ function CollaboratorResources({ module }: { module: CollaboratorModule }) {
                   <EditorialButton
                     id={resource.id}
                     type="resource"
-                    status={resource.publicationStatus}
+                    status={(resource.revisionStatus ?? resource.publicationStatus) as PublicationStatus}
                   />
                 ) : null}
                 <Link
@@ -288,11 +306,10 @@ function InteractiveCollaboratorModuleList({
       ) : (
         <ul className="divide-y divide-border">
           {visibleModules.map((module) => {
-            const isEditable = [
+            const isEditable = module.publicationStatus === "PUBLISHED" || [
               "DRAFT",
               "CHANGES_REQUESTED",
               "UNPUBLISHED",
-              "PUBLISHED",
             ].includes(module.publicationStatus);
             const canChangeAvailability = [
               "DRAFT",
@@ -357,7 +374,7 @@ function InteractiveCollaboratorModuleList({
                         <EditorialButton
                           id={module.id}
                           type="module"
-                          status={module.publicationStatus}
+                          status={(module.revisionStatus ?? module.publicationStatus) as PublicationStatus}
                         />
                       ) : null}
                     </div>
@@ -396,6 +413,7 @@ function InteractiveCollaboratorModuleList({
                               updatedAt: module.updatedAt.toISOString(),
                             }}
                             submitForReview={module.basePublicationStatus === "PUBLISHED"}
+                            revisionStatus={module.revisionStatus}
                           />
                           <ContentAvailabilityControl
                             type="module"

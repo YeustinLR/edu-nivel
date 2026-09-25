@@ -80,7 +80,7 @@ function assertEditable(
   if (!canEditEditorialContent(actorForPolicy(actor), target)) {
     throw new ContentUpdateError(
       "INVALID_STATE",
-      "Retira el contenido de revisión o despublícalo antes de editarlo.",
+      "El contenido no puede editarse en su estado actual.",
     );
   }
 }
@@ -215,7 +215,14 @@ export async function updateCatalogModule(
     moduleRecord.publicationStatus === "PUBLISHED"
   ) {
     try {
-      await savePublishedModuleRevision(input, actor);
+      const revisionResult = await savePublishedModuleRevision(input, actor);
+      if (revisionResult?.outcome === "UPDATED") {
+        return {
+          affectsPublishedContent: false,
+          createdRevision: false,
+          updatedRevision: true,
+        };
+      }
       return { affectsPublishedContent: false, createdRevision: true };
     } catch (error) {
       translateRevisionError(error);
@@ -303,7 +310,14 @@ export async function updateCatalogResource(
     resource.publicationStatus === "PUBLISHED"
   ) {
     try {
-      await savePublishedResourceRevision(input, actor);
+      const revisionResult = await savePublishedResourceRevision(input, actor);
+      if (revisionResult?.outcome === "UPDATED") {
+        return {
+          affectsPublishedContent: false,
+          createdRevision: false,
+          updatedRevision: true,
+        };
+      }
       return { affectsPublishedContent: false, createdRevision: true };
     } catch (error) {
       translateRevisionError(error);

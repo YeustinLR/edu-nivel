@@ -764,6 +764,7 @@ export function SubjectContentWorkspace({
             onCancel={closeDrawer}
             onSuccess={handleSaved}
             submitForReview={!isAdmin && drawer.moduleRecord.publicationStatus === "PUBLISHED"}
+            revisionStatus={drawer.moduleRecord.revisionStatus}
           />
         ) : drawer?.kind === "resource" ? (
           drawer.resource ? (

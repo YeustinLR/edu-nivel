@@ -132,14 +132,14 @@ describe("collaborator team catalog pagination", () => {
       description: "Descripción revisada",
       audience: "BOTH",
       basePublicationStatus: "PUBLISHED",
-      publicationStatus: "IN_REVIEW",
+      publicationStatus: "PUBLISHED",
       revisionStatus: "IN_REVIEW",
       updatedAt: revisionUpdatedAt,
       resources: [
         expect.objectContaining({
           title: "Recurso corregido",
           basePublicationStatus: "PUBLISHED",
-          publicationStatus: "CHANGES_REQUESTED",
+          publicationStatus: "PUBLISHED",
           revisionStatus: "CHANGES_REQUESTED",
           reviewNote: "Aclara el ejemplo.",
         }),

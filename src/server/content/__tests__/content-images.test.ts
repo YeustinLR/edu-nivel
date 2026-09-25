@@ -5,6 +5,7 @@ import { PublicationStatus, Role, UploadStatus } from "@/generated/prisma/enums"
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   moduleFindUnique: vi.fn(),
+  resourceFindUnique: vi.fn(),
   imageCreate: vi.fn(),
   imageDelete: vi.fn(),
   imageFindUnique: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("@/server/storage/r2", () => ({
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     module: { findUnique: mocks.moduleFindUnique },
+    resource: { findUnique: mocks.resourceFindUnique },
     contentImage: {
       create: mocks.imageCreate,
       delete: mocks.imageDelete,
@@ -99,6 +101,29 @@ describe("content image uploads", () => {
         createdById: "author-1",
         editorSessionId: "session-1",
         mimeType: "image/png",
+      }),
+    });
+  });
+
+  it("allows images while editing the proposal of a published resource", async () => {
+    mocks.resourceFindUnique.mockResolvedValue({
+      createdById: "author-1",
+      publicationStatus: PublicationStatus.PUBLISHED,
+    });
+
+    const result = await createContentImageIntent({
+      editorSessionId: "resource-1",
+      resourceId: "resource-1",
+      originalName: "grafico.png",
+      mimeType: "image/png",
+      sizeBytes: 1_024,
+    });
+
+    expect(result.uploadUrl).toBe("https://upload.test");
+    expect(mocks.imageCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        editorSessionId: "resource-1",
+        createdById: "author-1",
       }),
     });
   });

@@ -177,6 +177,7 @@ export async function applyEditorialTransition({
   expectedParentId,
   transition,
   reviewNote,
+  expectedRevisionUpdatedAt,
   actor,
 }: {
   targetType: EditorialTargetType;
@@ -184,6 +185,7 @@ export async function applyEditorialTransition({
   expectedParentId?: string;
   transition: EditorialTransition;
   reviewNote?: string | null;
+  expectedRevisionUpdatedAt?: string;
   actor: EditorialActor;
 }) {
   const target = await getEditorialTarget(targetType, targetId);
@@ -214,6 +216,7 @@ export async function applyEditorialTransition({
         targetId,
         transition: transition as "SUBMIT_FOR_REVIEW" | "WITHDRAW_REVIEW" | "PUBLISH" | "REQUEST_CHANGES",
         reviewNote,
+        expectedRevisionUpdatedAt,
         actor,
       });
       if (revisionResult) return revisionResult;

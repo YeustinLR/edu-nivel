@@ -46,6 +46,7 @@ export type ResourceContentDetail = {
   canArchive: boolean;
   canReactivate: boolean;
   revisionStatus: ContentRevisionStatus | null;
+  reviewNote: string | null;
   lastEditorName: string;
   youtube: {
     videoId: string;
@@ -197,7 +198,9 @@ export async function getModuleEditorData(
   const workingRevision = actor.role === "COLLABORATOR" ? revision : null;
   const permissionTarget = {
     createdById: moduleRecord.createdById,
-    publicationStatus: workingRevision?.status ?? moduleRecord.publicationStatus,
+    // A published row and its proposal have independent lifecycles. The
+    // proposal status must not make the published module uneditable.
+    publicationStatus: moduleRecord.publicationStatus,
   };
   const basePermissionTarget = {
     createdById: moduleRecord.createdById,
@@ -257,6 +260,7 @@ export async function getResourceContentDetail({
       isRequired: true,
       isFreePreview: true,
       publicationStatus: true,
+      reviewNote: true,
       isActive: true,
       createdById: true,
       updatedAt: true,
@@ -352,7 +356,9 @@ export async function getResourceContentDetail({
 
   const permissionTarget = {
     createdById: resource.createdById,
-    publicationStatus: workingRevision?.status ?? resource.publicationStatus,
+    // Keep publication and revision state separate: collaborators edit the
+    // proposal while the published resource remains available.
+    publicationStatus: resource.publicationStatus,
   };
   const basePermissionTarget = {
     createdById: resource.createdById,
@@ -391,6 +397,7 @@ export async function getResourceContentDetail({
       resource.module.subject.isActive &&
       resource.module.subject.level.isActive,
     revisionStatus: revision?.status ?? null,
+    reviewNote: revision?.reviewNote ?? resource.reviewNote,
     lastEditorName: revision?.updatedBy.name ?? resource.updatedBy?.name ?? resource.createdBy.name,
     youtube: resource.youtubeVideo
       ? {

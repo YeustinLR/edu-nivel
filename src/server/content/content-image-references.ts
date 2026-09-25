@@ -22,6 +22,7 @@ export async function syncResourceContentImages(
     allowedActorIds?: string[];
     content: string | null | undefined;
     isNewResource?: boolean;
+    allowExpiredOrphans?: boolean;
   },
 ) {
   const requestedIds = getResourceDocumentImageIds(input.content);
@@ -42,7 +43,9 @@ export async function syncResourceContentImages(
         createdById: { in: input.allowedActorIds ?? [input.actorId] },
         editorSessionId: input.editorSessionId,
         status: { in: [UploadStatus.CONFIRMED, UploadStatus.CLEANUP_PENDING] },
-        orphanExpiresAt: { gt: new Date() },
+        ...(input.allowExpiredOrphans
+          ? {}
+          : { orphanExpiresAt: { gt: new Date() } }),
       },
       select: { id: true },
     });

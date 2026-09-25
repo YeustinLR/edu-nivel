@@ -408,20 +408,48 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
                 id: contentResource.id,
                 expectedUpdatedAt: firstRevision.updatedAt.toISOString(),
                 resourceType: ResourceType.NOTE,
-                title: `Edición bloqueada ${marker}`,
+                title: `Revisión actualizada ${marker}`,
                 instructions: undefined,
-                content: "No debe guardarse",
+                content: "Nueva versión todavía no aprobada",
                 estimatedMinutes: 10,
               },
               { id: collaboratorId, role: Role.COLLABORATOR },
             ),
-          ).rejects.toMatchObject({ code: "INVALID_STATE" });
+          ).resolves.toEqual({
+            affectsPublishedContent: false,
+            createdRevision: false,
+            updatedRevision: true,
+          });
+
+          const updatedPendingRevision =
+            await prisma.contentRevision.findUniqueOrThrow({
+              where: { resourceId: contentResource.id },
+            });
+          expect(updatedPendingRevision.id).toBe(firstRevision.id);
+          expect(updatedPendingRevision).toMatchObject({
+            status: "IN_REVIEW",
+            submittedById: collaboratorId,
+          });
+          await expect(
+            prisma.resource.findUniqueOrThrow({
+              where: { id: contentResource.id },
+              select: { title: true, content: true, publicationStatus: true },
+            }),
+          ).resolves.toEqual({
+            title: `Contenido actualizado ${marker}`,
+            content: normalizeResourceContentForStorage(
+              "Contenido persistido de la lección",
+            ),
+            publicationStatus: "PUBLISHED",
+          });
 
           await editorial.applyEditorialTransition({
             targetType: "resource",
             targetId: contentResource.id,
             transition: "REQUEST_CHANGES",
             reviewNote: "Aclara la explicación.",
+            expectedRevisionUpdatedAt:
+              updatedPendingRevision.updatedAt.toISOString(),
             actor: { id: adminId, role: Role.ADMIN },
           });
           await expect(
@@ -462,6 +490,8 @@ describe.skipIf(!RUN_DATABASE_INTEGRATION)(
             targetType: "resource",
             targetId: contentResource.id,
             transition: "PUBLISH",
+            expectedRevisionUpdatedAt:
+              resubmittedRevision.updatedAt.toISOString(),
             actor: { id: adminId, role: Role.ADMIN },
           });
           await expect(

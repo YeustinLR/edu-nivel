@@ -76,7 +76,7 @@ export default function HeroContent() {
       >
         <div
           className="flex -space-x-2"
-          aria-label="Usuarios en lista de espera"
+          aria-label="Múltiples usuarios"
         >
           {socialProof.users.map((user) => (
             <div

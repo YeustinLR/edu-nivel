@@ -151,7 +151,7 @@ export async function getCollaboratorContentWorkspace(
     return {
       ...moduleRecord,
       basePublicationStatus: moduleRecord.publicationStatus,
-      publicationStatus: revision?.status ?? moduleRecord.publicationStatus,
+      publicationStatus: moduleRecord.publicationStatus,
       revisionStatus: revision?.status ?? null,
       title: revisionPayload?.title ?? moduleRecord.title,
       description: revisionPayload?.description ?? moduleRecord.description,
@@ -167,7 +167,7 @@ export async function getCollaboratorContentWorkspace(
         return {
           ...resource,
           basePublicationStatus: resource.publicationStatus,
-          publicationStatus: resourceRevision?.status ?? resource.publicationStatus,
+          publicationStatus: resource.publicationStatus,
           revisionStatus: resourceRevision?.status ?? null,
           title: resourceRevisionPayload?.title ?? resource.title,
           reviewNote: resourceRevision?.reviewNote ?? resource.reviewNote,

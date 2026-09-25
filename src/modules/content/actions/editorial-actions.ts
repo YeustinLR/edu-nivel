@@ -30,6 +30,8 @@ export async function transitionEditorialContentAction(
     parentId: formData.get("parentId"),
     transition: formData.get("transition"),
     reviewNote: formData.get("reviewNote") || undefined,
+    expectedRevisionUpdatedAt:
+      formData.get("expectedRevisionUpdatedAt") || undefined,
     reviewConfirmed: formData.get("reviewConfirmed"),
   });
 
@@ -60,6 +62,7 @@ export async function transitionEditorialContentAction(
       expectedParentId: parsed.data.parentId,
       transition: parsed.data.transition,
       reviewNote: parsed.data.reviewNote,
+      expectedRevisionUpdatedAt: parsed.data.expectedRevisionUpdatedAt,
       actor,
     });
     revalidateContentPages(

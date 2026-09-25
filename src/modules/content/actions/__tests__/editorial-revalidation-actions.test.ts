@@ -22,13 +22,16 @@ vi.mock("@/server/content/revalidate-content", () => ({
 
 import { transitionEditorialContentAction } from "@/modules/content/actions/editorial-actions";
 
-function editorialForm(transition: string) {
+function editorialForm(transition: string, expectedRevisionUpdatedAt?: string) {
   const data = new FormData();
   data.set("targetType", "resource");
   data.set("targetId", "resource-1");
   data.set("parentId", "module-1");
   data.set("transition", transition);
   if (transition === "PUBLISH") data.set("reviewConfirmed", "true");
+  if (expectedRevisionUpdatedAt) {
+    data.set("expectedRevisionUpdatedAt", expectedRevisionUpdatedAt);
+  }
   return data;
 }
 
@@ -59,12 +62,16 @@ describe("editorial action revalidation scope", () => {
       publicationStatus: PublicationStatus.PUBLISHED,
     });
 
+    const expectedRevisionUpdatedAt = "2026-09-24T12:00:00.000Z";
     const result = await transitionEditorialContentAction(
       initialEditorialActionState,
-      editorialForm("PUBLISH"),
+      editorialForm("PUBLISH", expectedRevisionUpdatedAt),
     );
 
     expect(result.status).toBe("success");
+    expect(mocks.applyEditorialTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedRevisionUpdatedAt }),
+    );
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
   });
 

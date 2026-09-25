@@ -248,6 +248,47 @@ describe("content revisions", () => {
     );
   });
 
+  it("updates the same in-review proposal without withdrawing it", async () => {
+    const pendingRevision = revision({
+      kind: ContentRevisionKind.MODULE,
+      moduleId: "module-1",
+      resourceId: null,
+      status: ContentRevisionStatus.IN_REVIEW,
+    });
+    mocks.moduleFindUnique.mockResolvedValue({
+      id: "module-1",
+      publicationStatus: PublicationStatus.PUBLISHED,
+      updatedAt: baseUpdatedAt,
+    });
+    mocks.revisionFindUnique.mockResolvedValue(pendingRevision);
+
+    await expect(
+      savePublishedModuleRevision(
+        moduleInput(revisionUpdatedAt.toISOString()),
+        { id: "collaborator-b", role: Role.COLLABORATOR },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "UPDATED",
+      revision: { id: pendingRevision.id },
+    });
+
+    expect(mocks.revisionCreate).not.toHaveBeenCalled();
+    expect(mocks.revisionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: pendingRevision.id }),
+        data: expect.objectContaining({
+          status: ContentRevisionStatus.IN_REVIEW,
+          updatedById: "collaborator-b",
+          submittedById: "collaborator-b",
+          submittedAt: expect.any(Date),
+          reviewedById: null,
+          reviewedAt: null,
+          reviewNote: null,
+        }),
+      }),
+    );
+  });
+
   it("does not silently overwrite a concurrent revision edit", async () => {
     mocks.moduleFindUnique.mockResolvedValue({
       id: "module-1",
@@ -310,6 +351,7 @@ describe("content revisions", () => {
         targetType: "resource",
         targetId: "resource-1",
         transition: "PUBLISH",
+        expectedRevisionUpdatedAt: revisionUpdatedAt.toISOString(),
         actor: { id: "admin-1", role: Role.ADMIN },
       }),
     ).resolves.toEqual({
@@ -343,6 +385,7 @@ describe("content revisions", () => {
       targetId: "resource-1",
       transition: "REQUEST_CHANGES",
       reviewNote: "Corrige la explicación.",
+      expectedRevisionUpdatedAt: revisionUpdatedAt.toISOString(),
       actor: { id: "admin-1", role: Role.ADMIN },
     });
 
@@ -354,6 +397,27 @@ describe("content revisions", () => {
         }),
       }),
     );
+    expect(mocks.resourceUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.revisionDelete).not.toHaveBeenCalled();
+  });
+
+  it("rejects an admin decision made from a stale review page", async () => {
+    mocks.revisionFindFirst.mockResolvedValue(revision());
+
+    await expect(
+      transitionPublishedRevision({
+        targetType: "resource",
+        targetId: "resource-1",
+        transition: "PUBLISH",
+        expectedRevisionUpdatedAt: baseUpdatedAt.toISOString(),
+        actor: { id: "admin-1", role: Role.ADMIN },
+      }),
+    ).rejects.toMatchObject({
+      code: "EDIT_CONFLICT",
+      message:
+        "La revisión fue actualizada mientras la revisabas. Recarga la página antes de tomar una decisión.",
+    });
+
     expect(mocks.resourceUpdateMany).not.toHaveBeenCalled();
     expect(mocks.revisionDelete).not.toHaveBeenCalled();
   });

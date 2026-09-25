@@ -133,7 +133,9 @@ export async function updateModuleContentAction(
     );
     return {
       status: "success",
-      message: result.createdRevision
+      message: "updatedRevision" in result && result.updatedRevision
+        ? "La revisión del módulo fue actualizada. La versión publicada continúa sin cambios."
+        : result.createdRevision
         ? "Los cambios del módulo fueron enviados a revisión sin modificar la versión publicada."
         : "El módulo fue actualizado.",
     };
@@ -162,7 +164,9 @@ export async function updateResourceContentAction(
     );
     return {
       status: "success",
-      message: result.createdRevision
+      message: "updatedRevision" in result && result.updatedRevision
+        ? "La revisión del recurso fue actualizada. La versión publicada continúa sin cambios."
+        : result.createdRevision
         ? "Los cambios del recurso fueron enviados a revisión sin modificar la versión publicada."
         : "El recurso fue actualizado.",
     };

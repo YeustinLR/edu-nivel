@@ -6,6 +6,7 @@ import type { ResourceContentDetail } from "@/server/content/content-detail-quer
 import { EditorialControls } from "@/modules/content/components/admin/editorial/EditorialControls";
 import { getCollaboratorEditorialTransitions } from "@/modules/content/domain/editorial-workflow";
 import type { PublicationStatus } from "@/generated/prisma/enums";
+import { PublicationStatusBadge } from "@/modules/content/components/admin/ContentBadges";
 
 export function CollaboratorResourcePanel({
   resource,
@@ -27,9 +28,26 @@ export function CollaboratorResourcePanel({
         backHref={backHref}
       />
       {resource.revisionStatus ? (
-        <p role="status" className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 px-3 py-2 text-sm text-foreground">
-          Este recurso conserva su versión publicada mientras la revisión está {resource.revisionStatus === "IN_REVIEW" ? "pendiente" : "en preparación"}. Última edición: {resource.lastEditorName}.
-        </p>
+        <div role="status" className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 px-3 py-3 text-sm text-foreground">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">Publicación:</span>
+            <PublicationStatusBadge status={resource.publicationStatus} compact />
+            <span className="ml-2 font-medium">Propuesta:</span>
+            <PublicationStatusBadge status={resource.revisionStatus as PublicationStatus} compact />
+          </div>
+          <p className="mt-2 leading-6">
+            {resource.revisionStatus === "IN_REVIEW"
+              ? "Esta propuesta está en revisión. Puedes continuar editándola; al guardar, el administrador recibirá la versión más reciente."
+              : "La versión publicada sigue disponible mientras corriges la propuesta."}{" "}
+            Última edición: {resource.lastEditorName}.
+          </p>
+          {resource.revisionStatus === "CHANGES_REQUESTED" && resource.reviewNote ? (
+            <p className="mt-2 rounded-md bg-background px-3 py-2 leading-6">
+              <span className="font-medium">Observación del administrador:</span>{" "}
+              {resource.reviewNote}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {resource.canEdit ? (
         <details
@@ -47,6 +65,7 @@ export function CollaboratorResourcePanel({
                 updatedAt: resource.updatedAt.toISOString(),
               }}
               submitForReview={resource.publicationStatus === "PUBLISHED"}
+              revisionStatus={resource.revisionStatus}
             />
             <ContentAvailabilityControl
               type="resource"
@@ -58,7 +77,7 @@ export function CollaboratorResourcePanel({
                   ? resource.canArchive
                   : resource.canReactivate
               }
-              unavailableReason="Retira el recurso de revisión o solicita al administrador que lo despublique."
+              unavailableReason="Solo un administrador puede retirar del catálogo la versión publicada."
             />
           </div>
         </details>

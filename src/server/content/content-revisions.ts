@@ -153,9 +153,6 @@ export async function savePublishedModuleRevision(
     throw new ContentRevisionError("INVALID_STATE", "El módulo ya no está publicado.");
   }
   const existing = await prisma.contentRevision.findUnique({ where: { moduleId: input.id } });
-  if (existing?.status === ContentRevisionStatus.IN_REVIEW) {
-    throw new ContentRevisionError("INVALID_STATE", "Retira la revisión antes de editarla.");
-  }
   const expected = new Date(input.expectedUpdatedAt).getTime();
   const current = existing?.updatedAt ?? moduleRecord.updatedAt;
   if (current.getTime() !== expected) {
@@ -226,7 +223,10 @@ export async function savePublishedModuleRevision(
         revisionId: revision.id,
         action: "SUBMIT_FOR_REVIEW",
       });
-      return revision;
+      return {
+        revision,
+        outcome: existing ? "UPDATED" as const : "CREATED" as const,
+      };
     });
   } catch (error) {
     if (isPrismaError(error, "P2002")) {
@@ -256,9 +256,6 @@ export async function savePublishedResourceRevision(
     throw new ContentRevisionError("INVALID_STATE", "El tipo del recurso cambió.");
   }
   const existing = await prisma.contentRevision.findUnique({ where: { resourceId: input.id } });
-  if (existing?.status === ContentRevisionStatus.IN_REVIEW) {
-    throw new ContentRevisionError("INVALID_STATE", "Retira la revisión antes de editarla.");
-  }
   const expected = new Date(input.expectedUpdatedAt).getTime();
   const current = existing?.updatedAt ?? resource.updatedAt;
   if (current.getTime() !== expected) {
@@ -345,7 +342,10 @@ export async function savePublishedResourceRevision(
         revisionId: revision.id,
         action: "SUBMIT_FOR_REVIEW",
       });
-      return revision;
+      return {
+        revision,
+        outcome: existing ? "UPDATED" as const : "CREATED" as const,
+      };
     });
   } catch (error) {
     if (isPrismaError(error, "P2002")) {
@@ -363,6 +363,7 @@ export async function transitionPublishedRevision(input: {
   targetId: string;
   transition: "SUBMIT_FOR_REVIEW" | "WITHDRAW_REVIEW" | "PUBLISH" | "REQUEST_CHANGES";
   reviewNote?: string | null;
+  expectedRevisionUpdatedAt?: string;
   actor: ContentRevisionActor;
 }) {
   const revision = await prisma.contentRevision.findFirst({
@@ -382,13 +383,35 @@ export async function transitionPublishedRevision(input: {
     (input.transition === "WITHDRAW_REVIEW" && revision.status === ContentRevisionStatus.IN_REVIEW) ||
     ((input.transition === "PUBLISH" || input.transition === "REQUEST_CHANGES") && revision.status === ContentRevisionStatus.IN_REVIEW);
   if (!allowed) throw new ContentRevisionError("INVALID_STATE", "La transición no es válida para esta revisión.");
+  if (isAdminDecision) {
+    if (!input.expectedRevisionUpdatedAt) {
+      throw new ContentRevisionError(
+        "EDIT_CONFLICT",
+        "La revisión debe recargarse antes de tomar una decisión.",
+      );
+    }
+    const expectedRevisionUpdatedAt = new Date(input.expectedRevisionUpdatedAt);
+    if (
+      Number.isNaN(expectedRevisionUpdatedAt.getTime()) ||
+      expectedRevisionUpdatedAt.getTime() !== revision.updatedAt.getTime()
+    ) {
+      throw new ContentRevisionError(
+        "EDIT_CONFLICT",
+        "La revisión fue actualizada mientras la revisabas. Recarga la página antes de tomar una decisión.",
+      );
+    }
+  }
   const note = input.reviewNote?.trim() || null;
   if (input.transition === "REQUEST_CHANGES" && !note) {
     throw new ContentRevisionError("REVIEW_NOTE_REQUIRED", "Debes indicar los cambios solicitados.");
   }
 
   if (input.transition === "PUBLISH") {
-    return approvePublishedRevision(revision.id, input.actor);
+    return approvePublishedRevision(
+      revision.id,
+      new Date(input.expectedRevisionUpdatedAt!),
+      input.actor,
+    );
   }
 
   const status = input.transition === "SUBMIT_FOR_REVIEW"
@@ -420,20 +443,32 @@ export async function transitionPublishedRevision(input: {
   return { outcome: "APPLIED" as const, publicationStatus: status };
 }
 
-async function approvePublishedRevision(revisionId: string, actor: ContentRevisionActor) {
+async function approvePublishedRevision(
+  revisionId: string,
+  expectedRevisionUpdatedAt: Date,
+  actor: ContentRevisionActor,
+) {
   try {
     return await prisma.$transaction(async (transaction) => {
     const revision = await transaction.contentRevision.findUnique({ where: { id: revisionId } });
-    if (!revision || revision.status !== ContentRevisionStatus.IN_REVIEW) {
-      throw new ContentRevisionError("EDIT_CONFLICT", "La revisión ya no está pendiente.");
+    if (
+      !revision ||
+      revision.status !== ContentRevisionStatus.IN_REVIEW ||
+      revision.updatedAt.getTime() !== expectedRevisionUpdatedAt.getTime()
+    ) {
+      throw new ContentRevisionError(
+        "EDIT_CONFLICT",
+        "La revisión fue actualizada mientras la revisabas. Recarga la página antes de tomar una decisión.",
+      );
     }
+    const reviewedAt = new Date();
     const claimed = await transaction.contentRevision.updateMany({
       where: {
         id: revision.id,
         status: ContentRevisionStatus.IN_REVIEW,
-        updatedAt: revision.updatedAt,
+        updatedAt: expectedRevisionUpdatedAt,
       },
-      data: { reviewedById: actor.id, reviewedAt: new Date() },
+      data: { reviewedById: actor.id, reviewedAt },
     });
     if (claimed.count !== 1) {
       throw new ContentRevisionError(
@@ -445,7 +480,13 @@ async function approvePublishedRevision(revisionId: string, actor: ContentRevisi
       const payload = asModuleRevisionPayload(revision.payload);
       const updated = await transaction.module.updateMany({
         where: { id: revision.moduleId, updatedAt: revision.baseUpdatedAt, publicationStatus: "PUBLISHED" },
-        data: { ...payload, updatedById: revision.updatedById, reviewedById: actor.id, reviewedAt: new Date(), reviewNote: null },
+        data: {
+          ...payload,
+          updatedById: revision.updatedById,
+          reviewedById: actor.id,
+          reviewedAt,
+          reviewNote: null,
+        },
       });
       if (updated.count !== 1) throw new ContentRevisionError("EDIT_CONFLICT", "El módulo publicado cambió desde que se creó la revisión.");
     } else if (revision.kind === ContentRevisionKind.RESOURCE && revision.resourceId) {
@@ -464,7 +505,7 @@ async function approvePublishedRevision(revisionId: string, actor: ContentRevisi
           estimatedMinutes: payload.estimatedMinutes,
           updatedById: revision.updatedById,
           reviewedById: actor.id,
-          reviewedAt: new Date(),
+          reviewedAt,
           reviewNote: null,
         },
       });
@@ -508,6 +549,7 @@ async function approvePublishedRevision(revisionId: string, actor: ContentRevisi
           ]),
         ],
         content: payload.content,
+        allowExpiredOrphans: true,
       });
     } else {
       throw new ContentRevisionError("INVALID_STATE", "La revisión no tiene un destino válido.");

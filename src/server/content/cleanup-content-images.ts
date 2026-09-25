@@ -1,12 +1,14 @@
 import "server-only";
 
 import { UploadStatus } from "@/generated/prisma/enums";
+import { getResourceDocumentImageIds } from "@/modules/content/domain/resource-document";
 import { prisma } from "@/server/db/prisma";
 import { deleteR2Object } from "@/server/storage/r2";
 
 const BATCH_SIZE = 50;
 const PROCESSING_TIMEOUT_MS = 30 * 60 * 1_000;
 const CLEANUP_LEASE_MS = 5 * 60 * 1_000;
+const REVISION_IMAGE_LEASE_MS = 24 * 60 * 60 * 1_000;
 
 export async function cleanupExpiredContentImages() {
   const now = new Date();
@@ -46,6 +48,23 @@ export async function cleanupExpiredContentImages() {
     take: BATCH_SIZE,
     select: { id: true },
   });
+  const resourceRevisions = candidates.length
+    ? await prisma.contentRevision.findMany({
+        where: { kind: "RESOURCE" },
+        select: { payload: true },
+      })
+    : [];
+  const revisionImageIds = new Set(
+    resourceRevisions.flatMap(({ payload }) => {
+      if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+        return [];
+      }
+      const content = (payload as { content?: unknown }).content;
+      return getResourceDocumentImageIds(
+        typeof content === "string" ? content : null,
+      );
+    }),
+  );
 
   const summary = { examined: candidates.length, cleaned: 0, failed: 0, skipped: 0 };
   for (const candidate of candidates) {
@@ -79,6 +98,24 @@ export async function cleanupExpiredContentImages() {
 
     try {
       await deleteR2Object(image.temporaryStorageKey);
+      if (
+        revisionImageIds.has(image.id) &&
+        (image.status === UploadStatus.CONFIRMED ||
+          image.status === UploadStatus.CLEANUP_PENDING)
+      ) {
+        await prisma.contentImage.update({
+          where: { id: image.id },
+          data: {
+            status: UploadStatus.CONFIRMED,
+            orphanExpiresAt: new Date(Date.now() + REVISION_IMAGE_LEASE_MS),
+            cleanupLeaseUntil: null,
+            processingStartedAt: null,
+            failureCode: null,
+          },
+        });
+        summary.skipped += 1;
+        continue;
+      }
       if (
         image.status === UploadStatus.CLEANUP_PENDING &&
         (image.resources.length > 0 ||

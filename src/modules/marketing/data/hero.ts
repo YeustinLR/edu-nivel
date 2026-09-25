@@ -21,7 +21,7 @@ export const heroContentData: HeroContentData = {
       { initial: "A", bg: "#b45309" },
       { initial: "D", bg: "#1d4ed8" },
     ],
-    text: "+ Multiples usuarios en lista de espera",
+    text: "+ Múltiples usuarios",
     note: "Sin tarjeta requerida",
   }
 };

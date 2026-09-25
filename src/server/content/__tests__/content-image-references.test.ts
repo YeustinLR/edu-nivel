@@ -81,6 +81,23 @@ describe("syncResourceContentImages", () => {
     expect(tx.resourceContentImage.createMany).not.toHaveBeenCalled();
   });
 
+  it("can claim a revision image even when its orphan lease just expired", async () => {
+    const tx = transaction();
+    await syncResourceContentImages(tx as never, {
+      resourceId: "resource-1",
+      editorSessionId: "resource-1",
+      actorId: "author-1",
+      content,
+      isNewResource: true,
+      allowExpiredOrphans: true,
+    });
+
+    expect(tx.contentImage.findMany).toHaveBeenCalledWith({
+      where: expect.not.objectContaining({ orphanExpiresAt: expect.anything() }),
+      select: { id: true },
+    });
+  });
+
   it("releases removed images only when no resource still references them", async () => {
     const tx = transaction();
     tx.resourceContentImage.findMany.mockResolvedValue([

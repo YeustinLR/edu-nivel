@@ -43,12 +43,12 @@ async function assertUploadContext(
   if (input.resourceId) {
     const resource = await prisma.resource.findUnique({
       where: { id: input.resourceId },
-      select: { createdById: true, publicationStatus: true, revisions: { take: 1, select: { status: true } } },
+      select: { createdById: true, publicationStatus: true },
     });
     if (!resource) {
       throw new ContentUploadError("RESOURCE_NOT_FOUND", "El recurso ya no existe.", 404);
     }
-    if (resource.revisions?.[0]?.status === "IN_REVIEW" || !canEditEditorialContent(user, resource)) {
+    if (!canEditEditorialContent(user, resource)) {
       throw new ContentUploadError(
         "RESOURCE_NOT_EDITABLE",
         "No puedes agregar imágenes a este recurso en su estado actual.",

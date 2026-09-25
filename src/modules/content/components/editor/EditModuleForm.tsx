@@ -27,6 +27,7 @@ export function EditModuleForm({
   onCancel,
   onSuccess,
   submitForReview = false,
+  revisionStatus,
 }: {
   moduleRecord: {
     id: string;
@@ -39,6 +40,7 @@ export function EditModuleForm({
   onCancel?: () => void;
   onSuccess?: (message: string) => void;
   submitForReview?: boolean;
+  revisionStatus?: "DRAFT" | "IN_REVIEW" | "CHANGES_REQUESTED" | null;
 }) {
   const [state, formAction, isPending] = useActionState(
     updateModuleContentAction,
@@ -119,7 +121,13 @@ export function EditModuleForm({
         <EditFieldError id={descriptionErrorId} messages={errors?.description} />
       </label>
 
-      <EditFormActions closeHref={closeHref} onCancel={onCancel} isPending={isPending} submitForReview={submitForReview} />
+      <EditFormActions
+        closeHref={closeHref}
+        onCancel={onCancel}
+        isPending={isPending}
+        submitForReview={submitForReview}
+        submitLabel={revisionStatus === "IN_REVIEW" ? "Guardar cambios de la revisión" : undefined}
+      />
     </form>
   );
 }
