@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   applyEditorialTransition: vi.fn(),
   revalidateContentPages: vi.fn(),
+  redirect: vi.fn(),
 }));
 
 vi.mock("@/server/auth/guards", () => ({
@@ -18,6 +19,9 @@ vi.mock("@/server/content/apply-editorial-transition", () => ({
 }));
 vi.mock("@/server/content/revalidate-content", () => ({
   revalidateContentPages: mocks.revalidateContentPages,
+}));
+vi.mock("next/navigation", () => ({
+  redirect: mocks.redirect,
 }));
 
 import { transitionEditorialContentAction } from "@/modules/content/actions/editorial-actions";
@@ -88,5 +92,22 @@ describe("editorial action revalidation scope", () => {
 
     expect(result.status).toBe("success");
     expect(mocks.revalidateContentPages).toHaveBeenCalledWith("published");
+  });
+
+  it("redirects a resolved review from the server after requesting changes", async () => {
+    mocks.applyEditorialTransition.mockResolvedValue({
+      outcome: "APPLIED",
+      publicationStatus: PublicationStatus.CHANGES_REQUESTED,
+    });
+    const data = editorialForm("REQUEST_CHANGES");
+    data.set("reviewNote", "Completa la explicación del ejercicio.");
+    data.set("successHref", "/dashboard/admin/content/reviews");
+
+    await transitionEditorialContentAction(initialEditorialActionState, data);
+
+    expect(mocks.revalidateContentPages).toHaveBeenCalledWith("authoring");
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/dashboard/admin/content/reviews",
+    );
   });
 });

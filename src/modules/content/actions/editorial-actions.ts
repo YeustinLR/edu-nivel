@@ -1,6 +1,7 @@
 "use server";
 
 import { Role } from "@/generated/prisma/enums";
+import { redirect } from "next/navigation";
 import type { EditorialTransition } from "@/modules/content/domain/editorial-workflow";
 import { editorialActionSchema } from "@/modules/content/schemas/editorial-action.schema";
 import type { EditorialActionState } from "@/modules/content/types/editorial-action-state";
@@ -32,6 +33,7 @@ export async function transitionEditorialContentAction(
     reviewNote: formData.get("reviewNote") || undefined,
     expectedRevisionUpdatedAt:
       formData.get("expectedRevisionUpdatedAt") || undefined,
+    successHref: formData.get("successHref") || undefined,
     reviewConfirmed: formData.get("reviewConfirmed"),
   });
 
@@ -55,8 +57,9 @@ export async function transitionEditorialContentAction(
     throw error;
   }
 
+  let result;
   try {
-    const result = await applyEditorialTransition({
+    result = await applyEditorialTransition({
       targetType: parsed.data.targetType,
       targetId: parsed.data.targetId,
       expectedParentId: parsed.data.parentId,
@@ -65,21 +68,26 @@ export async function transitionEditorialContentAction(
       expectedRevisionUpdatedAt: parsed.data.expectedRevisionUpdatedAt,
       actor,
     });
-    revalidateContentPages(
-      result.publicationStatus === "PUBLISHED" ||
-        parsed.data.transition === "UNPUBLISH"
-        ? "published"
-        : "authoring",
-    );
-
-    return {
-      status: "success",
-      message: successMessages[parsed.data.transition],
-    };
   } catch (error) {
     if (error instanceof EditorialTransitionError) {
       return { status: "error", message: error.message };
     }
     throw error;
   }
+
+  revalidateContentPages(
+    result.publicationStatus === "PUBLISHED" ||
+      parsed.data.transition === "UNPUBLISH"
+      ? "published"
+      : "authoring",
+  );
+
+  if (parsed.data.successHref) {
+    redirect(parsed.data.successHref);
+  }
+
+  return {
+    status: "success",
+    message: successMessages[parsed.data.transition],
+  };
 }

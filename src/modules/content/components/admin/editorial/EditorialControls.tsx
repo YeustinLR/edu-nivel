@@ -8,8 +8,7 @@ import {
   Send,
   type LucideIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useId, useState } from "react";
 
 import { transitionEditorialContentAction } from "@/modules/content/actions/editorial-actions";
 import type { EditorialTransition } from "@/modules/content/domain/editorial-workflow";
@@ -81,12 +80,14 @@ function HiddenFields({
   parentId,
   transition,
   expectedRevisionUpdatedAt,
+  successHref,
 }: {
   targetType: "module" | "resource";
   targetId: string;
   parentId: string;
   transition: EditorialTransition;
   expectedRevisionUpdatedAt?: string;
+  successHref?: string;
 }) {
   return (
     <>
@@ -100,6 +101,9 @@ function HiddenFields({
           name="expectedRevisionUpdatedAt"
           value={expectedRevisionUpdatedAt}
         />
+      ) : null}
+      {successHref ? (
+        <input type="hidden" name="successHref" value={successHref} />
       ) : null}
     </>
   );
@@ -128,7 +132,6 @@ export function EditorialControls({
   expectedRevisionUpdatedAt?: string;
   successHref?: string;
 }) {
-  const router = useRouter();
   const [selectedTransition, setSelectedTransition] =
     useState<EditorialTransition | null>(null);
   const [reviewNote, setReviewNote] = useState(initialReviewNote ?? "");
@@ -142,11 +145,6 @@ export function EditorialControls({
   const isReviewWorkspace = variant === "review-workspace";
   const isStacked = layout === "stacked";
   const canRequestChanges = transitions.includes("REQUEST_CHANGES");
-
-  useEffect(() => {
-    if (state.status !== "success") return;
-    if (successHref) router.replace(successHref);
-  }, [router, state.status, successHref]);
 
   const activeTransition = state.status === "success" ? null : selectedTransition;
   const selectedControl = activeTransition
@@ -213,6 +211,7 @@ export function EditorialControls({
                 parentId={parentId}
                 transition={transition}
                 expectedRevisionUpdatedAt={expectedRevisionUpdatedAt}
+                successHref={successHref}
               />
               <button
                 type="submit"
@@ -235,6 +234,7 @@ export function EditorialControls({
             parentId={parentId}
             transition={activeTransition}
             expectedRevisionUpdatedAt={expectedRevisionUpdatedAt}
+            successHref={successHref}
           />
           {needsReviewNote && isReviewWorkspace ? (
             <input type="hidden" name="reviewNote" value={reviewNote} />

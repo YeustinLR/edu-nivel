@@ -10,6 +10,12 @@ export const editorialActionSchema = z
     transition: z.enum(editorialTransitions),
     reviewNote: z.string().trim().max(500).optional(),
     expectedRevisionUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+    successHref: z
+      .enum([
+        "/dashboard/admin/content/reviews",
+        "/dashboard/admin/content/reviews?kind=modules",
+      ])
+      .optional(),
     reviewConfirmed: z.preprocess(
       (value) => value === true || value === "true" || value === "on",
       z.boolean(),

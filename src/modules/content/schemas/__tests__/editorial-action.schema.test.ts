@@ -71,4 +71,22 @@ describe("editorialActionSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("only accepts review inbox destinations after a successful transition", () => {
+    expect(
+      editorialActionSchema.safeParse({
+        ...baseInput,
+        transition: "SUBMIT_FOR_REVIEW",
+        successHref: "/dashboard/admin/content/reviews",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      editorialActionSchema.safeParse({
+        ...baseInput,
+        transition: "SUBMIT_FOR_REVIEW",
+        successHref: "https://example.com",
+      }).success,
+    ).toBe(false);
+  });
 });
